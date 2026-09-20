@@ -20,6 +20,8 @@ def event_label(row):
 
 
 def cards(conn, rows, goto=None, prefix='detail'):
+    from lib.record_ui import selected_editor
+    selected_editor(conn)
     if rows.empty:
         st.info('아직 기록이 없습니다. 위에서 오늘의 기록을 남겨보세요.')
         return
@@ -46,6 +48,8 @@ def cards(conn, rows, goto=None, prefix='detail'):
                     path=db.photo_path(row['photo'])
                     if path: st.image(str(path),width='stretch')
                     else: st.warning('사진 파일을 찾을 수 없습니다.')
+                from lib.record_ui import edit_controls
+                edit_controls(conn,row)
                 if goto and st.button('해당 책으로 이동',key=f"{prefix}_book_{row['id']}"):
                     goto('책 상세',row['book_id']); st.rerun()
 
@@ -133,3 +137,18 @@ def detail(conn,book_id,goto,management):
     choice=st.radio('기록 보기',['전체','인용구·메모','사진','진도'],horizontal=True,key='detail_filter')
     if choice!='전체': rows=rows[rows['kind'].isin({'인용구·메모':[0,2],'사진':[1],'진도':[4]}[choice])]
     cards(conn,rows)
+    from lib.record_ui import trash
+    trash(conn,book_id)
+
+
+def timeline(conn,goto):
+    st.header('타임라인')
+    search=st.text_input('책 제목 · 인용문 · 메모 검색',key='timeline_search')
+    choice=st.radio('기록 종류',['전체','인용구·메모','사진','진도'],horizontal=True,key='timeline_kind')
+    import pandas as pd
+    rows=pd.read_sql_query("SELECT a.*,b.title,b.author FROM activities a JOIN books b ON b.id=a.book_id WHERE a.deleted_at IS NULL ORDER BY a.date DESC,a.rowid DESC",conn)
+    if search:
+        mask=rows[['title','quote','text']].fillna('').apply(lambda col:col.str.contains(search,case=False,regex=False)).any(axis=1)
+        rows=rows[mask]
+    if choice!='전체': rows=rows[rows['kind'].isin({'인용구·메모':[0,2],'사진':[1],'진도':[4]}[choice])]
+    cards(conn,rows,goto,prefix='timeline')

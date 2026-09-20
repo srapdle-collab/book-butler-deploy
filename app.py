@@ -15,7 +15,7 @@ load_dotenv()
 
 st.set_page_config(page_title="도서비서", page_icon="📚", layout="wide")
 
-NAV_ITEMS = ["책장", "통계", "스트릭 / 뱃지"]
+NAV_ITEMS = ["책장", "타임라인", "통계", "스트릭 / 뱃지"]
 
 if "view" not in st.session_state:
     st.session_state.view = "책장"
@@ -28,6 +28,8 @@ if "add_book_candidates" not in st.session_state:
 
 
 def goto(view: str, book_id: str | None = None) -> None:
+    st.session_state.record_edit_id = None
+    st.session_state.record_mode = None
     st.session_state.view = view
     st.session_state.selected_book_id = book_id
 
@@ -344,6 +346,9 @@ if st.session_state.view == "책장":
     render_shelf(conn)
 elif st.session_state.view == "책 상세":
     render_detail(conn, st.session_state.selected_book_id)
+elif st.session_state.view == "타임라인":
+    from lib.notebook_ui import timeline
+    timeline(conn, goto)
 elif st.session_state.view == "통계":
     render_stats(conn)
 elif st.session_state.view == "스트릭 / 뱃지":

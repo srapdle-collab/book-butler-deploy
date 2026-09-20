@@ -13,6 +13,9 @@ def ensure_schema(conn):
             inferred_status TEXT, evidence TEXT
         );
         CREATE TABLE IF NOT EXISTS app_migrations (name TEXT PRIMARY KEY, applied_at INTEGER);
+        CREATE TABLE IF NOT EXISTS deletion_page_effect (
+            activity_id TEXT PRIMARY KEY, page_before INTEGER, page_after INTEGER
+        );
         CREATE TABLE IF NOT EXISTS reading_sessions (
             id TEXT PRIMARY KEY, book_id TEXT NOT NULL REFERENCES books(id),
             started_at INTEGER NOT NULL, stopped_at INTEGER, base_page INTEGER NOT NULL,
