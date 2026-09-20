@@ -170,7 +170,7 @@ def timeline(conn,goto):
     search=st.text_input('기록 검색 · 인용문, 메모, 책 제목, 저자',key='timeline_search')
     choice=st.radio('기록 종류',['전체','인용구·메모','사진','진도'],horizontal=True,key='timeline_kind')
     import pandas as pd
-    rows=pd.read_sql_query("SELECT a.*,b.title,b.author FROM activities a JOIN books b ON b.id=a.book_id WHERE a.deleted_at IS NULL ORDER BY a.date DESC,a.rowid DESC",conn)
+    rows=db.database.read_frame(conn, f"SELECT a.*,b.title,b.author FROM activities a JOIN books b ON b.id=a.book_id WHERE a.deleted_at IS NULL ORDER BY a.date DESC,a.{db.database.activity_position(conn)} DESC")
     if search:
         mask=rows[['title','author','quote','text']].fillna('').apply(lambda col:col.str.contains(search,case=False,regex=False)).any(axis=1)
         rows=rows[mask]

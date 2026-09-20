@@ -2,22 +2,23 @@
 from __future__ import annotations
 import time
 import uuid
-from lib import db
+from lib import db, database
 
 
-def active(conn):
-    return conn.execute("SELECT * FROM reading_sessions WHERE state IN ('running','stopped')").fetchone()
+def active(conn, *, lock=False):
+    query="SELECT * FROM reading_sessions WHERE state IN ('running','stopped')"
+    cursor=database.lock_rows(conn,query) if lock else conn.execute(query)
+    return cursor.fetchone()
 
 
 def start(conn,book_id,now=None):
     now=int(time.time()) if now is None else now
-    with conn:
-        conn.execute('BEGIN IMMEDIATE')
-        existing=active(conn)
+    with database.transaction(conn,lock_reading=True):
+        existing=active(conn,lock=True)
         if existing:
             if existing['book_id']==book_id: return existing
             raise ValueError('다른 책의 타이머를 먼저 저장하거나 취소해주세요.')
-        book=db.get_book(conn,book_id)
+        book=database.lock_rows(conn,'SELECT * FROM books WHERE id=?',(book_id,)).fetchone()
         if book is None: raise ValueError('책을 찾을 수 없습니다.')
         sid=str(uuid.uuid4())
         conn.execute("INSERT INTO reading_sessions(id,book_id,started_at,base_page,state) VALUES (?,?,?,?,'running')",
@@ -27,12 +28,12 @@ def start(conn,book_id,now=None):
 
 def stop(conn,session_id,now=None):
     now=int(time.time()) if now is None else now
-    with conn:
-        conn.execute("UPDATE reading_sessions SET stopped_at=MAX(started_at,?),state='stopped' WHERE id=? AND state='running'",(now,session_id))
+    with database.transaction(conn,lock_reading=True):
+        conn.execute("UPDATE reading_sessions SET stopped_at=CASE WHEN started_at>%s THEN started_at ELSE %s END,state='stopped' WHERE id=%s AND state='running'" if database.is_postgres(conn) else "UPDATE reading_sessions SET stopped_at=MAX(started_at,?),state='stopped' WHERE id=? AND state='running'", (now,now,session_id) if database.is_postgres(conn) else (now,session_id))
 
 
 def cancel(conn,session_id):
-    with conn:
+    with database.transaction(conn,lock_reading=True):
         conn.execute("UPDATE reading_sessions SET state='cancelled' WHERE id=? AND state IN ('running','stopped')",(session_id,))
 
 
@@ -56,13 +57,12 @@ def _write_progress(conn,book_id,base,page,seconds,timestamp=None):
 
 
 def save(conn,session_id,page):
-    with conn:
-        conn.execute('BEGIN IMMEDIATE')
-        session=conn.execute('SELECT * FROM reading_sessions WHERE id=?',(session_id,)).fetchone()
+    with database.transaction(conn,lock_reading=True):
+        session=database.lock_rows(conn,'SELECT * FROM reading_sessions WHERE id=?',(session_id,)).fetchone()
         if session is None: raise ValueError('독서 세션을 찾을 수 없습니다.')
         if session['state']=='saved': return session['activity_id']
         if session['state']!='stopped': raise ValueError('먼저 타이머를 멈춰주세요.')
-        book=db.get_book(conn,session['book_id'])
+        book=database.lock_rows(conn,'SELECT * FROM books WHERE id=?',(session['book_id'],)).fetchone()
         if (book['current_page'] or 0)!=session['base_page']:
             raise ValueError('독서 중 진도가 변경됐습니다. 현재 진도를 확인한 후 수동 기록해주세요.')
         aid=_write_progress(conn,session['book_id'],session['base_page'],page,elapsed(session),session['stopped_at'])
@@ -71,10 +71,9 @@ def save(conn,session_id,page):
 
 
 def manual(conn,book_id,page,minutes):
-    with conn:
-        conn.execute('BEGIN IMMEDIATE')
-        if active(conn): raise ValueError('진행 중인 타이머를 먼저 저장하거나 취소해주세요.')
-        book=db.get_book(conn,book_id)
+    with database.transaction(conn,lock_reading=True):
+        if active(conn,lock=True): raise ValueError('진행 중인 타이머를 먼저 저장하거나 취소해주세요.')
+        book=database.lock_rows(conn,'SELECT * FROM books WHERE id=?',(book_id,)).fetchone()
         if book is None: raise ValueError('책을 찾을 수 없습니다.')
         if minutes<=0: raise ValueError('읽은 시간은 1분 이상이어야 합니다.')
-        return _write_progress(conn,book_id,book['current_page'] or 0,page,round(minutes*60))
+        return _write_progress(conn,book_id,page=page,base=book['current_page'] or 0,seconds=round(minutes*60))

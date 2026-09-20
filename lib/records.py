@@ -2,19 +2,25 @@
 from __future__ import annotations
 import time
 from lib import db, reading
+from lib import database
 
 UNSET=object()
 
 
-def get(conn,aid):
-    row=conn.execute('SELECT rowid AS position,* FROM activities WHERE id=?',(aid,)).fetchone()
+def get(conn,aid,*,lock=False):
+    query=f'SELECT {database.activity_position(conn)} AS position,* FROM activities WHERE id=?'
+    cursor=database.lock_rows(conn,query,(aid,)) if lock else conn.execute(query,(aid,))
+    row=cursor.fetchone()
     if row is None: raise ValueError('기록을 찾을 수 없습니다.')
     return row
 
 
 def is_latest(conn,row):
-    latest=conn.execute('SELECT id FROM activities WHERE book_id=? AND kind=4 AND deleted_at IS NULL ORDER BY date DESC,rowid DESC LIMIT 1',
-                        (row['book_id'],)).fetchone()
+    latest=conn.execute(
+        f'SELECT id FROM activities WHERE book_id=? AND kind=4 AND deleted_at IS NULL '
+        f'ORDER BY date DESC,{database.activity_position(conn)} DESC LIMIT 1',
+        (row['book_id'],),
+    ).fetchone()
     return latest is not None and latest['id']==row['id']
 
 
@@ -38,17 +44,22 @@ def check(conn,row,revision=UNSET):
         raise ValueError('타이머를 먼저 저장하거나 취소해주세요.')
 
 
+def locked_book(conn,book_id):
+    book=database.lock_rows(conn,'SELECT * FROM books WHERE id=?',(book_id,)).fetchone()
+    if book is None: raise ValueError('책 정보를 찾을 수 없습니다.')
+    return book
+
+
 def update(conn,aid,*,page,quote='',text='',minutes=None,expected_revision=UNSET):
-    with conn:
-        conn.execute('BEGIN IMMEDIATE')
-        row=get(conn,aid); check(conn,row,expected_revision)
+    with database.transaction(conn,lock_reading=True):
+        row=get(conn,aid,lock=True); check(conn,row,expected_revision)
         db.validate_page(conn,row['book_id'],page)
         if row['kind']==4:
             if minutes is None or minutes<0: raise ValueError('시간을 0분 이상 입력해주세요.')
             base=base_page(row)
             amount=row['pages_read']
             if page!=row['page']:
-                book=db.get_book(conn,row['book_id'])
+                book=locked_book(conn,row['book_id'])
                 if not is_latest(conn,row) or book['current_page']!=row['page'] or book['status']!='읽는 중':
                     raise ValueError('현재 진도와 일치하는 최신 진도만 페이지를 수정할 수 있습니다.')
                 if base is None or page<base: raise ValueError('시작 페이지를 확인할 수 없거나 그보다 앞선 페이지입니다.')
@@ -67,31 +78,36 @@ def update(conn,aid,*,page,quote='',text='',minutes=None,expected_revision=UNSET
 
 
 def delete(conn,aid,expected_revision=UNSET):
-    with conn:
-        conn.execute('BEGIN IMMEDIATE')
-        row=get(conn,aid); check(conn,row,expected_revision)
+    with database.transaction(conn,lock_reading=True):
+        row=get(conn,aid,lock=True); check(conn,row,expected_revision)
         if row['kind']==4:
-            book=db.get_book(conn,row['book_id'])
+            book=locked_book(conn,row['book_id'])
             if is_latest(conn,row) and book['current_page']==row['page'] and book['status']=='읽는 중':
                 base=base_page(row)
                 if base is None: raise ValueError('시작 페이지가 불명확해 최신 진도를 안전하게 되돌릴 수 없습니다.')
-                conn.execute('INSERT OR REPLACE INTO deletion_page_effect VALUES (?,?,?)',(aid,row['page'],base))
+                conn.execute(
+                    'INSERT INTO deletion_page_effect(activity_id,page_before,page_after) VALUES (?,?,?) '
+                    'ON CONFLICT(activity_id) DO UPDATE SET page_before=excluded.page_before,page_after=excluded.page_after',
+                    (aid,row['page'],base),
+                )
                 conn.execute('UPDATE books SET current_page=? WHERE id=?',(base,row['book_id']))
         conn.execute('UPDATE activities SET deleted_at=?,updated_at=? WHERE id=?',(int(time.time()),time.time_ns(),aid))
 
 
 def restore(conn,aid):
-    with conn:
-        conn.execute('BEGIN IMMEDIATE')
-        row=get(conn,aid)
+    with database.transaction(conn,lock_reading=True):
+        row=get(conn,aid,lock=True)
         if row['deleted_at'] is None: return
         effect=conn.execute('SELECT * FROM deletion_page_effect WHERE activity_id=?',(aid,)).fetchone()
         if effect:
-            book=db.get_book(conn,row['book_id'])
+            book=locked_book(conn,row['book_id'])
             if reading.active(conn) or book['current_page']!=effect['page_after'] or book['status']!='읽는 중':
                 raise ValueError('삭제 이후 진도나 상태가 달라졌습니다. 타이머와 현재 진도를 확인해주세요.')
-            newer=conn.execute('SELECT 1 FROM activities WHERE book_id=? AND kind=4 AND deleted_at IS NULL AND (date>? OR (date=? AND rowid>?))',
-                               (row['book_id'],row['date'],row['date'],row['position'])).fetchone()
+            newer=conn.execute(
+                f'SELECT 1 FROM activities WHERE book_id=? AND kind=4 AND deleted_at IS NULL '
+                f'AND (date>? OR (date=? AND {database.activity_position(conn)}> ?))',
+                (row['book_id'],row['date'],row['date'],row['position']),
+            ).fetchone()
             if newer: raise ValueError('더 최근 진도가 있어 복원 시 현재 페이지가 충돌합니다.')
             conn.execute('UPDATE books SET current_page=? WHERE id=?',(effect['page_before'],row['book_id']))
             conn.execute('DELETE FROM deletion_page_effect WHERE activity_id=?',(aid,))

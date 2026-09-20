@@ -12,6 +12,7 @@ from typing import Any
 
 import pandas as pd
 from lib.schema import ensure_schema
+from lib import database
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "data" / "book_butler.db"
@@ -89,7 +90,17 @@ def _ensure_numeric_activity_kinds(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def get_connection(db_path: Path | None = None) -> sqlite3.Connection:
+def get_connection(db_path: Path | None = None):
+    """테스트/로컬은 SQLite, 배포 환경은 Supabase Postgres에 연결한다."""
+    configured_override = os.environ.get("BOOK_BUTLER_DB_PATH") if db_path is None else None
+    database_url = database.database_url_from_env() if db_path is None and not configured_override else None
+    if database_url:
+        from psycopg import connect
+        from psycopg.rows import dict_row
+        raw = connect(database_url, row_factory=dict_row, autocommit=True)
+        conn = database.PostgresConnection(raw)
+        ensure_schema(conn)
+        return conn
     configured_path = Path(os.environ.get("BOOK_BUTLER_DB_PATH", DB_PATH))
     conn = sqlite3.connect(db_path or configured_path)
     conn.row_factory = sqlite3.Row
@@ -159,7 +170,7 @@ def list_books(
     if limit is not None:
         query += " LIMIT ? OFFSET ?"
         params.extend([limit, max(offset, 0)])
-    return pd.read_sql_query(query, conn, params=params)
+    return database.read_frame(conn, query, params=params)
 
 
 def count_books(
@@ -192,15 +203,16 @@ def get_book(conn: sqlite3.Connection, book_id: str) -> sqlite3.Row | None:
 
 
 def list_activities(conn: sqlite3.Connection, book_id: str) -> pd.DataFrame:
-    return pd.read_sql_query(
-        "SELECT * FROM activities WHERE book_id = ? AND deleted_at IS NULL ORDER BY date DESC, rowid DESC",
+    return database.read_frame(
         conn,
+        f"SELECT * FROM activities WHERE book_id = ? AND deleted_at IS NULL "
+        f"ORDER BY date DESC, {database.activity_position(conn)} DESC",
         params=[book_id],
     )
 
 
 def all_activities(conn: sqlite3.Connection) -> pd.DataFrame:
-    return pd.read_sql_query("SELECT * FROM activities WHERE deleted_at IS NULL ORDER BY date", conn)
+    return database.read_frame(conn, "SELECT * FROM activities WHERE deleted_at IS NULL ORDER BY date")
 
 
 def insert_book(conn: sqlite3.Connection, book: dict[str, Any]) -> str:
@@ -354,9 +366,8 @@ def update_book_status(conn, book_id, status, timestamp=None):
     if status not in {'읽는 중', '완독', '읽기 중단'}:
         raise ValueError('지원하지 않는 책 상태입니다.')
     now = int(time.time()) if timestamp is None else timestamp
-    with conn:
-        conn.execute('BEGIN IMMEDIATE')
-        book = get_book(conn, book_id)
+    with database.transaction(conn, lock_reading=True):
+        book = database.lock_rows(conn, 'SELECT * FROM books WHERE id = ?', (book_id,)).fetchone()
         if book is None:
             raise ValueError('책 정보를 찾을 수 없습니다.')
         if book['status'] == status:
@@ -406,7 +417,6 @@ def update_book_info(conn: sqlite3.Connection, book_id: str, book: dict[str, Any
 
 
 def book_counts_by_category(conn: sqlite3.Connection) -> pd.DataFrame:
-    return pd.read_sql_query(
-        "SELECT category, COUNT(*) AS count FROM books GROUP BY category ORDER BY count DESC",
-        conn,
+    return database.read_frame(
+        conn, "SELECT category, COUNT(*) AS count FROM books GROUP BY category ORDER BY count DESC"
     )

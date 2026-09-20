@@ -1,5 +1,6 @@
 """인용구·메모의 공유/메일 본문을 생성한다."""
 from urllib.parse import urlencode,quote
+from lib import database
 
 
 def citation(book,row):
@@ -26,7 +27,7 @@ def record_text(book,row):
 
 
 def export_book(conn,book,include_notes=False):
-    rows=conn.execute('SELECT * FROM activities WHERE book_id=? AND kind IN (0,2) AND deleted_at IS NULL ORDER BY page,date,rowid',(book['id'],)).fetchall()
+    rows=conn.execute(f'SELECT * FROM activities WHERE book_id=? AND kind IN (0,2) AND deleted_at IS NULL ORDER BY page,date,{database.activity_position(conn)}',(book['id'],)).fetchall()
     records=[quote_text(book,r,include_notes) for r in rows if r['quote'] or (include_notes and r['text'])]
     return f"{book['title']} — {book['author'] or '저자 미상'}\n\n"+'\n\n──────────\n\n'.join(records)
 
