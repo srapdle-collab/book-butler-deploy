@@ -15,7 +15,7 @@ load_dotenv()
 
 st.set_page_config(page_title="도서비서", page_icon="📚", layout="wide")
 
-NAV_ITEMS = ["책장", "타임라인", "통계", "스트릭 / 뱃지"]
+NAV_ITEMS = ["책장", "타임라인", "한 장의 추억", "통계", "스트릭 / 뱃지"]
 
 if "view" not in st.session_state:
     st.session_state.view = "책장"
@@ -204,7 +204,9 @@ def render_detail(conn, book_id):
 
 
 def render_book_management(conn, book) -> None:
-    with st.expander("⋯ 책 관리"):
+    with st.expander("⋯ 책 관리 · 내보내기"):
+        from lib.sharing_ui import export_menu
+        export_menu(conn, book)
         with st.form("status_form"):
             statuses = ["읽는 중", "완독", "읽기 중단"]
             current_index = statuses.index(book["status"]) if book["status"] in statuses else 0
@@ -349,6 +351,9 @@ elif st.session_state.view == "책 상세":
 elif st.session_state.view == "타임라인":
     from lib.notebook_ui import timeline
     timeline(conn, goto)
+elif st.session_state.view == "한 장의 추억":
+    from lib.sharing_ui import memory
+    memory(conn, goto)
 elif st.session_state.view == "통계":
     render_stats(conn)
 elif st.session_state.view == "스트릭 / 뱃지":
