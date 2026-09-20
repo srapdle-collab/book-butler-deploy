@@ -97,7 +97,7 @@ def get_connection(db_path: Path | None = None):
     if database_url:
         from psycopg import connect
         from psycopg.rows import dict_row
-        raw = connect(database_url, row_factory=dict_row, autocommit=True)
+        raw = connect(database_url, row_factory=dict_row, autocommit=True, prepare_threshold=None)
         conn = database.PostgresConnection(raw)
         ensure_schema(conn)
         return conn
@@ -122,12 +122,26 @@ def photo_path(filename: str | None) -> Path | None:
     return None
 
 
+def storage_photo_source(filename: str | None, *, kind: str) -> str | None:
+    """배포에서는 비공개 Storage URL을, 로컬에서는 파일 경로를 돌려준다."""
+    if not filename:
+        return None
+    from lib import storage
+    if storage.is_configured():
+        remote = storage.signed_url(storage.object_key(filename, kind=kind))
+        if remote:
+            return remote
+    local = photo_path(filename)
+    return str(local) if local else None
+
+
 def cover_source(book) -> str | None:
-    """표지로 쓸 이미지 경로/URL. 로컬 파일을 우선하고 없으면 원격 URL을 쓴다."""
-    local = photo_path(book["cover_photo"])
-    if local:
-        return str(local)
-    return book["cover_url"] or None
+    """표지로 쓸 이미지 경로/URL. 비공개 Storage URL을 우선한다."""
+    return storage_photo_source(book["cover_photo"], kind="cover") or book["cover_url"] or None
+
+
+def activity_photo_source(filename: str | None) -> str | None:
+    return storage_photo_source(filename, kind="photo")
 
 
 def list_categories(conn: sqlite3.Connection) -> list[str]:
@@ -195,7 +209,7 @@ def count_books(
         query += " AND (title LIKE ? OR author LIKE ?)"
         like = f"%{search}%"
         params.extend([like, like])
-    return int(conn.execute(query, params).fetchone()[0])
+    return int(database.scalar(conn.execute(query, params).fetchone()))
 
 
 def get_book(conn: sqlite3.Connection, book_id: str) -> sqlite3.Row | None:
@@ -334,21 +348,33 @@ def add_photo(
     if suffix not in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic"}:
         raise ValueError("지원하는 이미지 파일을 선택해주세요.")
     validate_photo(content)
-    photos_dir = Path(os.environ.get("BOOK_BUTLER_PHOTOS_DIR", USER_PHOTOS_DIR))
-    photos_dir.mkdir(parents=True, exist_ok=True)
     filename = f"{uuid.uuid4()}{suffix}"
-    destination = photos_dir / filename
-    destination.write_bytes(content)
+    photo_value = f"photos/{filename}"
+    remote_key = None
+    destination = None
+    if database.is_postgres(conn):
+        from lib import storage
+        remote_key = storage.object_key(photo_value, kind="photo")
+        storage.upload_photo(remote_key, content)
+    else:
+        photos_dir = Path(os.environ.get("BOOK_BUTLER_PHOTOS_DIR", USER_PHOTOS_DIR))
+        photos_dir.mkdir(parents=True, exist_ok=True)
+        destination = photos_dir / filename
+        destination.write_bytes(content)
     try:
         return insert_activity(
             conn,
             book_id=book_id,
             kind=1,
             page=page,
-            photo=f"photos/{filename}",
+            photo=photo_value,
         )
     except Exception:
-        destination.unlink(missing_ok=True)
+        if destination:
+            destination.unlink(missing_ok=True)
+        elif remote_key:
+            from lib import storage
+            storage.delete_photo(remote_key)
         raise
 
 

@@ -48,6 +48,13 @@ def read_frame(conn, query: str, params=()):
     return pd.read_sql_query(sql(conn, query), getattr(conn, "raw", conn), params=params)
 
 
+def scalar(row):
+    """sqlite3.Row와 psycopg dict row 모두에서 첫 값을 꺼낸다."""
+    if isinstance(row, dict):
+        return next(iter(row.values()))
+    return row[0]
+
+
 def lock_rows(conn, query: str, params=()):
     suffix = " FOR UPDATE" if is_postgres(conn) else ""
     return execute(conn, query + suffix, params)

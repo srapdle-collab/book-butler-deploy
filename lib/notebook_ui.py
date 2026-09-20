@@ -50,9 +50,9 @@ def cards(conn, rows, goto=None, prefix='detail'):
                         st.caption('내 생각')
                     st.markdown(row['text'])
                 if row.get('photo'):
-                    path=db.photo_path(row['photo'])
+                    path=db.activity_photo_source(row['photo'])
                     if path:
-                        st.image(str(path), width='stretch')
+                        st.image(path, width='stretch')
                     else:
                         st.warning('사진 파일을 찾을 수 없습니다.')
                 if not any(row.get(field) for field in ('quote', 'text', 'photo')):
