@@ -137,3 +137,9 @@ SQLite 전용 패턴이 깊이 박혀 있음:
 - `migration/migrate_to_supabase.py --apply --verify`로 원본 SQLite를 이관했다. 검증 결과: books 705, activities 5,667, photo_manifest 762, source_book_state 705, app_migrations 1, reading_sessions 1이 원본과 일치했고 사진 762개를 업로드했다. 기록 사진 참조는 57개다.
 - 실제 Supabase에서 목록→책 상세→활동 조회와 표지·기록 사진 서명 URL 발급을 확인했다. 자동화 테스트는 47개 통과했다.
 - `main`에 이전 코드를 push했다. Streamlit Community Cloud 배포 화면은 공개 앱만 제공하므로, 요청한 초대 전용 조건을 지키기 위해 공개 배포와 Cloud secrets 등록은 보류했다. 비공개 앱을 지원하는 Streamlit Teams 또는 별도 인증 프록시가 필요하다.
+
+## 2026-09-21 — Codex: 공개 배포용 앱 비밀번호 관문
+- Community Cloud의 공개 앱 정책에 맞춰 앱 시작 직후 비밀번호 관문을 추가했다. `BOOK_BUTLER_APP_PASSWORD`는 로컬 `.env` 또는 Cloud Secrets에서만 읽으며 코드와 Git에는 저장하지 않는다.
+- 비밀번호가 맞기 전에는 책장·기록·통계 등을 렌더링하지 않고 중단한다. 성공하면 세션 상태에만 인증 결과를 보관해 같은 세션에서는 다시 묻지 않는다.
+- 검증: 비밀번호 미입력/오입력 시 앱 본문 비노출, 정답 입력 후 책장 노출 및 세션 유지 AppTest를 포함해 전체 48개 테스트 통과.
+- `main`에 비밀번호 관문 코드를 push했다. Cloud Secrets에 넣을 실제 `BOOK_BUTLER_APP_PASSWORD` 값이 아직 로컬 `.env`에 없어 공개 배포와 실서비스 검증은 대기한다.
