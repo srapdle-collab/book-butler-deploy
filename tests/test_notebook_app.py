@@ -29,3 +29,19 @@ def test_cards_are_newest_first_and_cancel_does_not_save(isolated_app):
     at.text_area(key='note_text').set_value('취소할 기록')
     at.button(key='cancel_input').click().run()
     assert fetch_one(isolated_app[0], 'SELECT COUNT(*) FROM activities') == (2,)
+
+
+def test_cards_use_notebook_timeline_page_and_unlabeled_date(isolated_app):
+    from lib import db
+    conn = db.get_connection()
+    db.add_progress(conn, 'book-1', 23, 12)
+    db.add_quote(conn, 'book-1', 24, '따옴표 없이 보여 줄 인용문', '')
+    conn.close()
+
+    at = open_detail()
+    markdown = [element.value for element in at.markdown]
+    captions = [element.value for element in at.caption]
+    assert any('record-page' in value and '>24<' in value for value in markdown)
+    assert '따옴표 없이 보여 줄 인용문' in markdown
+    assert '13쪽을 12분 동안 읽었습니다' in markdown
+    assert not any(value.startswith('진도 ·') or value.startswith('인용구 ·') for value in captions)

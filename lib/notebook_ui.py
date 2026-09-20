@@ -33,27 +33,44 @@ def cards(conn, rows, goto=None, prefix='detail'):
     st.caption(f'총 {len(rows):,}개 기록 · 최신순')
     for _, series in rows.iloc[(page-1)*size:page*size].iterrows():
         row=series.to_dict()
-        with st.container(border=True,key=f"note_card_{row['id']}"):
-            left,right=st.columns([1,7])
-            left.markdown(f"**{int(row['page'] or 0)}쪽**")
-            with right:
-                st.caption(f"{event_label(row)} · {date_label(row['date'])}")
+        with st.container(key=f"note_card_{row['id']}"):
+            page_col, content_col = st.columns([1, 6], vertical_alignment='top')
+            page_col.markdown(
+                f'<div class="record-page">{int(row["page"] or 0)}</div>',
+                unsafe_allow_html=True,
+            )
+            with content_col:
                 if row.get('title'):
                     st.caption(f"{row['title']} · {row.get('author') or '저자 미상'}")
-                if row.get('quote'): st.markdown(row['quote'])
+                if row.get('quote'):
+                    # 인용문은 원문 그대로 보인다. 화면용 따옴표를 덧붙이지 않는다.
+                    st.markdown(row['quote'])
                 if row.get('text'):
-                    if row.get('quote'): st.caption('내 생각')
+                    if row.get('quote'):
+                        st.caption('내 생각')
                     st.markdown(row['text'])
                 if row.get('photo'):
                     path=db.photo_path(row['photo'])
-                    if path: st.image(str(path),width='stretch')
-                    else: st.warning('사진 파일을 찾을 수 없습니다.')
+                    if path:
+                        st.image(str(path), width='stretch')
+                    else:
+                        st.warning('사진 파일을 찾을 수 없습니다.')
+                if not any(row.get(field) for field in ('quote', 'text', 'photo')):
+                    # 시작·완독·중단처럼 본문이 없는 기존 이벤트도 타임라인에서 비지 않는다.
+                    st.markdown({
+                        'reading_started': '책을 읽기 시작했습니다.',
+                        'timer_started': '독서 타이머를 시작했습니다.',
+                        'completed': '이 책을 완독했습니다.',
+                        'stopped': '읽기를 중단했습니다.',
+                    }.get(row.get('event_type'), event_label(row)))
+                st.caption(date_label(row['date']))
                 from lib.sharing_ui import record_share
-                record_share(conn,row,prefix)
+                record_share(conn, row, prefix)
                 from lib.record_ui import edit_controls
-                edit_controls(conn,row)
-                if goto and st.button('해당 책으로 이동',key=f"{prefix}_book_{row['id']}"):
-                    goto('책 상세',row['book_id']); st.rerun()
+                edit_controls(conn, row)
+                if goto and st.button('해당 책으로 이동', key=f"{prefix}_book_{row['id']}"):
+                    goto('책 상세', row['book_id'])
+                    st.rerun()
 
 
 def close_input(message=None):

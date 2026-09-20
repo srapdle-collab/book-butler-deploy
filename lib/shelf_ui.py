@@ -32,10 +32,14 @@ def _cover_card(book, goto, prefix='shelf', show_progress=False):
 
 
 def _cover_grid(books, goto, prefix='shelf', show_progress=False):
-    columns = st.columns(4, gap='small')
-    for index, (_, book) in enumerate(books.iterrows()):
-        with columns[index % 4]:
-            _cover_card(book, goto, prefix=prefix, show_progress=show_progress)
+    if books.empty:
+        return
+    # 좁은 화면에서도 4열을 유지해 한 줄씩 길게 늘어지는 일을 막는다.
+    with st.container(key=f"{prefix}_cover_grid_{books.iloc[0]['id']}"):
+        columns = st.columns(4, gap='small')
+        for index, (_, book) in enumerate(books.iterrows()):
+            with columns[index % 4]:
+                _cover_card(book, goto, prefix=prefix, show_progress=show_progress)
 
 
 def render(conn,goto,add_book):
