@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import os
 from datetime import datetime
 
@@ -13,6 +14,39 @@ from lib import db, library_api, streak
 load_dotenv()
 
 st.set_page_config(page_title="읽담", page_icon="📚", layout="wide")
+
+
+def _app_password() -> str:
+    """로컬 .env와 Streamlit Cloud Secrets에서 잠금 비밀번호를 읽는다."""
+    value = os.environ.get("BOOK_BUTLER_APP_PASSWORD", "").strip()
+    if value:
+        return value
+    try:
+        return str(st.secrets.get("BOOK_BUTLER_APP_PASSWORD", "")).strip()
+    except (FileNotFoundError, KeyError):
+        return ""
+
+
+def require_app_password() -> None:
+    password = _app_password()
+    # 비밀번호를 아직 설정하지 않은 로컬 개발 환경은 기존 흐름을 유지한다.
+    if not password or st.session_state.get("app_authenticated"):
+        return
+    st.title("읽담")
+    st.caption("개인 독서 기록을 보려면 비밀번호를 입력해주세요.")
+    entered = st.text_input("비밀번호", type="password", key="app_password")
+    if st.button("열기", key="unlock_app", type="primary"):
+        if hmac.compare_digest(entered, password):
+            st.session_state.app_authenticated = True
+            st.session_state.pop("app_password", None)
+            st.rerun()
+        else:
+            st.error("비밀번호가 맞지 않습니다.")
+    st.stop()
+
+
+require_app_password()
+
 from lib.theme import apply as apply_theme
 apply_theme()
 
