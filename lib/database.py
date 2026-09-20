@@ -45,7 +45,10 @@ def execute(conn, query: str, params=()):
 
 
 def read_frame(conn, query: str, params=()):
-    return pd.read_sql_query(sql(conn, query), getattr(conn, "raw", conn), params=params)
+    if is_postgres(conn):
+        # psycopg의 dict row를 DataFrame으로 직접 변환해 열 이름을 보존한다.
+        return pd.DataFrame(conn.execute(query, params).fetchall())
+    return pd.read_sql_query(sql(conn, query), conn, params=params)
 
 
 def scalar(row):

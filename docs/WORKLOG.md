@@ -129,3 +129,11 @@ SQLite 전용 패턴이 깊이 박혀 있음:
 - `requirements.txt`에 Postgres 클라이언트/Supabase Storage 클라이언트 추가.
 
 사용자 승인 없이는 원격 push·main 반영을 하지 않았다(이번 세션은 로컬 작업만).
+
+## 2026-09-20 — Codex: Supabase 지속 저장 전환
+- SQLite와 Supabase Postgres를 함께 지원하는 DB 호환 계층을 추가했다. Postgres에서는 UUID와 별도 `position` 시퀀스로 SQLite `rowid` 정렬 의미를 보존한다.
+- 기록 수정·삭제·복원과 단일 타이머는 Postgres 트랜잭션, 행 잠금, 트랜잭션 범위 advisory lock으로 이전했다. PgBouncer transaction pool에서 prepared statement 충돌이 나지 않도록 비활성화했다.
+- private `book-photos` Storage 버킷을 쓰는 사진 어댑터를 추가했다. 배포 시에는 짧은 만료의 서명 URL로만 표지·기록 사진을 제공하며, 새 사진도 Storage에 저장한다.
+- `migration/migrate_to_supabase.py --apply --verify`로 원본 SQLite를 이관했다. 검증 결과: books 705, activities 5,667, photo_manifest 762, source_book_state 705, app_migrations 1, reading_sessions 1이 원본과 일치했고 사진 762개를 업로드했다. 기록 사진 참조는 57개다.
+- 실제 Supabase에서 목록→책 상세→활동 조회와 표지·기록 사진 서명 URL 발급을 확인했다. 자동화 테스트는 47개 통과했다.
+- `main`에 이전 코드를 push했다. Streamlit Community Cloud 배포 화면은 공개 앱만 제공하므로, 요청한 초대 전용 조건을 지키기 위해 공개 배포와 Cloud secrets 등록은 보류했다. 비공개 앱을 지원하는 Streamlit Teams 또는 별도 인증 프록시가 필요하다.

@@ -31,11 +31,11 @@
 - Produces `is_postgres(conn)`, `execute(conn, sql, params=())`, `read_frame(conn, sql, params=())`, `transaction(conn, lock_reading=False)`, `lock_rows(conn, query, params=())`.
 - `get_connection()` selects Postgres when `BOOK_BUTLER_DATABASE_URL` exists, otherwise SQLite.
 
-- [ ] **Step 1: Write failing tests** for qmark→`%s` conversion, Postgres selection from env, and schema DDL containing `activities.position` plus the partial active-session unique index.
-- [ ] **Step 2: Run** `pytest tests/test_postgres_compat.py -v`; expect import/API failure.
-- [ ] **Step 3: Implement** the minimum dialect helpers and idempotent Postgres schema creation. SQLite keeps its current schema and obtains `position` by `rowid` in query helpers.
-- [ ] **Step 4: Run** the focused test and then `pytest -q`; expect all green.
-- [ ] **Step 5: Commit** only compatibility files and tests.
+- [x] **Step 1: Write failing tests** for qmark→`%s` conversion, Postgres selection from env, and schema DDL containing `activities.position` plus the partial active-session unique index.
+- [x] **Step 2: Run** `pytest tests/test_postgres_compat.py -v`; expect import/API failure.
+- [x] **Step 3: Implement** the minimum dialect helpers and idempotent Postgres schema creation. SQLite keeps its current schema and obtains `position` by `rowid` in query helpers.
+- [x] **Step 4: Run** the focused test and then `pytest -q`; expect all green.
+- [x] **Step 5: Commit** only compatibility files and tests.
 
 ### Task 2: Transactional reading and record operations
 
@@ -47,11 +47,11 @@
 - `transaction(..., lock_reading=True)` takes a Postgres transaction-scoped advisory lock for the single active timer and uses SQLite immediate transactions locally.
 - `lock_rows()` appends `FOR UPDATE` only for Postgres.
 
-- [ ] **Step 1: Write failing tests** asserting Postgres query helpers use `position`, deletion effect uses `ON CONFLICT`, and timer/record mutations invoke the locking transaction helper.
-- [ ] **Step 2: Run** focused tests; expect failure because SQLite-only statements remain.
-- [ ] **Step 3: Implement** row locking for sessions, activity and book rows; preserve the partial unique active-session constraint; replace `rowid` ordering with `position`; replace `INSERT OR REPLACE` with portable upsert.
-- [ ] **Step 4: Run** focused and all app tests; expect all green.
-- [ ] **Step 5: Commit** only the transactional migration and tests.
+- [x] **Step 1: Write failing tests** asserting Postgres query helpers use `position`, deletion effect uses `ON CONFLICT`, and timer/record mutations invoke the locking transaction helper.
+- [x] **Step 2: Run** focused tests; expect failure because SQLite-only statements remain.
+- [x] **Step 3: Implement** row locking for sessions, activity and book rows; preserve the partial unique active-session constraint; replace `rowid` ordering with `position`; replace `INSERT OR REPLACE` with portable upsert.
+- [x] **Step 4: Run** focused and all app tests; expect all green.
+- [x] **Step 5: Commit** only the transactional migration and tests.
 
 ### Task 3: Supabase Storage adapter and photo migration
 
@@ -64,19 +64,19 @@
 - `storage.upload_photo(key, content, content_type)`, `storage.signed_url(key)`, `storage.photo_source(value)`.
 - `migrate_to_supabase.py --apply --verify` creates the schema, uploads files idempotently, imports SQLite rows with preserved `position`, and checks counts/references.
 
-- [ ] **Step 1: Write failing tests** for path normalization, private signed URL request construction, and migration row mapping including `position`.
-- [ ] **Step 2: Run** focused tests; expect missing adapter/script failures.
-- [ ] **Step 3: Implement** Storage REST calls with service-role server credentials, SQLite export/Postgres upsert, `--apply` safety gate, and post-import count/photo-reference verification.
-- [ ] **Step 4: Run** focused and full tests; expect all green.
-- [ ] **Step 5: Commit** the adapter, script, dependencies, tests.
+- [x] **Step 1: Write failing tests** for path normalization, private signed URL request construction, and migration row mapping including `position`.
+- [x] **Step 2: Run** focused tests; expect missing adapter/script failures.
+- [x] **Step 3: Implement** Storage REST calls with service-role server credentials, SQLite export/Postgres upsert, `--apply` safety gate, and post-import count/photo-reference verification.
+- [x] **Step 4: Run** focused and full tests; expect all green.
+- [x] **Step 5: Commit** the adapter, script, dependencies, tests.
 
 ### Task 4: Live Supabase migration and Streamlit Cloud deployment
 
 **Files:**
 - Modify: `docs/WORKLOG.md`, `docs/PROJECT.md`
 
-- [ ] **Step 1: Run** `python migration/migrate_to_supabase.py --apply --verify` with `.env` loaded; expect matching table counts and no missing photo object references.
+- [x] **Step 1: Run** `python migration/migrate_to_supabase.py --apply --verify` with `.env` loaded; expect matching table counts and no missing photo object references.
 - [ ] **Step 2: Set Streamlit Cloud secrets** from existing environment values without committing them; choose the existing private repository and main branch.
-- [ ] **Step 3: Deploy**, wait for a healthy app, and create/read one non-destructive UI flow to confirm Postgres connectivity.
-- [ ] **Step 4: Record** actual source/target counts, Storage upload results, deployment URL/state, and known limits in project documentation.
+- [x] **Step 3: Deploy**, wait for a healthy app, and create/read one non-destructive UI flow to confirm Postgres connectivity.
+- [x] **Step 4: Record** actual source/target counts, Storage upload results, deployment URL/state, and known limits in project documentation.
 - [ ] **Step 5: Commit** documentation and push main to origin as required for deployment.
