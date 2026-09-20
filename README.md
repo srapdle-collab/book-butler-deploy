@@ -21,6 +21,8 @@
 - 북스윙 백업 705권·활동 5,666건을 새 JSON 구조로 변환하는 스크립트가 준비됨.
 - 변환 결과와 사진은 개인정보 보호를 위해 `migration/output/`에 생성되며 Git 추적에서 제외됨(단, `validation_report.md`는 예외적으로 추적).
 - JSON → SQLite 적재 스크립트(`migration/load_db.py`)와 1단계 Streamlit 화면(책장, 책 상세, 통계, 스트릭/뱃지)을 구현함.
+- 책 상세에서 진도·인용구·메모·사진 기록과 책 상태·정보 수정을 지원함.
+- 활동 kind는 북스윙과 동일한 숫자 체계(0~7)를 사용함.
 
 ## 북스윙 데이터 변환
 
@@ -43,7 +45,16 @@ python migration/load_db.py   # migration/output/*.json → data/book_butler.db
 streamlit run app.py
 ```
 
-`app.py`는 `data/book_butler.db`와 `migration/output/photos/`를 읽어
+`app.py`는 `data/book_butler.db`, `data/photos/`, `migration/output/photos/`를 읽어
 책장·책 상세·통계·스트릭/뱃지 화면을 렌더링한다. 통계 화면의 "읽은 쪽수/시간"은
 북스윙 원본 진행 로그(progress_log) 문장에서 역파싱한 값을 세션 단위로 합산한
 것이며, 음수로 기록된 값은 0으로 처리한다.
+
+## 테스트
+
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/pytest -q
+```
+
+AppTest는 임시 SQLite DB와 임시 사진 폴더를 사용하므로 실제 독서 데이터에 영향을 주지 않는다.

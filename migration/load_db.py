@@ -35,7 +35,7 @@ CREATE TABLE books (
 CREATE TABLE activities (
     id TEXT PRIMARY KEY,
     book_id TEXT NOT NULL REFERENCES books(id),
-    kind TEXT NOT NULL,
+    kind INTEGER NOT NULL CHECK (kind BETWEEN 0 AND 7),
     text TEXT,
     quote TEXT,
     page INTEGER,
@@ -60,6 +60,17 @@ CREATE INDEX idx_books_category ON books(category);
 """
 
 PROGRESS_RE = re.compile(r"^(?:(-?\d+)쪽을 )?(?:(-?\d+)분 동안 )?읽었습니다$")
+
+KIND_NAME_TO_ID = {
+    "quote_with_note": 0,
+    "photo": 1,
+    "quote": 2,
+    "start": 3,
+    "progress_log": 4,
+    "finish": 5,
+    "rating": 6,
+    "other": 7,
+}
 
 
 def parse_progress(text: str | None) -> tuple[int | None, int | None]:
@@ -120,7 +131,7 @@ def build_db(output_dir: Path, db_path: Path) -> None:
         )
         activity_rows.append(
             (
-                a["id"], a["book_id"], a["kind"], a["text"], a["quote"],
+                a["id"], a["book_id"], KIND_NAME_TO_ID[a["kind"]], a["text"], a["quote"],
                 a["page"], a["date"], a["photo"], a["visibility"],
                 pages_read, minutes_read,
             )
@@ -146,10 +157,10 @@ def build_db(output_dir: Path, db_path: Path) -> None:
     conn.commit()
 
     unparsed = conn.execute(
-        "SELECT COUNT(*) FROM activities WHERE kind = 'progress_log' AND pages_read IS NULL AND minutes_read IS NULL"
+        "SELECT COUNT(*) FROM activities WHERE kind = 4 AND pages_read IS NULL AND minutes_read IS NULL"
     ).fetchone()[0]
     total_progress = conn.execute(
-        "SELECT COUNT(*) FROM activities WHERE kind = 'progress_log'"
+        "SELECT COUNT(*) FROM activities WHERE kind = 4"
     ).fetchone()[0]
     conn.close()
 
