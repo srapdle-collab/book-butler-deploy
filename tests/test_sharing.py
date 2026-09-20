@@ -30,7 +30,7 @@ def test_record_share_text_and_sms_include_content_and_source(isolated_app):
     assert '기억할 문장' in quote_body and '나의 생각' in quote_body
     assert '테스트 책' in quote_body and '저자' in quote_body
     assert 'p.12' in quote_body
-    assert re.search(r'\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}$',quote_body)
+    assert not re.search(r'\d{4}\.\d{2}\.\d{2}', quote_body)
 
     note_body=sharing.record_text(book,rows[note_id])
     assert '단독 메모' in note_body and 'p.7' in note_body
@@ -49,7 +49,9 @@ def test_memory_stays_until_refresh_and_links_to_book(isolated_app):
     assert at.session_state['memory_id']==aid
     at.run()
     assert at.session_state['memory_id']==aid
-    assert any('p.12' in e.value and '저자' in e.value for e in at.caption)
+    captions=[e.value for e in at.caption]
+    assert any('p.12' in value and '저자' in value for value in captions)
+    assert not any(re.search(r'\d{4}\.\d{2}\.\d{2}', value) for value in captions)
     assert at.button(key=f'memory_share_{aid}').label=='공유'
     assert any('카톡은 복사 후 붙여넣기' in e.value for e in at.caption)
     at.button(key=f'memory_share_{aid}').click().run()

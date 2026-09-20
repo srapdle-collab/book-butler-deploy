@@ -1,12 +1,10 @@
 """인용구·메모의 공유/메일 본문을 생성한다."""
-from datetime import datetime
-from zoneinfo import ZoneInfo
 from urllib.parse import urlencode,quote
 
 
 def citation(book,row):
-    stamp=datetime.fromtimestamp(int(row['date']),ZoneInfo('Asia/Seoul')).strftime('%Y.%m.%d %H:%M')
-    return f"『{book['title']}』 · {book['author'] or '저자 미상'} · p.{row['page'] or 0} · {stamp}"
+    """공유할 기록의 출처. 기록일은 개인 독서 이력이므로 포함하지 않는다."""
+    return f"『{book['title']}』 · {book['author'] or '저자 미상'} · p.{row['page'] or 0}"
 
 
 def quote_text(book,row,include_notes=False):
