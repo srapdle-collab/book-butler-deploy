@@ -227,7 +227,7 @@ def insert_activity(
             text,
             quote,
             page,
-            timestamp or int(time.time()),
+            int(time.time()) if timestamp is None else timestamp,
             photo,
             pages_read,
             minutes_read,
@@ -239,38 +239,8 @@ def insert_activity(
 
 
 def add_progress(conn: sqlite3.Connection, book_id: str, page: int, minutes: int) -> str:
-    book = get_book(conn, book_id)
-    if book is None:
-        raise ValueError("책 정보를 찾을 수 없습니다.")
-    current_page = book["current_page"] or 0
-    total_pages = book["pages"] or 0
-    if page <= current_page:
-        raise ValueError("현재 페이지보다 뒤의 페이지를 입력해주세요.")
-    if total_pages and page > total_pages:
-        raise ValueError("전체 쪽수를 넘을 수 없습니다.")
-    if minutes <= 0:
-        raise ValueError("읽은 시간은 1분 이상이어야 합니다.")
-    pages_read = page - current_page
-    text = f"{pages_read}쪽을 {minutes}분 동안 읽었습니다"
-    try:
-        activity_id = insert_activity(
-            conn,
-            book_id=book_id,
-            kind=4,
-            page=page,
-            text=text,
-            pages_read=pages_read,
-            minutes_read=minutes,
-            commit=False,
-        )
-        conn.execute(
-            "UPDATE books SET current_page = ? WHERE id = ?", (page, book_id)
-        )
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    return activity_id
+    from lib.reading import manual
+    return manual(conn, book_id, page, minutes)
 
 
 def validate_page(conn, book_id, page):

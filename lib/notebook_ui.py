@@ -70,6 +70,11 @@ def forms(conn,book):
     with st.container(border=True):
         if st.button('취소',key='cancel_input'): close_input()
         if mode=='progress':
+            from lib.reading import active
+            if active(conn):
+                st.caption('위 타이머에서 멈춘 후 도달 페이지를 저장해주세요.')
+                return
+            st.caption('타이머를 사용하지 못한 경우 수동으로 기록할 수 있습니다.')
             with st.form('progress_form'):
                 page=st.number_input('도달한 페이지',min_value=0,max_value=maximum,value=current,step=1,key='progress_page')
                 minutes=st.number_input('걸린 시간(분)',min_value=1,value=1,step=1,key='progress_minutes')
@@ -120,6 +125,8 @@ def detail(conn,book_id,goto,management):
         current=book['current_page'] or 0; total=book['pages'] or 0
         st.progress(min(max(current/total,0),1) if total else 0,text=f'{current} / {total or "미정"}쪽')
     management(conn,book)
+    from lib.timer_ui import render as render_timer
+    render_timer(conn,book,goto)
     forms(conn,book)
     st.subheader('독서 노트')
     rows=db.list_activities(conn,book_id)
