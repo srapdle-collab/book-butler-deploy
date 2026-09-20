@@ -1,0 +1,28 @@
+# Large binary/media files
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.heic
+data/
+
+# Secrets and local credentials
+.env
+.env.*
+.streamlit/secrets.toml
+secrets/
+credentials/
+*.pem
+*.key
+
+# Generated files and local environments
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
