@@ -30,8 +30,12 @@ def apply():
     [class*="_cover_card_"]>[data-testid="stElementContainer"]:last-child [data-testid="stTooltipIcon"],
     [class*="_cover_card_"]>[data-testid="stElementContainer"]:last-child [data-testid="stTooltipHoverTarget"] {height:100%!important;width:100%;align-items:stretch;}
     [class*="_cover_card_"] [data-testid="stButton"] button {height:100%!important;width:100%;opacity:0;padding:0;}
-    [class*="_cover_card_"] [data-testid="stImage"] {aspect-ratio:2/3;}
-    [class*="_cover_card_"] [data-testid="stImage"] img {width:100%!important;height:100%!important;object-fit:cover;}
+    [class*="_cover_card_"]>[data-testid="stElementContainer"]:first-child,
+    [class*="_cover_card_"] [data-testid="stFullScreenFrame"],
+    [class*="_cover_card_"] [data-testid="stFullScreenFrame"]>div {width:100%!important;}
+    [class*="_cover_card_"] [data-testid="stImage"] {width:100%!important;aspect-ratio:2/3;overflow:hidden;}
+    [class*="_cover_card_"] [data-testid="stImageContainer"] {width:100%!important;height:100%!important;}
+    [class*="_cover_card_"] [data-testid="stImage"] img {width:100%!important;height:100%!important;max-width:none!important;object-fit:cover;}
     .shelf-cover-placeholder {aspect-ratio:2/3;background:linear-gradient(145deg,#e9d8ba,#c9ad87);border:1px solid #b99065;border-radius:4px;box-shadow:0 4px 10px #382c2520;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:.75rem;text-align:center;color:#5f422b;font-weight:700;line-height:1.3;}
     .shelf-cover-placeholder span {font-size:.88rem;word-break:keep-all;}
     @media(max-width:640px) {
