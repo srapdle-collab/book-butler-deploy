@@ -84,3 +84,48 @@
 - 타임라인 검색은 인용구·메모 본문과 책 제목·저자를 함께 찾는다. 결과에는 페이지와 책 제목·저자가 보이고, `해당 책으로 이동`으로 상세 독서 노트로 이동한다.
 - 검증: 전체 39개 테스트 통과. 실제 DB에서 `로마서` 검색 90건, 결과의 페이지·출처 표시 및 첫 결과에서 해당 책 상세 이동 확인.
 - 사용자 기획문서의 미커밋 변경과 미추적 사본은 보존했다. 원격 push는 요청 대기 상태다.
+
+## 2026-09-20 — Claude: 클라우드 배포용 Supabase 인프라 준비 (인계)
+
+**배경**: 사용자가 "컴퓨터를 꺼도 폰에서 기록할 수 있게" 클라우드 배포를 요청. Streamlit
+Community Cloud는 디스크가 일시적이라 지금의 로컬 SQLite(`data/book_butler.db`)를 그대로
+올리면 재배포·슬립 후 새 기록이 사라질 위험이 있음을 확인하고, 사용자와 상의해 Postgres
+(Supabase)로 이전하기로 결정했다.
+
+**완료한 일**:
+- Supabase 프로젝트 `bookbutler-prod` 신규 생성 (ref `xsworhnixixaorjwiswx`, 서울 리전
+  `ap-northeast-2`, 조직은 하루쑥과 동일한 `cpsxhaorakxyplkkhbih`, 무료 티어).
+- `.env`(git 추적 제외)에 접속 정보 저장: `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_PASSWORD`, `SUPABASE_DB_HOST`(커넥션 풀러,
+  transaction 모드 6543 포트), `SUPABASE_DB_PORT`, `SUPABASE_DB_USER`, `SUPABASE_DB_NAME`.
+  풀러 호스트로 접속 테스트(6543/5432 둘 다) 성공 확인. DB는 아직 빈 상태(스키마 없음).
+- `.venv`에 `psycopg[binary]` 설치 확인(연결 테스트용). requirements.txt에는 아직 미반영.
+
+**막힌 지점 (코덱스에게 인계)**: SQLite→Postgres 전환이 연결 문자열 교체 수준이 아니라
+동시성·잠금 로직을 다시 설계해야 하는 작업임을 확인했다. 원 코드(특히 최근 작업물)에
+SQLite 전용 패턴이 깊이 박혀 있음:
+- `rowid` 암묵 컬럼 의존 (`lib/records.py`, `lib/record_ui.py`) — Postgres엔 없음, 명시적
+  순번 컬럼(예: `id`가 UUID뿐이라 정렬용 시퀀스 필요) 설계 필요.
+- `conn.execute('BEGIN IMMEDIATE')` 잠금 (`lib/records.py`, `lib/reading.py`) — 타이머
+  동시 실행 차단, 기록 삭제 시 진도 페이지 되돌리기 로직이 이 잠금에 의존. Postgres
+  트랜잭션/행 잠금(`SELECT ... FOR UPDATE`)으로 재설계 필요 — 원래 의도(동시 변경 충돌
+  방지)를 정확히 이해하고 옮겨야 안전함.
+- `INSERT OR REPLACE` (`lib/records.py`) → `INSERT ... ON CONFLICT DO UPDATE`.
+- `PRAGMA table_info`, `sqlite_master` (`lib/schema.py`) → `information_schema.columns`/
+  `information_schema.tables`.
+- `?` 플레이스홀더 → `%s`. 직접 SQL을 쓰는 파일: `lib/db.py`, `lib/records.py`,
+  `lib/record_ui.py`, `lib/reading.py`, `lib/shelf_ui.py`, `lib/sharing.py`,
+  `lib/sharing_ui.py`, `lib/notebook_ui.py`(`pd.read_sql_query` 포함), `lib/schema.py`,
+  `migration/load_db.py`, `migration/audit_source.py`.
+- `pd.read_sql_query(query, conn)`가 여러 곳에서 쓰이는데, psycopg 연결에 그대로 넘기면
+  파라미터 스타일 문제가 생길 수 있어 확인 필요.
+
+**아직 안 한 일**:
+- 사진(`migration/output/photos/`, `data/photos/`, 총 762장 이상)을 Supabase Storage로
+  올리는 마이그레이션 스크립트.
+- 기존 로컬 DB(705권/5,666건 + 최근 기록)를 새 Postgres로 옮기는 1회성 데이터 이관.
+- Streamlit Community Cloud 앱 생성·시크릿 등록(기존 GitHub `srapdle-collab/book-butler`
+  저장소는 이미 연결돼 있음, private 저장소 + 초대 전용 뷰어로 주식비서와 동일 패턴 권장).
+- `requirements.txt`에 Postgres 클라이언트/Supabase Storage 클라이언트 추가.
+
+사용자 승인 없이는 원격 push·main 반영을 하지 않았다(이번 세션은 로컬 작업만).
