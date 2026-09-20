@@ -143,3 +143,10 @@ SQLite 전용 패턴이 깊이 박혀 있음:
 - 비밀번호가 맞기 전에는 책장·기록·통계 등을 렌더링하지 않고 중단한다. 성공하면 세션 상태에만 인증 결과를 보관해 같은 세션에서는 다시 묻지 않는다.
 - 검증: 비밀번호 미입력/오입력 시 앱 본문 비노출, 정답 입력 후 책장 노출 및 세션 유지 AppTest를 포함해 전체 48개 테스트 통과.
 - `main`에 비밀번호 관문 코드를 push했다. Cloud Secrets에 넣을 실제 `BOOK_BUTLER_APP_PASSWORD` 값이 아직 로컬 `.env`에 없어 공개 배포와 실서비스 검증은 대기한다.
+
+## 2026-09-21 — Codex: 공개 배포 미러와 비밀번호 보호 서비스
+- 비공개 원본 `srapdle-collab/book-butler`는 그대로 보존하고, Streamlit 배포 전용 공개 미러 `srapdle-collab/book-butler-deploy`를 새로 만들었다. Cloud 앱은 이 공개 미러의 `main`과 `app.py`에 연결했다.
+- 배포 주소: `https://read-dam-book-butler.streamlit.app/`. Supabase 접속 정보와 앱 비밀번호는 로컬 `.env` 및 Streamlit Cloud Secrets에만 등록했다.
+- 실제 공개 브라우저에서 비밀번호 입력 전에는 잠금 화면만 보이고, 잘못된 입력은 차단되며, 올바른 입력 후에는 Supabase의 책장(705권)이 표시되는 것을 확인했다.
+- `.env`, `data/`, `migration/output/`은 Git ignore 상태를 다시 확인했고, 공개 미러에도 비밀값·DB·사진이 추적되지 않는다.
+- 이후 배포 갱신은 private `main`을 검증·push한 뒤 `git push deploy main`으로 수동 반영한다. 공개 미러에 비밀값이나 로컬 데이터 파일을 추가하지 않는다.
