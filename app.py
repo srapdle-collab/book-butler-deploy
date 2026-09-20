@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 
 import pandas as pd
 import streamlit as st
+from dotenv import load_dotenv
 
-from lib import db, streak
+from lib import db, library_api, streak
+
+load_dotenv()
 
 st.set_page_config(page_title="도서비서", page_icon="📚", layout="wide")
 
@@ -19,6 +23,8 @@ if "selected_book_id" not in st.session_state:
     st.session_state.selected_book_id = None
 if "shelf_page" not in st.session_state:
     st.session_state.shelf_page = 1
+if "add_book_candidates" not in st.session_state:
+    st.session_state.add_book_candidates = []
 
 
 def goto(view: str, book_id: str | None = None) -> None:
@@ -78,9 +84,9 @@ def render_shelf(conn) -> None:
     cols = st.columns(4)
     for i, (_, book) in enumerate(page_books.iterrows()):
         with cols[i % 4]:
-            cover = db.photo_path(book["cover_photo"])
+            cover = db.cover_source(book)
             if cover:
-                st.image(str(cover), width="stretch")
+                st.image(cover, width="stretch")
             else:
                 st.markdown("*(표지 없음)*")
             st.markdown(f"**{book['title']}**")
@@ -88,6 +94,99 @@ def render_shelf(conn) -> None:
             if st.button("상세보기", key=f"detail_{book['id']}", width="stretch"):
                 goto("책 상세", book["id"])
                 st.rerun()
+
+    st.divider()
+    with st.expander("➕ 새 책 추가"):
+        render_add_book_form(conn)
+
+
+def render_add_book_form(conn) -> None:
+    auth_key = os.environ.get("DATA4LIBRARY_AUTH_KEY", "").strip()
+
+    query = st.text_input("제목으로 검색 (도서관정보나루)", key="add_book_query")
+    if st.button("검색", key="add_book_search_btn"):
+        if not auth_key:
+            st.session_state.add_book_candidates = []
+            st.warning(
+                "DATA4LIBRARY_AUTH_KEY가 설정되지 않았습니다 (.env 확인). "
+                "아래 수동 입력 폼을 사용해주세요."
+            )
+        else:
+            try:
+                results = library_api.search_books(query, auth_key)
+            except library_api.LibraryAPIError as exc:
+                st.session_state.add_book_candidates = []
+                st.warning(f"검색 실패: {exc}\n아래 수동 입력 폼을 사용해주세요.")
+            else:
+                st.session_state.add_book_candidates = results
+                if not results:
+                    st.info("검색 결과가 없습니다. 아래 수동 입력 폼을 사용해주세요.")
+
+    candidates = st.session_state.get("add_book_candidates") or []
+    selected: dict | None = None
+    if candidates:
+        st.caption(f"검색 결과 {len(candidates)}건 중 하나를 선택하세요")
+        labels = [
+            f"{c['title']} · {c['author'] or '저자 미상'} ({c['publisher'] or '출판사 미상'}, "
+            f"ISBN {c['isbn'] or '-'})"
+            for c in candidates
+        ]
+        pick = st.radio(
+            "검색 후보", range(len(candidates)), format_func=lambda i: labels[i],
+            key="add_book_pick",
+        )
+        selected = candidates[pick]
+        cover_col, _ = st.columns([1, 4])
+        with cover_col:
+            if selected.get("cover_url"):
+                st.image(selected["cover_url"], width="stretch")
+            else:
+                st.markdown("*(표지 없음 - 플레이스홀더)*")
+
+    st.markdown("**세부 정보를 확인·수정한 뒤 저장하세요.**")
+    categories = db.list_categories(conn)
+    with st.form("add_book_form", clear_on_submit=True):
+        title = st.text_input("제목", value=(selected or {}).get("title") or "")
+        subtitle = st.text_input("부제", value=(selected or {}).get("subtitle") or "")
+        author = st.text_input("저자", value=(selected or {}).get("author") or "")
+        translator = st.text_input("역자", value=(selected or {}).get("translator") or "")
+        publisher = st.text_input("출판사", value=(selected or {}).get("publisher") or "")
+        isbn = st.text_input("ISBN", value=(selected or {}).get("isbn") or "")
+        category_options = ["(미지정)"] + categories + ["직접 입력"]
+        category_choice = st.selectbox("카테고리", category_options)
+        custom_category = st.text_input("카테고리 직접 입력", key="add_book_custom_category")
+        pages = st.number_input("전체 쪽수", min_value=0, value=0, step=1)
+        status = st.selectbox("상태", ["위시리스트", "읽는 중", "완독"])
+        submitted = st.form_submit_button("책장에 추가")
+
+    if submitted:
+        if not title.strip():
+            st.error("제목을 입력해주세요.")
+        else:
+            if category_choice == "직접 입력":
+                final_category = custom_category.strip() or None
+            elif category_choice == "(미지정)":
+                final_category = None
+            else:
+                final_category = category_choice
+            db.insert_book(
+                conn,
+                {
+                    "title": title.strip(),
+                    "subtitle": subtitle.strip() or None,
+                    "author": author.strip() or None,
+                    "translator": translator.strip() or None,
+                    "publisher": publisher.strip() or None,
+                    "isbn": isbn.strip() or None,
+                    "category": final_category,
+                    "pages": int(pages) or None,
+                    "status": status,
+                    "cover_url": (selected or {}).get("cover_url"),
+                },
+            )
+            st.success(f"'{title.strip()}'을(를) 책장에 추가했습니다.")
+            st.session_state.add_book_candidates = []
+            st.rerun()
 
 
 # ------------------------------------------------------------ 책 상세 ----
@@ -108,9 +207,9 @@ def render_detail(conn, book_id: str | None) -> None:
 
     col_cover, col_info = st.columns([1, 3])
     with col_cover:
-        cover = db.photo_path(book["cover_photo"])
+        cover = db.cover_source(book)
         if cover:
-            st.image(str(cover), width="stretch")
+            st.image(cover, width="stretch")
     with col_info:
         st.header(book["title"])
         if book["subtitle"]:

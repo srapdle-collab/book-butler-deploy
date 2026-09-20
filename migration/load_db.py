@@ -28,7 +28,8 @@ CREATE TABLE books (
     read_count INTEGER,
     start_date INTEGER,
     finish_date INTEGER,
-    cover_photo TEXT
+    cover_photo TEXT,
+    cover_url TEXT
 );
 
 CREATE TABLE activities (
@@ -84,6 +85,8 @@ def build_db(output_dir: Path, db_path: Path) -> None:
 
     covers = {m["book_id"]: m["filename"] for m in manifest if m["type"] == "cover"}
 
+    # 주의: 이 스크립트는 DB를 항상 통째로 재생성한다. 앱에서 "새 책 추가"로
+    # 입력한 책은 마이그레이션 JSON에 없으므로 재실행 시 함께 삭제된다.
     db_path.parent.mkdir(parents=True, exist_ok=True)
     if db_path.exists():
         db_path.unlink()
@@ -96,15 +99,15 @@ def build_db(output_dir: Path, db_path: Path) -> None:
         INSERT INTO books (
             id, title, author, publisher, isbn, subtitle, translator,
             category, pages, current_page, rating, status, read_count,
-            start_date, finish_date, cover_photo
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            start_date, finish_date, cover_photo, cover_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             (
                 b["id"], b["title"], b["author"], b["publisher"], b["isbn"],
                 b["subtitle"], b["translator"], b["category"], b["pages"],
                 b["currentPage"], b["rating"], b["status"], b["readCount"],
-                b["startDate"], b["finishDate"], covers.get(b["id"]),
+                b["startDate"], b["finishDate"], covers.get(b["id"]), None,
             )
             for b in books
         ],
