@@ -196,175 +196,9 @@ def render_add_book_form(conn) -> None:
 
 # ------------------------------------------------------------ 책 상세 ----
 
-def render_detail(conn, book_id: str | None) -> None:
-    if not book_id:
-        st.info("책장에서 책을 선택해주세요.")
-        return
-
-    book = db.get_book(conn, book_id)
-    if book is None:
-        st.error("책 정보를 찾을 수 없습니다.")
-        return
-
-    if st.button("← 책장으로"):
-        goto("책장")
-        st.rerun()
-
-    col_cover, col_info = st.columns([1, 3])
-    with col_cover:
-        cover = db.cover_source(book)
-        if cover:
-            st.image(cover, width="stretch")
-    with col_info:
-        st.header(book["title"])
-        if book["subtitle"]:
-            st.caption(book["subtitle"])
-        st.write(
-            f"**저자** {book['author'] or '-'}  ·  **역자** {book['translator'] or '-'}  ·  "
-            f"**출판사** {book['publisher'] or '-'}"
-        )
-        st.write(f"**카테고리** {book['category'] or '-'}  ·  **ISBN** {book['isbn'] or '-'}")
-        st.write(f"**상태** {status_badge(book['status'])}  ·  **완독 횟수** {book['read_count']}회")
-        st.write(f"**별점** {'★' * (book['rating'] or 0)}{'☆' * (5 - (book['rating'] or 0))}")
-
-        pages = book["pages"] or 0
-        current = book["current_page"] or 0
-        ratio = min(current / pages, 1.0) if pages else 0.0
-        st.progress(ratio, text=f"{current} / {pages}쪽 ({ratio * 100:.0f}%)")
-        st.caption(f"시작일 {fmt_date(book['start_date'])} · 완독일 {fmt_date(book['finish_date'])}")
-
-    render_book_management(conn, book)
-    render_activity_forms(conn, book)
-
-    activities = db.list_activities(conn, book_id)
-
-    tab_quotes, tab_photos, tab_timeline = st.tabs(
-        [f"인용구·메모 ({len(activities[activities['kind'].isin([2, 0])])})",
-         f"사진 ({len(activities[activities['kind'] == 1])})",
-         f"전체 기록 ({len(activities)})"]
-    )
-
-    with tab_quotes:
-        quotes = activities[activities["kind"].isin([2, 0])]
-        if quotes.empty:
-            st.caption("인용구·메모가 없습니다.")
-        for _, row in quotes.sort_values("date").iterrows():
-            page_label = f" (p.{row['page']})" if row["page"] else ""
-            if row["quote"]:
-                st.markdown(f"> {row['quote']}{page_label}")
-            if row["text"]:
-                st.write(f"{row['text']}{page_label if not row['quote'] else ''}")
-            st.caption(fmt_date(row["date"]))
-            st.divider()
-
-    with tab_photos:
-        photos = activities[activities["kind"] == 1]
-        if photos.empty:
-            st.caption("사진 기록이 없습니다.")
-        photo_cols = st.columns(3)
-        for i, (_, row) in enumerate(photos.sort_values("date").iterrows()):
-            path = db.photo_path(row["photo"].replace("photos/", "") if row["photo"] else None)
-            with photo_cols[i % 3]:
-                if path:
-                    st.image(str(path), width="stretch", caption=fmt_date(row["date"]))
-
-    with tab_timeline:
-        if activities.empty:
-            st.caption("기록이 없습니다.")
-        else:
-            view = activities.sort_values("date", ascending=False)[
-                ["date", "kind", "page", "text", "quote"]
-            ].copy()
-            view["date"] = view["date"].apply(fmt_date)
-            st.dataframe(view, width="stretch", hide_index=True)
-
-
-def render_activity_forms(conn, book) -> None:
-    st.subheader("오늘의 기록")
-    page_limit = max(int(book["pages"] or 0), int(book["current_page"] or 0) + 1, 1)
-    default_page = min(max(int(book["current_page"] or 0) + 1, 1), page_limit)
-    progress_tab, quote_tab, note_tab, photo_tab = st.tabs(
-        ["📘 진도", "💬 인용구", "✏️ 메모", "📷 사진"]
-    )
-
-    with progress_tab:
-        with st.form("progress_form", clear_on_submit=True):
-            page = st.number_input(
-                "도달한 페이지", min_value=1, max_value=page_limit,
-                value=default_page, step=1, key="progress_page",
-            )
-            minutes = st.number_input(
-                "걸린 시간(분)", min_value=1, value=1, step=1,
-                key="progress_minutes",
-            )
-            submitted = st.form_submit_button("진도 저장", key="save_progress")
-        if submitted:
-            try:
-                db.add_progress(conn, book["id"], int(page), int(minutes))
-            except ValueError as exc:
-                st.error(str(exc))
-            else:
-                st.success("진도를 기록했습니다.")
-                st.rerun()
-
-    with quote_tab:
-        with st.form("quote_form", clear_on_submit=True):
-            page = st.number_input(
-                "페이지", min_value=1, max_value=page_limit,
-                value=default_page, step=1, key="quote_page",
-            )
-            quote = st.text_area("인용문", key="quote_text")
-            submitted = st.form_submit_button("인용구 저장", key="save_quote")
-        if submitted:
-            try:
-                db.add_quote(conn, book["id"], int(page), quote)
-            except ValueError as exc:
-                st.error(str(exc))
-            else:
-                st.success("인용구를 기록했습니다.")
-                st.rerun()
-
-    with note_tab:
-        with st.form("note_form", clear_on_submit=True):
-            page = st.number_input(
-                "페이지", min_value=1, max_value=page_limit,
-                value=default_page, step=1, key="note_page",
-            )
-            note = st.text_area("메모", key="note_text")
-            submitted = st.form_submit_button("메모 저장", key="save_note")
-        if submitted:
-            try:
-                db.add_note(conn, book["id"], int(page), note)
-            except ValueError as exc:
-                st.error(str(exc))
-            else:
-                st.success("메모를 기록했습니다.")
-                st.rerun()
-
-    with photo_tab:
-        with st.form("photo_form", clear_on_submit=True):
-            page = st.number_input(
-                "페이지", min_value=1, max_value=page_limit,
-                value=default_page, step=1, key="photo_page",
-            )
-            uploaded = st.file_uploader(
-                "사진", type=["png", "jpg", "jpeg", "gif", "webp", "heic"],
-                key="photo_upload",
-            )
-            submitted = st.form_submit_button("사진 저장", key="save_photo")
-        if submitted:
-            if uploaded is None:
-                st.error("사진을 선택해주세요.")
-            else:
-                try:
-                    db.add_photo(
-                        conn, book["id"], int(page), uploaded.name, uploaded.getvalue()
-                    )
-                except ValueError as exc:
-                    st.error(str(exc))
-                else:
-                    st.success("사진을 기록했습니다.")
-                    st.rerun()
+def render_detail(conn, book_id):
+    from lib.notebook_ui import detail
+    detail(conn, book_id, goto, render_book_management)
 
 
 def render_book_management(conn, book) -> None:
@@ -503,6 +337,8 @@ with st.sidebar:
             st.rerun()
 
 conn = db.get_connection()
+if st.session_state.get("notice"):
+    st.toast(st.session_state.pop("notice"))
 
 if st.session_state.view == "책장":
     render_shelf(conn)

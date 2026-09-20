@@ -60,6 +60,7 @@ def test_progress_form_inserts_numeric_kind_and_updates_current_page(isolated_ap
     """진도 저장이 문자열 kind를 쓰거나 현재 페이지를 갱신하지 않는 회귀를 막는다."""
     db_path, _ = isolated_app
     at = open_detail()
+    at.button(key="open_progress").click().run()
     at.number_input(key="progress_page").set_value(25)
     at.number_input(key="progress_minutes").set_value(12)
     at.button(key="save_progress").click().run()
@@ -78,6 +79,7 @@ def test_quote_form_inserts_numeric_kind_2(isolated_app):
     """인용문이 text 칸이나 문자열 kind로 저장되는 회귀를 막는다."""
     db_path, _ = isolated_app
     at = open_detail()
+    at.button(key="open_quote").click().run()
     at.number_input(key="quote_page").set_value(31)
     at.text_area(key="quote_text").set_value("기억할 문장")
     at.button(key="save_quote").click().run()
@@ -92,6 +94,7 @@ def test_note_form_inserts_numeric_kind_0(isolated_app):
     """메모가 인용문으로 뒤바뀌거나 문자열 kind로 저장되는 회귀를 막는다."""
     db_path, _ = isolated_app
     at = open_detail()
+    at.button(key="open_note").click().run()
     at.number_input(key="note_page").set_value(42)
     at.text_area(key="note_text").set_value("오늘의 메모")
     at.button(key="save_note").click().run()
@@ -123,6 +126,7 @@ with patch.object(st, "file_uploader", return_value=UploadedPhoto()):
     at.session_state["selected_book_id"] = "book-1"
     at.run()
     assert not at.exception
+    at.button(key="open_photo").click().run()
     at.number_input(key="photo_page").set_value(55)
     at.button(key="save_photo").click().run()
     assert not at.exception

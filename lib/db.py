@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from lib.schema import ensure_schema
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "data" / "book_butler.db"
@@ -92,6 +93,8 @@ def get_connection(db_path: Path | None = None) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path or configured_path)
     conn.row_factory = sqlite3.Row
     _ensure_numeric_activity_kinds(conn)
+    ensure_schema(conn)
+    conn.execute('PRAGMA foreign_keys=ON')
     return conn
 
 
@@ -150,14 +153,14 @@ def get_book(conn: sqlite3.Connection, book_id: str) -> sqlite3.Row | None:
 
 def list_activities(conn: sqlite3.Connection, book_id: str) -> pd.DataFrame:
     return pd.read_sql_query(
-        "SELECT * FROM activities WHERE book_id = ? ORDER BY date",
+        "SELECT * FROM activities WHERE book_id = ? AND deleted_at IS NULL ORDER BY date DESC, rowid DESC",
         conn,
         params=[book_id],
     )
 
 
 def all_activities(conn: sqlite3.Connection) -> pd.DataFrame:
-    return pd.read_sql_query("SELECT * FROM activities ORDER BY date", conn)
+    return pd.read_sql_query("SELECT * FROM activities WHERE deleted_at IS NULL ORDER BY date", conn)
 
 
 def insert_book(conn: sqlite3.Connection, book: dict[str, Any]) -> str:
@@ -270,14 +273,25 @@ def add_progress(conn: sqlite3.Connection, book_id: str, page: int, minutes: int
     return activity_id
 
 
-def add_quote(conn: sqlite3.Connection, book_id: str, page: int, quote: str) -> str:
+def validate_page(conn, book_id, page):
+    book = get_book(conn, book_id)
+    if book is None:
+        raise ValueError('책 정보를 찾을 수 없습니다.')
+    if page < 0 or (book['pages'] and page > book['pages']):
+        raise ValueError('페이지는 0부터 전체 쪽수 사이로 입력해주세요.')
+
+
+def add_quote(conn: sqlite3.Connection, book_id: str, page: int, quote: str, note: str = '') -> str:
+    validate_page(conn, book_id, page)
     cleaned = quote.strip()
     if not cleaned:
         raise ValueError("인용문을 입력해주세요.")
-    return insert_activity(conn, book_id=book_id, kind=2, page=page, quote=cleaned)
+    note = note.strip() or None
+    return insert_activity(conn, book_id=book_id, kind=0 if note else 2, page=page, quote=cleaned, text=note)
 
 
 def add_note(conn: sqlite3.Connection, book_id: str, page: int, text: str) -> str:
+    validate_page(conn, book_id, page)
     cleaned = text.strip()
     if not cleaned:
         raise ValueError("메모를 입력해주세요.")
@@ -291,6 +305,7 @@ def add_photo(
     original_name: str,
     content: bytes,
 ) -> str:
+    validate_page(conn, book_id, page)
     if not content:
         raise ValueError("사진 파일이 비어 있습니다.")
     suffix = Path(original_name).suffix.lower()
