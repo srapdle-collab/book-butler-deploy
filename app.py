@@ -51,60 +51,9 @@ def status_badge(status: str) -> str:
 
 # ---------------------------------------------------------------- 책장 ----
 
-def render_shelf(conn) -> None:
-    st.header("📚 책장")
-
-    categories = ["전체"] + db.list_categories(conn)
-    statuses = ["전체", "읽는 중", "완독", "읽기 중단", "위시리스트"]
-
-    col1, col2, col3 = st.columns([2, 1, 2])
-    with col1:
-        category = st.selectbox("카테고리", categories, key="shelf_category")
-    with col2:
-        status = st.selectbox("상태", statuses, key="shelf_status")
-    with col3:
-        search = st.text_input("제목/저자 검색", "", key="shelf_search")
-
-    books = db.list_books(
-        conn,
-        category=None if category == "전체" else category,
-        status=None if status == "전체" else status,
-        search=search or None,
-    )
-    st.caption(f"{len(books)}권 (전체 705권)")
-
-    page_size = 24
-    total_pages = max(1, (len(books) - 1) // page_size + 1)
-    st.session_state.shelf_page = min(st.session_state.shelf_page, total_pages)
-    page = st.number_input(
-        "페이지",
-        min_value=1,
-        max_value=total_pages,
-        value=st.session_state.shelf_page,
-        key="shelf_page_input",
-    )
-    st.session_state.shelf_page = page
-
-    start = (page - 1) * page_size
-    page_books = books.iloc[start : start + page_size]
-
-    cols = st.columns(4)
-    for i, (_, book) in enumerate(page_books.iterrows()):
-        with cols[i % 4]:
-            cover = db.cover_source(book)
-            if cover:
-                st.image(cover, width="stretch")
-            else:
-                st.markdown("*(표지 없음)*")
-            st.markdown(f"**{book['title']}**")
-            st.caption(f"{book['author'] or '-'} · {status_badge(book['status'])}")
-            if st.button("상세보기", key=f"detail_{book['id']}", width="stretch"):
-                goto("책 상세", book["id"])
-                st.rerun()
-
-    st.divider()
-    with st.expander("➕ 새 책 추가"):
-        render_add_book_form(conn)
+def render_shelf(conn):
+    from lib.shelf_ui import render
+    render(conn, goto, render_add_book_form)
 
 
 def render_add_book_form(conn) -> None:
@@ -258,40 +207,9 @@ def render_book_management(conn, book) -> None:
 
 # ------------------------------------------------------------- 통계 ----
 
-def render_stats(conn) -> None:
-    st.header("📊 통계")
-
-    activities = db.all_activities(conn)
-    activities["dt"] = pd.to_datetime(activities["date"], unit="s")
-
-    granularity = st.radio("기준", ["일별", "월별"], horizontal=True, key="stats_granularity")
-    freq = "D" if granularity == "일별" else "MS"
-
-    progress = activities[activities["kind"] == 4].copy()
-    progress["pages_read"] = progress["pages_read"].clip(lower=0)
-    progress["minutes_read"] = progress["minutes_read"].clip(lower=0)
-
-    pages_series = progress.set_index("dt")["pages_read"].resample(freq).sum()
-    minutes_series = progress.set_index("dt")["minutes_read"].resample(freq).sum()
-
-    finishes = activities[activities["kind"] == 5].copy()
-    finish_series = finishes.set_index("dt")["id"].resample(freq).count()
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("읽은 쪽수")
-        st.bar_chart(pages_series)
-    with col2:
-        st.subheader("읽은 시간 (분)")
-        st.bar_chart(minutes_series)
-
-    st.subheader("완독 권수")
-    st.bar_chart(finish_series)
-
-    st.caption(
-        "읽은 쪽수·시간은 진행 로그(progress_log)에 기록된 세션 값을 합산한 것이며, "
-        "음수로 기록된 값은 0으로 처리했습니다. 완독 권수는 완독 처리(finish) 활동 건수입니다."
-    )
+def render_stats(conn):
+    from lib.stats_ui import render
+    render(conn)
 
 
 # ------------------------------------------------------- 스트릭 / 뱃지 ----

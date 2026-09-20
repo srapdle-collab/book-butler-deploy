@@ -143,7 +143,7 @@ def list_books(
         query += " AND (title LIKE ? OR author LIKE ?)"
         like = f"%{search}%"
         params.extend([like, like])
-    query += " ORDER BY title"
+    query += " ORDER BY COALESCE((SELECT MAX(date) FROM activities WHERE book_id=books.id AND deleted_at IS NULL), start_date, 0) DESC, title"
     return pd.read_sql_query(query, conn, params=params)
 
 
