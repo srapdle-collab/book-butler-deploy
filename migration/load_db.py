@@ -8,8 +8,14 @@ import argparse
 import json
 import re
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Any
+
+if __package__ in (None, ''):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from lib.schema import ensure_schema
+from lib.source_semantics import source_event
 
 SCHEMA = """
 CREATE TABLE books (
@@ -104,6 +110,7 @@ def build_db(output_dir: Path, db_path: Path) -> None:
 
     conn = sqlite3.connect(db_path)
     conn.executescript(SCHEMA)
+    ensure_schema(conn)
 
     conn.executemany(
         """
@@ -133,15 +140,15 @@ def build_db(output_dir: Path, db_path: Path) -> None:
             (
                 a["id"], a["book_id"], KIND_NAME_TO_ID[a["kind"]], a["text"], a["quote"],
                 a["page"], a["date"], a["photo"], a["visibility"],
-                pages_read, minutes_read,
+                pages_read, minutes_read, a.get('eventType', source_event(KIND_NAME_TO_ID[a['kind']])),
             )
         )
     conn.executemany(
         """
         INSERT INTO activities (
             id, book_id, kind, text, quote, page, date, photo, visibility,
-            pages_read, minutes_read
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            pages_read, minutes_read, event_type
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         activity_rows,
     )
@@ -153,6 +160,12 @@ def build_db(output_dir: Path, db_path: Path) -> None:
             for m in manifest
         ],
     )
+
+    conn.executemany('INSERT INTO source_book_state VALUES (?,?,?,?,?)',
+        [(b['id'],b.get('rawStatus'),b.get('rawReadingNow'),b['status'],b.get('statusEvidence'))
+         for b in books if 'rawStatus' in b])
+    if any('rawStatus' not in b for b in books):
+        print('주의: 상태 근거가 없는 이전 변환 JSON입니다. 원본 ZIP으로 audit_source --apply 대조가 필요합니다.')
 
     conn.commit()
 

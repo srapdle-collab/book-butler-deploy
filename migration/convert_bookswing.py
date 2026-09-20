@@ -7,11 +7,16 @@ import argparse
 import hashlib
 import json
 import shutil
+import sys
 import uuid
 import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+if __package__ in (None, ''):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from lib.source_semantics import classify_book, source_event
 
 
 KIND_MAP = {
@@ -23,11 +28,6 @@ KIND_MAP = {
     5: "finish",
     6: "rating",
     7: "other",
-}
-
-STATUS_MAP = {
-    1: "읽는 중",
-    2: "완독",
 }
 
 EXPECTED_BOOKS = 705
@@ -79,6 +79,7 @@ def convert_activity(
         "id": record_id,
         "book_id": book_id,
         "kind": kind,
+        "eventType": source_event(raw_kind),
         "text": text,
         "quote": quote,
         "page": raw.get("page"),
@@ -90,6 +91,7 @@ def convert_activity(
 
 def convert_book(raw: dict[str, Any]) -> dict[str, Any]:
     raw_status = raw.get("status")
+    status, evidence = classify_book(raw)
     return {
         "id": raw["uuid"],
         "title": nullable(raw.get("title")),
@@ -102,10 +104,13 @@ def convert_book(raw: dict[str, Any]) -> dict[str, Any]:
         "pages": raw.get("pages"),
         "currentPage": raw.get("currentPage"),
         "rating": raw.get("rating"),
-        "status": STATUS_MAP.get(raw_status, "위시리스트"),
+        "status": status,
+        "rawStatus": raw_status,
+        "rawReadingNow": raw.get("readingNow"),
+        "statusEvidence": evidence,
         "readCount": raw.get("readCount"),
         "startDate": raw.get("date"),
-        "finishDate": raw.get("readDate") if raw_status == 2 else None,
+        "finishDate": max((a['date'] for a in raw.get('activities', []) if a['kind']==6), default=None) if status=='완독' else None,
     }
 
 
@@ -322,9 +327,9 @@ kind별 원본·변환 개수는 {'모두 일치합니다' if all_kind_counts_ma
 
 ## 책 상태 대조
 
-- 원본 `status=1` → `읽는 중`: {source_status_counts[1]:,}권
-- 원본 `status=2` → `완독`: {source_status_counts[2]:,}권
-- 그 외 상태 → `위시리스트`: {sum(count for status, count in source_status_counts.items() if status not in STATUS_MAP):,}권
+- 원본 status 분포: {dict(source_status_counts)}
+- status와 최근 생명주기 활동을 대조한 상태: {dict(Counter(b['status'] for b in books))}
+- 판정 근거/한계는 docs/SOURCE_AUDIT.md 참고. readingNow만으로 읽는 중을 판정하지 않습니다.
 
 ## 사진 연결 검증
 
@@ -358,9 +363,10 @@ kind별 원본·변환 개수는 {'모두 일치합니다' if all_kind_counts_ma
 ## 변환 규칙
 
 - Book `id`는 원본 `uuid`를 그대로 사용했습니다.
-- Book `status`는 기획문서의 집계에 맞춰 `1=읽는 중`, `2=완독`으로 변환했습니다.
+- Book `status`는 원본 status와 최근 생명주기 활동을 대조했습니다. rawStatus/rawReadingNow/statusEvidence를 함께 보존합니다.
 - Book `startDate`는 원본 `date`를 사용했습니다.
-- Book `finishDate`는 완독(`status=2`)인 책의 원본 `readDate`를 사용하고, 그 외에는 `null`로 두었습니다.
+- Book `finishDate`는 현재 완독 상태인 책의 가장 최근 kind=6 기록일이며, 그 외에는 null입니다.
+- Activity eventType은 원본 5=독서 시작, 6=완독(별점 동반), 7=중단 추정으로 구분합니다. kind의 기존 호환 이름/숫자는 변경하지 않습니다.
 - Activity `id`는 `book_id`와 원본 배열 순서로 만든 결정적 UUID입니다. 같은 백업을 다시 변환하면 같은 ID가 생성됩니다.
 - kind 2의 원본 인용문은 원본 `text`에서 새 `quote`로 이동했습니다.
 - kind 4의 원본 `quote`(쪽수)와 `text`(분)를 사람이 읽을 수 있는 진행 로그 문장으로 합쳤습니다.

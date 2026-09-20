@@ -36,3 +36,12 @@ def test_correction_preserves_records_and_is_idempotent():
     assert conn.execute('SELECT status FROM books').fetchone() == ('읽는 중',)
     assert conn.execute('SELECT id,kind,event_type FROM activities').fetchone() == (aid,5,'reading_started')
     assert not apply_source(conn,[raw])
+
+
+def test_converter_carries_corrected_status_and_event_semantics():
+    from migration.convert_bookswing import convert_book, convert_activity
+    raw={'uuid':'b','status':2,'readingNow':0,'readCount':0,'activities':[{'kind':5,'date':1}]}
+    book=convert_book(raw)
+    assert book['status']=='읽는 중'
+    assert book['rawStatus']==2
+    assert convert_activity(raw['activities'][0],'b',0)['eventType']=='reading_started'

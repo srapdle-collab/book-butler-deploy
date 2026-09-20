@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import io
 import sqlite3
 import time
 import uuid
@@ -281,6 +282,7 @@ def add_photo(
     suffix = Path(original_name).suffix.lower()
     if suffix not in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic"}:
         raise ValueError("지원하는 이미지 파일을 선택해주세요.")
+    validate_photo(content)
     photos_dir = Path(os.environ.get("BOOK_BUTLER_PHOTOS_DIR", USER_PHOTOS_DIR))
     photos_dir.mkdir(parents=True, exist_ok=True)
     filename = f"{uuid.uuid4()}{suffix}"
@@ -299,48 +301,37 @@ def add_photo(
         raise
 
 
-def update_book_status(
-    conn: sqlite3.Connection,
-    book_id: str,
-    status: str,
-    timestamp: int | None = None,
-) -> None:
-    if status not in {"읽는 중", "완독", "읽기 중단"}:
-        raise ValueError("지원하지 않는 책 상태입니다.")
-    book = get_book(conn, book_id)
-    if book is None:
-        raise ValueError("책 정보를 찾을 수 없습니다.")
-    now = timestamp or int(time.time())
-    was_finished = book["status"] == "완독"
+def validate_photo(content):
+    from PIL import Image, UnidentifiedImageError
     try:
-        if status == "완독" and not was_finished:
-            conn.execute(
-                """
-                UPDATE books
-                SET status = ?, finish_date = ?, read_count = COALESCE(read_count, 0) + 1
-                WHERE id = ?
-                """,
-                (status, now, book_id),
-            )
-            insert_activity(
-                conn,
-                book_id=book_id,
-                kind=5,
-                page=book["current_page"] or 0,
-                timestamp=now,
-                commit=False,
-            )
+        with Image.open(io.BytesIO(content)) as image:
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise ValueError('읽을 수 있는 PNG/JPEG/GIF/WebP 사진을 선택해주세요.') from exc
+
+
+def update_book_status(conn, book_id, status, timestamp=None):
+    from lib import reading
+    if status not in {'읽는 중', '완독', '읽기 중단'}:
+        raise ValueError('지원하지 않는 책 상태입니다.')
+    now = int(time.time()) if timestamp is None else timestamp
+    with conn:
+        conn.execute('BEGIN IMMEDIATE')
+        book = get_book(conn, book_id)
+        if book is None:
+            raise ValueError('책 정보를 찾을 수 없습니다.')
+        if book['status'] == status:
+            return
+        session = reading.active(conn)
+        if session and session['book_id'] == book_id:
+            raise ValueError('타이머를 먼저 저장하거나 취소한 후 상태를 변경해주세요.')
+        if status == '완독':
+            conn.execute('UPDATE books SET status=?,finish_date=?,read_count=COALESCE(read_count,0)+1 WHERE id=?', (status,now,book_id))
         else:
-            finish_date = book["finish_date"] if status == "완독" else None
-            start_date = book["start_date"] or (now if status == "읽는 중" else None)
-            conn.execute(
-                "UPDATE books SET status = ?, start_date = ?, finish_date = ? WHERE id = ?",
-                (status, start_date, finish_date, book_id),
-            )
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
+            conn.execute('UPDATE books SET status=?,finish_date=NULL,start_date=COALESCE(start_date,?) WHERE id=?', (status,now if status=='읽는 중' else None,book_id))
+        kind,event = {'완독':(5,'completed'),'읽는 중':(3,'reading_started'),'읽기 중단':(7,'stopped')}[status]
+        aid = insert_activity(conn,book_id=book_id,kind=kind,page=book['current_page'] or 0,timestamp=now,commit=False)
+        conn.execute('UPDATE activities SET event_type=? WHERE id=?',(event,aid))
 
 
 def update_book_info(conn: sqlite3.Connection, book_id: str, book: dict[str, Any]) -> None:

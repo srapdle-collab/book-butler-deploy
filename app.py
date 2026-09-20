@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -14,6 +13,8 @@ from lib import db, library_api, streak
 load_dotenv()
 
 st.set_page_config(page_title="도서비서", page_icon="📚", layout="wide")
+from lib.theme import apply as apply_theme
+apply_theme()
 
 NAV_ITEMS = ["책장", "타임라인", "한 장의 추억", "통계", "스트릭 / 뱃지"]
 
@@ -28,6 +29,7 @@ if "add_book_candidates" not in st.session_state:
 
 
 def goto(view: str, book_id: str | None = None) -> None:
+    st.session_state.scroll_to_top = True
     st.session_state.record_edit_id = None
     st.session_state.record_mode = None
     st.session_state.view = view
@@ -164,9 +166,13 @@ def render_book_management(conn, book) -> None:
             )
             change_status = st.form_submit_button("상태 저장", key="save_status")
         if change_status:
-            db.update_book_status(conn, book["id"], status)
-            st.success("책 상태를 변경했습니다.")
-            st.rerun()
+            try:
+                db.update_book_status(conn, book["id"], status)
+            except ValueError as exc:
+                st.error(str(exc))
+            else:
+                st.session_state.notice = "책 상태를 변경했습니다."
+                st.rerun()
 
         st.markdown("**책 정보 수정**")
         with st.form("book_info_form"):
@@ -259,20 +265,39 @@ with st.sidebar:
             st.rerun()
 
 conn = db.get_connection()
-if st.session_state.get("notice"):
-    st.toast(st.session_state.pop("notice"))
+try:
+    from lib import reading
+    active_timer = reading.active(conn)
+    if active_timer:
+        with st.sidebar:
+            active_book = db.get_book(conn, active_timer['book_id'])
+            st.info(f"독서 타이머: {active_book['title']}")
+            if st.button('타이머 이어보기', key='resume_timer'):
+                goto('책 상세', active_timer['book_id'])
+                st.rerun()
+    if st.session_state.get("notice"):
+        st.toast(st.session_state.pop("notice"))
 
-if st.session_state.view == "책장":
-    render_shelf(conn)
-elif st.session_state.view == "책 상세":
-    render_detail(conn, st.session_state.selected_book_id)
-elif st.session_state.view == "타임라인":
-    from lib.notebook_ui import timeline
-    timeline(conn, goto)
-elif st.session_state.view == "한 장의 추억":
-    from lib.sharing_ui import memory
-    memory(conn, goto)
-elif st.session_state.view == "통계":
-    render_stats(conn)
-elif st.session_state.view == "스트릭 / 뱃지":
-    render_badges(conn)
+    if st.session_state.view == "책장":
+        render_shelf(conn)
+    elif st.session_state.view == "책 상세":
+        render_detail(conn, st.session_state.selected_book_id)
+    elif st.session_state.view == "타임라인":
+        from lib.notebook_ui import timeline
+        timeline(conn, goto)
+    elif st.session_state.view == "한 장의 추억":
+        from lib.sharing_ui import memory
+        memory(conn, goto)
+    elif st.session_state.view == "통계":
+        render_stats(conn)
+    elif st.session_state.view == "스트릭 / 뱃지":
+        render_badges(conn)
+    if st.session_state.pop('scroll_to_top', False):
+        import streamlit.components.v1 as components
+        components.html('''<script>
+        const main = window.parent.document.querySelector('[data-testid="stMain"]');
+        if (main) main.scrollTo({top:0,behavior:'instant'});
+        </script>''', height=0)
+
+finally:
+    conn.close()

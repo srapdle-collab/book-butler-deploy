@@ -1,11 +1,20 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from lib import db, reading
 
 
-@st.fragment(run_every='1s')
 def clock_face(session):
     seconds=reading.elapsed(session)
-    st.metric('읽는 시간',f'{seconds//3600:02}:{seconds//60%60:02}:{seconds%60:02}')
+    # 표시만 브라우저에서 갱신. 저장/복구 시간의 기준은 서버 DB다.
+    # 매초 Streamlit 재실행은 화면 전환 후 사라진 fragment를 요청할 수 있다.
+    components.html('''<div style="font-family:system-ui;color:#654526">
+    <small>읽는 시간</small><div id="clock" role="timer" style="font-size:32px;font-variant-numeric:tabular-nums"></div></div>
+    <script>
+    const initial='''+str(seconds)+''';const start=performance.now();
+    function tick(){const s=initial+Math.floor((performance.now()-start)/1000);
+    document.getElementById('clock').textContent=[Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(n=>String(n).padStart(2,'0')).join(':');}
+    tick();setInterval(tick,1000);
+    </script>''',height=80)
 
 
 def render(conn,book,goto):

@@ -33,7 +33,7 @@ def cards(conn, rows, goto=None, prefix='detail'):
     st.caption(f'총 {len(rows):,}개 기록 · 최신순')
     for _, series in rows.iloc[(page-1)*size:page*size].iterrows():
         row=series.to_dict()
-        with st.container(border=True):
+        with st.container(border=True,key=f"note_card_{row['id']}"):
             left,right=st.columns([1,7])
             left.markdown(f"**{int(row['page'] or 0)}쪽**")
             with right:
@@ -60,13 +60,16 @@ def close_input(message=None):
     st.rerun()
 
 
-def forms(conn,book):
-    for col,mode,label in zip(st.columns(4),['progress','quote','photo','note'],['📘 진도','💬 인용구','📷 사진','✏️ 메모']):
-        if col.button(label,key=f'open_{mode}',width='stretch'):
-            for key in ['quote_page','note_page','photo_page','progress_page','quote_text','quote_note','note_text','photo_upload']:
-                st.session_state.pop(key,None)
-            st.session_state.record_mode=mode
-            st.rerun()
+def forms(conn,book,goto):
+    with st.container(key='reading_toolbar'):
+        for col,mode,label in zip(st.columns(4),['progress','quote','photo','note'],['📘 진도','💬 인용구','📷 사진','✏️ 메모']):
+            if col.button(label,key=f'open_{mode}',width='stretch'):
+                for key in ['quote_page','note_page','photo_page','progress_page','quote_text','quote_note','note_text','photo_upload']:
+                    st.session_state.pop(key,None)
+                st.session_state.record_mode=mode
+                st.rerun()
+    from lib.timer_ui import render as render_timer
+    render_timer(conn,book,goto)
     mode=st.session_state.get('record_mode')
     if not mode: return
     current=int(book['current_page'] or 0)
@@ -79,7 +82,7 @@ def forms(conn,book):
                 st.caption('위 타이머에서 멈춘 후 도달 페이지를 저장해주세요.')
                 return
             st.caption('타이머를 사용하지 못한 경우 수동으로 기록할 수 있습니다.')
-            with st.form('progress_form'):
+            with st.expander('시간 직접 입력'), st.form('progress_form'):
                 page=st.number_input('도달한 페이지',min_value=0,max_value=maximum,value=current,step=1,key='progress_page')
                 minutes=st.number_input('걸린 시간(분)',min_value=1,value=1,step=1,key='progress_minutes')
                 saved=st.form_submit_button('진도 저장',key='save_progress')
@@ -92,7 +95,11 @@ def forms(conn,book):
         uploaded=None
         if mode=='photo':
             uploaded=st.file_uploader('사진',type=['png','jpg','jpeg','gif','webp'],key='photo_upload')
-            if uploaded: st.image(uploaded.getvalue(),width=220,caption='저장할 사진')
+            if uploaded:
+                try: db.validate_photo(uploaded.getvalue())
+                except ValueError as exc:
+                    st.error(str(exc)); uploaded=None
+                else: st.image(uploaded.getvalue(),width=220,caption='저장할 사진')
         with st.form(f'{mode}_form'):
             page=st.number_input('페이지',min_value=0,max_value=maximum,value=current,step=1,key=f'{mode}_page')
             quote=st.text_area('인용문',key='quote_text') if mode=='quote' else ''
@@ -129,9 +136,7 @@ def detail(conn,book_id,goto,management):
         current=book['current_page'] or 0; total=book['pages'] or 0
         st.progress(min(max(current/total,0),1) if total else 0,text=f'{current} / {total or "미정"}쪽')
     management(conn,book)
-    from lib.timer_ui import render as render_timer
-    render_timer(conn,book,goto)
-    forms(conn,book)
+    forms(conn,book,goto)
     st.subheader('독서 노트')
     rows=db.list_activities(conn,book_id)
     choice=st.radio('기록 보기',['전체','인용구·메모','사진','진도'],horizontal=True,key='detail_filter')
