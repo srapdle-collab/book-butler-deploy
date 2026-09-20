@@ -1,4 +1,4 @@
-# 도서비서 (Book Butler) - 1단계 Streamlit 앱
+# 읽담 - 1단계 Streamlit 앱
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from lib import db, library_api, streak
 
 load_dotenv()
 
-st.set_page_config(page_title="도서비서", page_icon="📚", layout="wide")
+st.set_page_config(page_title="읽담", page_icon="📚", layout="wide")
 from lib.theme import apply as apply_theme
 apply_theme()
 
@@ -256,7 +256,7 @@ def render_badges(conn) -> None:
 # --------------------------------------------------------------- main ----
 
 with st.sidebar:
-    st.title("📚 도서비서")
+    st.title("📚 읽담")
     for label in NAV_ITEMS:
         active = st.session_state.view == label or (
             label == "책장" and st.session_state.view == "책 상세"

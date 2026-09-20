@@ -1,4 +1,4 @@
-"""도서비서 SQLite DB 접근 헬퍼."""
+"""읽담 SQLite DB 접근 헬퍼."""
 
 from __future__ import annotations
 
@@ -131,6 +131,10 @@ def list_books(
     category: str | None = None,
     status: str | None = None,
     search: str | None = None,
+    exclude_status: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+    group_by_category: bool = False,
 ) -> pd.DataFrame:
     query = "SELECT * FROM books WHERE 1=1"
     params: list[str] = []
@@ -140,12 +144,47 @@ def list_books(
     if status:
         query += " AND status = ?"
         params.append(status)
+    if exclude_status:
+        query += " AND status != ?"
+        params.append(exclude_status)
     if search:
         query += " AND (title LIKE ? OR author LIKE ?)"
         like = f"%{search}%"
         params.extend([like, like])
-    query += " ORDER BY COALESCE((SELECT MAX(date) FROM activities WHERE book_id=books.id AND deleted_at IS NULL), start_date, 0) DESC, title"
+    recent_order = "COALESCE((SELECT MAX(date) FROM activities WHERE book_id=books.id AND deleted_at IS NULL), start_date, 0) DESC, title"
+    if group_by_category:
+        query += f" ORDER BY COALESCE(category, '미분류'), {recent_order}"
+    else:
+        query += f" ORDER BY {recent_order}"
+    if limit is not None:
+        query += " LIMIT ? OFFSET ?"
+        params.extend([limit, max(offset, 0)])
     return pd.read_sql_query(query, conn, params=params)
+
+
+def count_books(
+    conn: sqlite3.Connection,
+    category: str | None = None,
+    status: str | None = None,
+    search: str | None = None,
+    exclude_status: str | None = None,
+) -> int:
+    query = "SELECT COUNT(*) FROM books WHERE 1=1"
+    params: list[str] = []
+    if category:
+        query += " AND category = ?"
+        params.append(category)
+    if status:
+        query += " AND status = ?"
+        params.append(status)
+    if exclude_status:
+        query += " AND status != ?"
+        params.append(exclude_status)
+    if search:
+        query += " AND (title LIKE ? OR author LIKE ?)"
+        like = f"%{search}%"
+        params.extend([like, like])
+    return int(conn.execute(query, params).fetchone()[0])
 
 
 def get_book(conn: sqlite3.Connection, book_id: str) -> sqlite3.Row | None:

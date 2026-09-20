@@ -18,6 +18,17 @@ def apply():
     .st-key-reading_toolbar [data-testid="stHorizontalBlock"] {flex-wrap:nowrap!important;}
     .st-key-reading_toolbar [data-testid="stColumn"] {min-width:0!important;flex:1!important;}
     .st-key-reading_toolbar button {padding:.35rem;font-size:.9rem;}
+    [class*="_cover_card_"] {position:relative;}
+    [class*="_cover_card_"]>[data-testid="stElementContainer"]:last-child {position:absolute;inset:0;z-index:2;height:100%;}
+    [class*="_cover_card_"]>[data-testid="stElementContainer"]:last-child .stButton,
+    [class*="_cover_card_"]>[data-testid="stElementContainer"]:last-child .stButton>div,
+    [class*="_cover_card_"]>[data-testid="stElementContainer"]:last-child [data-testid="stTooltipIcon"],
+    [class*="_cover_card_"]>[data-testid="stElementContainer"]:last-child [data-testid="stTooltipHoverTarget"] {height:100%!important;width:100%;align-items:stretch;}
+    [class*="_cover_card_"] [data-testid="stButton"] button {height:100%!important;width:100%;opacity:0;padding:0;}
+    [class*="_cover_card_"] [data-testid="stImage"] {aspect-ratio:2/3;}
+    [class*="_cover_card_"] [data-testid="stImage"] img {width:100%!important;height:100%!important;object-fit:cover;}
+    .shelf-cover-placeholder {aspect-ratio:2/3;background:linear-gradient(145deg,#e9d8ba,#c9ad87);border:1px solid #b99065;border-radius:4px;box-shadow:0 4px 10px #382c2520;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:.75rem;text-align:center;color:#5f422b;font-weight:700;line-height:1.3;}
+    .shelf-cover-placeholder span {font-size:.88rem;word-break:keep-all;}
     @media(max-width:640px) {
       [data-testid="stMainBlockContainer"] {padding:1.25rem .85rem;}
       [data-testid="stMetric"] {padding:8px;}

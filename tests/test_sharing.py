@@ -93,6 +93,6 @@ def test_share_actions_are_consistent_in_detail_timeline_and_shelf_detail(isolat
     assert '공유할 인용문' in mail_body and '공유할 생각' in mail_body
 
     at.session_state['view']='책장'; at.run()
-    at.button(key='detail_book-1').click().run()
+    at.button(key='shelf_cover_book-1').click().run()
     assert at.session_state['view']=='책 상세'
     assert at.button(key=f'detail_share_{quote_id}').label=='공유'
