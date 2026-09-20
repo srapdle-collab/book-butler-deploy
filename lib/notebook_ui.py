@@ -48,6 +48,8 @@ def cards(conn, rows, goto=None, prefix='detail'):
                     path=db.photo_path(row['photo'])
                     if path: st.image(str(path),width='stretch')
                     else: st.warning('사진 파일을 찾을 수 없습니다.')
+                from lib.sharing_ui import record_share
+                record_share(conn,row,prefix)
                 from lib.record_ui import edit_controls
                 edit_controls(conn,row)
                 if goto and st.button('해당 책으로 이동',key=f"{prefix}_book_{row['id']}"):

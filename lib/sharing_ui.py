@@ -5,11 +5,11 @@ import streamlit.components.v1 as components
 from lib import db, sharing
 
 
-def copy_button(text):
+def copy_button(text,label='전체 복사하기'):
     # 사용자 텍스트를 JS에 보간하지 않고 HTML 텍스트 노드로 이스케이프한다.
     components.html('''<style>body{margin:0;font-family:system-ui}button{font:inherit;background:#fff8ed;border:1px solid #bfa78b;border-radius:8px;padding:9px 16px;cursor:pointer}textarea{position:absolute;left:-9999px}</style>
 <textarea id="copy-source" readonly>'''+html.escape(text)+'''</textarea>
-<button id="copy-button">전체 복사하기</button> <span id="copy-result" role="status"></span>
+<button id="copy-button">'''+html.escape(label)+'''</button> <span id="copy-result" role="status"></span>
 <script>document.getElementById('copy-button').onclick=async()=>{
  const source=document.getElementById('copy-source'); const result=document.getElementById('copy-result');
  try {await navigator.clipboard.writeText(source.value);result.textContent='복사했습니다.';}
@@ -26,6 +26,31 @@ def share_actions(subject,body,filename):
         url=sharing.mailto(subject,'')
     st.link_button('메일 앱 열기',url)
     st.download_button('텍스트 다운로드',body.encode('utf-8'),file_name=filename,mime='text/plain')
+
+
+def record_share(conn,row,prefix,book=None):
+    """인용구·메모 카드에서 같은 공유 버튼과 옵션을 보여준다."""
+    data=dict(row)
+    if int(data['kind']) not in (0,2) or not (data.get('quote') or data.get('text')):
+        return
+    book=book or db.get_book(conn,data['book_id'])
+    if book is None:
+        return
+    token=f"{prefix}:{data['id']}"
+    button_col,hint_col=st.columns([1,3])
+    if button_col.button('공유',key=f"{prefix}_share_{data['id']}",width='stretch'):
+        current=st.session_state.get('active_record_share')
+        st.session_state.active_record_share=None if current==token else token
+        st.rerun()
+    hint_col.caption('카톡은 복사 후 붙여넣기')
+    if st.session_state.get('active_record_share')!=token:
+        return
+    body=sharing.record_text(book,data)
+    with st.container(border=True):
+        copy_button(body,label='복사하기')
+        st.link_button('메일로 보내기',sharing.mailto(f"{book['title']} 독서 기록",body))
+        st.link_button('문자로 보내기',sharing.sms(body))
+        st.caption('문자 앱이 본문을 채우지 못하면 복사하기 후 붙여넣어 주세요.')
 
 
 def export_menu(conn,book):
@@ -55,7 +80,4 @@ def memory(conn,goto):
         st.caption(sharing.citation(book,row))
     if st.button('해당 책으로 이동',key='memory_book'):
         goto('책 상세',book['id']); st.rerun()
-    body=sharing.quote_text(book,row)
-    share_actions(book['title'],body,'reading-memory.txt')
-    with st.expander('공유할 내용 미리보기'):
-        st.text(body)
+    record_share(conn,row,'memory',book)

@@ -32,6 +32,7 @@ def goto(view: str, book_id: str | None = None) -> None:
     st.session_state.scroll_to_top = True
     st.session_state.record_edit_id = None
     st.session_state.record_mode = None
+    st.session_state.active_record_share = None
     st.session_state.view = view
     st.session_state.selected_book_id = book_id
 

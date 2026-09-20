@@ -1,4 +1,4 @@
-"""인용구/메일 본문 생성. 개인 메모는 명시적으로 선택한 경우만 포함한다."""
+"""인용구·메모의 공유/메일 본문을 생성한다."""
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import urlencode,quote
@@ -16,6 +16,17 @@ def quote_text(book,row,include_notes=False):
     return '\n\n'.join(parts)
 
 
+def record_text(book,row):
+    """인용구나 메모 한 건을 출처와 함께 공유할 텍스트로 만든다."""
+    parts=[]
+    if row['quote']:
+        parts.append(row['quote'])
+    if row['text']:
+        parts.append(('내 생각 / 메모\n' if row['quote'] else '')+row['text'])
+    parts.append(citation(book,row))
+    return '\n\n'.join(parts)
+
+
 def export_book(conn,book,include_notes=False):
     rows=conn.execute('SELECT * FROM activities WHERE book_id=? AND kind IN (0,2) AND deleted_at IS NULL ORDER BY page,date,rowid',(book['id'],)).fetchall()
     records=[quote_text(book,r,include_notes) for r in rows if r['quote'] or (include_notes and r['text'])]
@@ -24,3 +35,8 @@ def export_book(conn,book,include_notes=False):
 
 def mailto(subject,body):
     return 'mailto:?'+urlencode({'subject':subject,'body':body},quote_via=quote)
+
+
+def sms(body):
+    """RFC 5724 형식으로 문자 작성 화면에 넘길 URL을 만든다."""
+    return 'sms:?'+urlencode({'body':body},quote_via=quote)
