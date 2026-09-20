@@ -6,6 +6,7 @@
 *.gif
 *.heic
 data/
+migration/output/
 
 # Secrets and local credentials
 .env

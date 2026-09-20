@@ -9,11 +9,23 @@
 도서비서/
 ├── data/
 │   └── bookswing_import/   # 북스윙 백업 원본 zip (git 추적 제외)
-├── migration/                # 북스윙 JSON → 새 DB 스키마 변환 스크립트 (챗GPT 작업 결과 반입 예정)
+├── migration/                # 북스윙 JSON → 새 DB 스키마 변환 스크립트
 ├── app.py                    # Streamlit 앱 (1단계, 화면 구현 전)
 └── README.md
 ```
 
 ## 현재 상태
-- 폴더 구조만 초기 세팅됨. 화면 코드, DB 스키마, 마이그레이션 스크립트는 아직 없음.
-- 북스윙 마이그레이션 데이터 변환은 별도(ChatGPT)에서 진행 중 — 결과물은 `migration/`에 반입 예정.
+- 북스윙 백업 705권·활동 5,666건을 새 JSON 구조로 변환하는 스크립트가 준비됨.
+- 변환 결과와 사진은 개인정보 보호를 위해 `migration/output/`에 생성되며 Git 추적에서 제외됨.
+- 화면 코드와 DB 스키마 구현은 아직 시작 전.
+
+## 북스윙 데이터 변환
+
+```bash
+python3 migration/convert_bookswing.py \
+  data/bookswing_import/BooksWing_backup.zip \
+  migration/output
+```
+
+결과물은 `books.json`, `activities.json`, `photo_manifest.json`, `photos/`,
+`parse_failures.json`, `validation_report.md`로 생성된다.
