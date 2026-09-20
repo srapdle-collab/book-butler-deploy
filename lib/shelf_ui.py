@@ -72,17 +72,14 @@ def render(conn,goto,add_book):
     exclude_status='위시리스트' if status=='전체' else None
     matched=db.count_books(conn,category=selected_category,status=selected_status,search=search or None,exclude_status=exclude_status)
     st.caption(f'검색 결과 {matched:,}권 · 전체 등록 {total:,}권 · 카테고리별 · 각 카테고리 최근 기록순')
-    page_count=max(1,(matched+PAGE_SIZE-1)//PAGE_SIZE)
-    if st.session_state.get('shelf_page_input',1)>page_count: st.session_state.shelf_page_input=1
-    page=st.number_input('책장 페이지',min_value=1,max_value=page_count,step=1,key='shelf_page_input')
+    # 북스윙처럼 전체보기는 카테고리를 넘나들며 계속 스크롤한다.
+    # 필터를 고르면 그 조건에 맞는 책만 같은 방식으로 이어서 보여 준다.
     visible=db.list_books(
         conn,
         category=selected_category,
         status=selected_status,
         search=search or None,
         exclude_status=exclude_status,
-        limit=PAGE_SIZE,
-        offset=(page-1)*PAGE_SIZE,
         group_by_category=selected_category is None,
     ).copy()
     visible['category']=visible['category'].fillna('미분류')

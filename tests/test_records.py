@@ -55,3 +55,27 @@ def test_app_edit_delete_restore_and_timeline_book_link(isolated_app):
     at.button(key=f'timeline_book_{aid}').click().run()
     assert not at.exception
     assert at.session_state['view']=='책 상세'
+
+
+def test_timeline_searches_quotes_notes_and_book_metadata(isolated_app):
+    conn=db.get_connection()
+    db.insert_book(conn, {'id':'book-2','title':'찾을 제목','author':'검색 저자','status':'미독'})
+    quote_id=db.add_quote(conn,'book-1',10,'찾는 인용문')
+    note_id=db.add_note(conn,'book-2',20,'찾는 메모')
+    conn.close()
+
+    from streamlit.testing.v1 import AppTest
+    from test_activity_inputs_app import APP_PATH
+    at=AppTest.from_file(APP_PATH)
+    at.session_state['view']='타임라인'; at.run()
+    at.text_input(key='timeline_search').set_value('찾는 메모').run()
+    assert any(element.value=='찾는 메모' for element in at.markdown)
+    assert at.button(key=f'timeline_book_{note_id}').label=='해당 책으로 이동'
+    at.button(key=f'timeline_book_{note_id}').click().run()
+    assert at.session_state['selected_book_id']=='book-2'
+
+    at.session_state['view']='타임라인'; at.run()
+    at.text_input(key='timeline_search').set_value('검색 저자').run()
+    assert any(element.value=='찾는 메모' for element in at.markdown)
+    assert not any(element.value=='찾는 인용문' for element in at.markdown)
+    assert any('검색 결과 1건' in element.value for element in at.caption)

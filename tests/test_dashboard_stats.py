@@ -48,8 +48,8 @@ def test_shelf_counts_are_dynamic_and_reading_all_links(isolated_app):
     assert at.session_state['selected_book_id']=='book-1'
 
 
-def test_shelf_uses_paginated_cover_grid_and_a_cover_opens_detail(isolated_app):
-    """최대 24권만 그리드에 보여 주고, 표지 카드 클릭이 상세로 이동하지 않으면 실패한다."""
+def test_shelf_shows_all_categories_in_one_scrolling_grid(isolated_app):
+    """전체보기는 페이지로 자르지 않고 카테고리별 표지를 연속해서 보여야 한다."""
     conn=db.get_connection()
     for number in range(2,27):
         db.insert_book(conn,{
@@ -62,16 +62,15 @@ def test_shelf_uses_paginated_cover_grid_and_a_cover_opens_detail(isolated_app):
 
     at=AppTest.from_file(APP_PATH).run()
     covers=[button for button in at.button if (button.key or '').startswith('shelf_cover_')]
-    assert len(covers)==24
-    assert at.number_input(key='shelf_page_input').max==2
+    assert len(covers)==26
+    assert not any(widget.key=='shelf_page_input' for widget in at.number_input)
+    assert at.selectbox(key='shelf_category').value=='전체'
+    # 두 카테고리의 모든 표지가 같은 스크롤 화면에 남는다.
+    assert len(covers) == 26
     assert any('표지 없음' in caption.value for caption in at.caption)
 
-    at.number_input(key='shelf_page_input').set_value(2).run()
-    covers=[button for button in at.button if (button.key or '').startswith('shelf_cover_')]
-    assert len(covers)==2
-    selected_id=covers[0].key.removeprefix('shelf_cover_')
-    at.button(key=covers[0].key).click().run()
-    assert at.session_state['selected_book_id']==selected_id
+    at.button(key='shelf_cover_book-2').click().run()
+    assert at.session_state['selected_book_id']=='book-2'
 
 
 def test_sidebar_uses_read_dam_name(isolated_app):

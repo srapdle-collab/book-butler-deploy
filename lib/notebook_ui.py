@@ -167,12 +167,14 @@ def detail(conn,book_id,goto,management):
 
 def timeline(conn,goto):
     st.header('타임라인')
-    search=st.text_input('책 제목 · 인용문 · 메모 검색',key='timeline_search')
+    search=st.text_input('기록 검색 · 인용문, 메모, 책 제목, 저자',key='timeline_search')
     choice=st.radio('기록 종류',['전체','인용구·메모','사진','진도'],horizontal=True,key='timeline_kind')
     import pandas as pd
     rows=pd.read_sql_query("SELECT a.*,b.title,b.author FROM activities a JOIN books b ON b.id=a.book_id WHERE a.deleted_at IS NULL ORDER BY a.date DESC,a.rowid DESC",conn)
     if search:
-        mask=rows[['title','quote','text']].fillna('').apply(lambda col:col.str.contains(search,case=False,regex=False)).any(axis=1)
+        mask=rows[['title','author','quote','text']].fillna('').apply(lambda col:col.str.contains(search,case=False,regex=False)).any(axis=1)
         rows=rows[mask]
     if choice!='전체': rows=rows[rows['kind'].isin({'인용구·메모':[0,2],'사진':[1],'진도':[4]}[choice])]
+    if search:
+        st.caption(f'검색 결과 {len(rows):,}건 · 책 제목·저자·인용문·메모에서 찾았습니다.')
     cards(conn,rows,goto,prefix='timeline')
