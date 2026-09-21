@@ -64,11 +64,14 @@ def test_authenticated_user_can_create_group_and_save_daily_checkin(isolated_app
     next(widget for widget in at.text_input if widget.label == '소그룹 이름').set_value('함께 읽기')
     next(button for button in at.button if button.label == '만들기').click().run()
     assert not at.exception
+    assert any('오늘 점검' in header.value for header in at.subheader)
+    assert any('오늘의 독서 문장' in info.value for info in at.info)
     note = next(widget for widget in at.text_area if widget.label == '한줄소감')
     note.set_value('오늘의 짧은 소감')
     next(button for button in at.button if button.label == '인증 저장').click().run()
     assert not at.exception
     assert any('오늘의 짧은 소감' in markdown.value for markdown in at.markdown)
+    assert any(button.label.startswith('❤️') for button in at.button)
 
 
 def test_signup_screen_opens_without_mutating_widget_state(isolated_app, monkeypatch):

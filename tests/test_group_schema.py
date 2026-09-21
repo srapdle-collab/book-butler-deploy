@@ -16,6 +16,7 @@ def test_schema_adds_personal_ownership_and_group_tables():
 
     assert "owner_id" in _column_names(conn, "books")
     assert "owner_id" in _column_names(conn, "activities")
+    assert "emoji" in _column_names(conn, "checkin_reactions")
     assert {"profiles", "reading_groups", "group_members", "group_invites",
             "daily_checkins", "checkin_reactions", "checkin_comments"}.issubset(
         {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}

@@ -14,6 +14,9 @@ class GroupAccessError(ValueError):
     """그룹원이 아닌 사용자가 그룹 데이터를 열려고 할 때 발생한다."""
 
 
+REACTION_EMOJIS = ("❤️", "👏", "🔥", "💡")
+
+
 def _now(now: int | None = None) -> int:
     return int(time.time()) if now is None else now
 
@@ -174,6 +177,30 @@ def group_feed(conn, group_id: str, user_id: str, *, checked_on: str) -> list[di
     return [_as_dict(row) for row in rows]
 
 
+def daily_status(conn, group_id: str, user_id: str, *, checked_on: str) -> list[dict[str, Any]]:
+    """오늘 인증 여부를 그룹의 모든 구성원 기준으로 돌려준다."""
+    _require_member(conn, group_id, user_id)
+    rows = database.execute(
+        conn,
+        """SELECT gm.user_id, COALESCE(p.display_name, p.email) AS display_name,
+                  CASE WHEN c.id IS NULL THEN 0 ELSE 1 END AS checked_in,
+                  COALESCE(c.is_read, 0) AS is_read
+           FROM group_members gm JOIN profiles p ON p.id = gm.user_id
+           LEFT JOIN daily_checkins c
+             ON c.group_id = gm.group_id AND c.user_id = gm.user_id AND c.checked_on = ?
+           WHERE gm.group_id = ?
+           ORDER BY CASE gm.role WHEN 'owner' THEN 0 ELSE 1 END, gm.joined_at ASC, gm.user_id ASC""",
+        (checked_on, group_id),
+    ).fetchall()
+    return [
+        {
+            "user_id": row["user_id"], "display_name": row["display_name"],
+            "checked_in": bool(row["checked_in"]), "is_read": bool(row["is_read"]),
+        }
+        for row in rows
+    ]
+
+
 def _checkin_group_for_member(conn, checkin_id: str, user_id: str) -> str:
     row = database.execute(conn, "SELECT group_id FROM daily_checkins WHERE id = ?", (checkin_id,)).fetchone()
     if row is None:
@@ -183,22 +210,50 @@ def _checkin_group_for_member(conn, checkin_id: str, user_id: str) -> str:
     return group_id
 
 
-def toggle_reaction(conn, checkin_id: str, user_id: str, *, now: int | None = None) -> bool:
+def toggle_reaction(
+    conn, checkin_id: str, user_id: str, *, emoji: str = "❤️", now: int | None = None,
+) -> bool:
+    if emoji not in REACTION_EMOJIS:
+        raise ValueError("지원하지 않는 반응입니다.")
     _checkin_group_for_member(conn, checkin_id, user_id)
     with database.transaction(conn):
         current = database.execute(
-            conn, "SELECT 1 FROM checkin_reactions WHERE checkin_id = ? AND user_id = ?", (checkin_id, user_id)
+            conn, "SELECT emoji FROM checkin_reactions WHERE checkin_id = ? AND user_id = ?", (checkin_id, user_id)
         ).fetchone()
-        if current is not None:
+        if current is not None and _as_dict(current).get("emoji") == emoji:
             database.execute(
                 conn, "DELETE FROM checkin_reactions WHERE checkin_id = ? AND user_id = ?", (checkin_id, user_id)
             )
             return False
+        if current is not None:
+            database.execute(
+                conn, "UPDATE checkin_reactions SET emoji = ?, created_at = ? WHERE checkin_id = ? AND user_id = ?",
+                (emoji, _now(now), checkin_id, user_id),
+            )
+            return True
         database.execute(
-            conn, "INSERT INTO checkin_reactions (checkin_id, user_id, created_at) VALUES (?, ?, ?)",
-            (checkin_id, user_id, _now(now)),
+            conn, "INSERT INTO checkin_reactions (checkin_id, user_id, emoji, created_at) VALUES (?, ?, ?, ?)",
+            (checkin_id, user_id, emoji, _now(now)),
         )
         return True
+
+
+def reaction_summary(conn, checkin_id: str, user_id: str) -> dict[str, Any]:
+    _checkin_group_for_member(conn, checkin_id, user_id)
+    rows = database.execute(
+        conn,
+        "SELECT emoji, user_id FROM checkin_reactions WHERE checkin_id = ? ORDER BY created_at ASC",
+        (checkin_id,),
+    ).fetchall()
+    counts: dict[str, int] = {}
+    my_emoji = None
+    for row in rows:
+        item = _as_dict(row)
+        emoji = item["emoji"]
+        counts[emoji] = counts.get(emoji, 0) + 1
+        if item["user_id"] == user_id:
+            my_emoji = emoji
+    return {"counts": counts, "my_emoji": my_emoji}
 
 
 def add_comment(conn, checkin_id: str, user_id: str, body: str, *, now: int | None = None) -> str:

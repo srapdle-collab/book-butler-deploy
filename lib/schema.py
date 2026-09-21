@@ -54,8 +54,9 @@ CREATE TABLE IF NOT EXISTS daily_checkins (
 );
 CREATE TABLE IF NOT EXISTS checkin_reactions (
     checkin_id TEXT NOT NULL REFERENCES daily_checkins(id), user_id TEXT NOT NULL REFERENCES profiles(id),
-    created_at BIGINT NOT NULL, PRIMARY KEY (checkin_id, user_id)
+    emoji TEXT NOT NULL DEFAULT '❤️', created_at BIGINT NOT NULL, PRIMARY KEY (checkin_id, user_id)
 );
+ALTER TABLE checkin_reactions ADD COLUMN IF NOT EXISTS emoji TEXT NOT NULL DEFAULT '❤️';
 CREATE TABLE IF NOT EXISTS checkin_comments (
     id TEXT PRIMARY KEY, checkin_id TEXT NOT NULL REFERENCES daily_checkins(id),
     user_id TEXT NOT NULL REFERENCES profiles(id), body TEXT NOT NULL, created_at BIGINT NOT NULL
@@ -138,7 +139,7 @@ def ensure_schema(conn):
         );
         CREATE TABLE IF NOT EXISTS checkin_reactions (
             checkin_id TEXT NOT NULL REFERENCES daily_checkins(id), user_id TEXT NOT NULL REFERENCES profiles(id),
-            created_at INTEGER NOT NULL, PRIMARY KEY (checkin_id, user_id)
+            emoji TEXT NOT NULL DEFAULT '❤️', created_at INTEGER NOT NULL, PRIMARY KEY (checkin_id, user_id)
         );
         CREATE TABLE IF NOT EXISTS checkin_comments (
             id TEXT PRIMARY KEY, checkin_id TEXT NOT NULL REFERENCES daily_checkins(id),
@@ -148,4 +149,7 @@ def ensure_schema(conn):
         CREATE INDEX IF NOT EXISTS idx_daily_checkins_feed ON daily_checkins(group_id, checked_on, created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_checkin_comments_checkin ON checkin_comments(checkin_id, created_at);
     ''')
+    reaction_columns = {r[1] for r in conn.execute('PRAGMA table_info(checkin_reactions)')}
+    if 'emoji' not in reaction_columns:
+        conn.execute("ALTER TABLE checkin_reactions ADD COLUMN emoji TEXT NOT NULL DEFAULT '❤️'")
     conn.commit()

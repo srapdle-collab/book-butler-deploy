@@ -47,9 +47,34 @@ def test_group_invite_checkin_feed_reaction_and_comment():
 
     assert groups.toggle_reaction(conn, owner_checkin, member.id, now=300) is True
     assert groups.toggle_reaction(conn, owner_checkin, member.id, now=301) is False
+    assert groups.toggle_reaction(conn, owner_checkin, member.id, emoji="👏", now=302) is True
+    summary = groups.reaction_summary(conn, owner_checkin, member.id)
+    assert summary == {"counts": {"👏": 1}, "my_emoji": "👏"}
     comment_id = groups.add_comment(conn, owner_checkin, member.id, "함께 읽어서 좋아요", now=302)
     comments = groups.list_comments(conn, owner_checkin, member.id)
     assert comments == [{"id": comment_id, "body": "함께 읽어서 좋아요", "display_name": "독자"}]
 
     with pytest.raises(groups.GroupAccessError):
         groups.group_feed(conn, group["id"], outsider.id, checked_on="2026-09-21")
+
+
+def test_daily_status_lists_every_group_member_and_their_checkin_state():
+    from lib import groups
+
+    conn = _conn()
+    owner = AuthUser(id="owner-id", email="owner@example.com", display_name="모임장")
+    member = AuthUser(id="member-id", email="member@example.com", display_name="독자")
+    groups.ensure_profile(conn, owner)
+    groups.ensure_profile(conn, member)
+    group = groups.create_group(conn, owner, "화요 읽담", now=1)
+    groups.join_invite(conn, groups.create_invite(conn, group["id"], owner.id, now=2), member.id, now=3)
+    groups.save_checkin(
+        conn, group["id"], owner.id, is_read=True, note="한 장 읽음", checked_on="2026-09-22", now=4,
+    )
+
+    status = groups.daily_status(conn, group["id"], member.id, checked_on="2026-09-22")
+
+    assert status == [
+        {"user_id": "owner-id", "display_name": "모임장", "checked_in": True, "is_read": True},
+        {"user_id": "member-id", "display_name": "독자", "checked_in": False, "is_read": False},
+    ]

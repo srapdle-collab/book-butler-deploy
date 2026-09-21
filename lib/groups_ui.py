@@ -9,6 +9,7 @@ import streamlit as st
 
 from lib import database, groups
 from lib.auth import AuthUser
+from lib.reading_quote import daily_quote
 
 KST = ZoneInfo("Asia/Seoul")
 
@@ -134,13 +135,15 @@ def _render_feed(conn, group_id: str, user_id: str):
                 source = db.activity_photo_source(item["attachment_photo"])
                 if source:
                     st.image(source, width=280)
-            reacted = bool(item["reacted"])
-            if st.button(
-                f"{'♥' if reacted else '♡'} 좋아요 {item['reaction_count']}",
-                key=f"reaction_{item['id']}",
-            ):
-                groups.toggle_reaction(conn, item["id"], user_id)
-                st.rerun()
+            reaction = groups.reaction_summary(conn, item["id"], user_id)
+            reaction_columns = st.columns(len(groups.REACTION_EMOJIS))
+            for column, emoji in zip(reaction_columns, groups.REACTION_EMOJIS):
+                count = reaction["counts"].get(emoji, 0)
+                selected = reaction["my_emoji"] == emoji
+                label = f"{emoji} {count}" if count else emoji
+                if column.button(label, key=f"reaction_{item['id']}_{emoji}", type="primary" if selected else "secondary"):
+                    groups.toggle_reaction(conn, item["id"], user_id, emoji=emoji)
+                    st.rerun()
             comments = groups.list_comments(conn, item["id"], user_id)
             for comment in comments:
                 st.caption(f"{comment['display_name']}: {comment['body']}")
@@ -177,6 +180,16 @@ def render(conn, user: AuthUser):
     )
     st.session_state.selected_group_id = group_id
     current = next(group for group in my_groups if group["id"] == group_id)
+    quote = daily_quote(datetime.now(KST).date())
+    st.info(f"📖 **오늘의 독서 문장**  \n{quote['text']}  \n— {quote['author']}")
+    status = groups.daily_status(conn, group_id, user.id, checked_on=_today())
+    completed = sum(member["checked_in"] for member in status)
+    st.subheader(f"오늘 점검 · {completed}/{len(status)}")
+    status_columns = st.columns(min(4, len(status)))
+    for index, member in enumerate(status):
+        marker = "✅" if member["checked_in"] else "○"
+        detail = "읽었어요" if member["is_read"] else ("소감 남김" if member["checked_in"] else "아직")
+        status_columns[index % len(status_columns)].caption(f"{marker} {member['display_name']} · {detail}")
     if current["role"] == "owner":
         invite_key = f"group_invite_{group_id}"
         if st.button("새 초대 링크 만들기", key=f"create_invite_{group_id}"):
