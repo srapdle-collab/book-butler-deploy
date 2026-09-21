@@ -23,3 +23,14 @@ def test_password_gate_hides_app_until_correct_password(isolated_app, monkeypatc
 
     at.run()
     assert all(widget.key != 'app_password' for widget in at.text_input)
+
+
+def test_auth_gate_hides_app_until_user_session(isolated_app, monkeypatch):
+    monkeypatch.setenv('SUPABASE_URL', 'https://example.supabase.co')
+    monkeypatch.setenv('SUPABASE_ANON_KEY', 'anon-key')
+    monkeypatch.setenv('BOOK_BUTLER_APP_PASSWORD', 'legacy-password')
+
+    at = AppTest.from_file(APP_PATH, default_timeout=10).run()
+    assert not at.exception
+    assert at.text_input(key='login_email').label == '이메일'
+    assert not any(button.label == '책장' for button in at.button)

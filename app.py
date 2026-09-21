@@ -45,7 +45,51 @@ def require_app_password() -> None:
     st.stop()
 
 
-require_app_password()
+def require_authenticated_user():
+    """Auth가 설정된 배포에서는 계정 로그인 전 앱 본문을 숨긴다."""
+    from lib import auth
+
+    if not auth.is_configured():
+        require_app_password()
+        return None
+
+    current = st.session_state.get("auth_user")
+    if current:
+        return current
+
+    st.title("읽담")
+    st.caption("개인 서재와 소그룹을 사용하려면 로그인해주세요.")
+    login_email = st.text_input("이메일", key="login_email")
+    login_password = st.text_input("비밀번호", type="password", key="login_password")
+    login_col, signup_col = st.columns(2)
+    with login_col:
+        login = st.button("로그인", key="sign_in", type="primary", width="stretch")
+    with signup_col:
+        signup = st.button("회원가입", key="show_sign_up", width="stretch")
+
+    if signup or st.session_state.get("show_sign_up"):
+        st.session_state.show_sign_up = True
+        display_name = st.text_input("표시 이름", key="sign_up_display_name")
+        if st.button("가입 메일 보내기", key="sign_up", type="primary"):
+            try:
+                message = auth.sign_up(login_email, login_password, display_name)
+            except auth.AuthError as exc:
+                st.error(str(exc))
+            else:
+                st.success(message)
+    if login:
+        try:
+            user, token = auth.sign_in(login_email, login_password)
+        except auth.AuthError as exc:
+            st.error(str(exc))
+        else:
+            st.session_state.auth_user = user
+            st.session_state.auth_access_token = token
+            st.rerun()
+    st.stop()
+
+
+authenticated_user = require_authenticated_user()
 
 from lib.theme import apply as apply_theme
 apply_theme()
