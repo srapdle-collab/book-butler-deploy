@@ -69,3 +69,15 @@ def test_authenticated_user_can_create_group_and_save_daily_checkin(isolated_app
     next(button for button in at.button if button.label == '인증 저장').click().run()
     assert not at.exception
     assert any('오늘의 짧은 소감' in markdown.value for markdown in at.markdown)
+
+
+def test_signup_screen_opens_without_mutating_widget_state(isolated_app, monkeypatch):
+    monkeypatch.setenv('SUPABASE_URL', 'https://example.supabase.co')
+    monkeypatch.setenv('SUPABASE_ANON_KEY', 'anon-key')
+
+    at = AppTest.from_file(APP_PATH, default_timeout=10).run()
+    at.button(key='show_sign_up').click().run()
+
+    assert not at.exception
+    assert at.text_input(key='sign_up_display_name').label == '표시 이름'
+    assert at.button(key='sign_up').label == '가입 메일 보내기'

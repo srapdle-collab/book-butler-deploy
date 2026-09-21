@@ -61,14 +61,17 @@ def require_authenticated_user():
     st.caption("개인 서재와 소그룹을 사용하려면 로그인해주세요.")
     login_email = st.text_input("이메일", key="login_email")
     login_password = st.text_input("비밀번호", type="password", key="login_password")
+    def open_signup() -> None:
+        # 버튼 위젯 키와 별도 상태 키를 써야, 위젯 생성 뒤 상태를 바꾸는 오류가 없다.
+        st.session_state.signup_mode = True
+
     login_col, signup_col = st.columns(2)
     with login_col:
         login = st.button("로그인", key="sign_in", type="primary", width="stretch")
     with signup_col:
-        signup = st.button("회원가입", key="show_sign_up", width="stretch")
+        st.button("회원가입", key="show_sign_up", width="stretch", on_click=open_signup)
 
-    if signup or st.session_state.get("show_sign_up"):
-        st.session_state.show_sign_up = True
+    if st.session_state.get("signup_mode"):
         display_name = st.text_input("표시 이름", key="sign_up_display_name")
         if st.button("가입 메일 보내기", key="sign_up", type="primary"):
             try:
