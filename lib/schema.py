@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS books (
     id TEXT PRIMARY KEY, title TEXT NOT NULL, author TEXT, publisher TEXT, isbn TEXT,
     subtitle TEXT, translator TEXT, category TEXT, pages INTEGER, current_page INTEGER,
     rating INTEGER, status TEXT, read_count INTEGER, start_date BIGINT, finish_date BIGINT,
-    cover_photo TEXT, cover_url TEXT
+    cover_photo TEXT, cover_url TEXT, owner_id TEXT
 );
 CREATE TABLE IF NOT EXISTS activities (
     id TEXT PRIMARY KEY,
@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS activities (
     book_id TEXT NOT NULL REFERENCES books(id), kind INTEGER NOT NULL CHECK (kind BETWEEN 0 AND 7),
     text TEXT, quote TEXT, page INTEGER, date BIGINT NOT NULL, photo TEXT,
     visibility TEXT NOT NULL DEFAULT 'private', pages_read INTEGER, minutes_read DOUBLE PRECISION,
-    event_type TEXT, seconds_read BIGINT, base_page INTEGER, deleted_at BIGINT, updated_at BIGINT
+    event_type TEXT, seconds_read BIGINT, base_page INTEGER, deleted_at BIGINT, updated_at BIGINT,
+    owner_id TEXT
 );
 CREATE TABLE IF NOT EXISTS photo_manifest (filename TEXT PRIMARY KEY, type TEXT NOT NULL, book_id TEXT, record_ids TEXT);
 CREATE TABLE IF NOT EXISTS source_book_state (book_id TEXT PRIMARY KEY, raw_status INTEGER, raw_reading_now INTEGER, inferred_status TEXT, evidence TEXT);
@@ -25,10 +26,49 @@ CREATE TABLE IF NOT EXISTS reading_sessions (
     stopped_at BIGINT, base_page INTEGER NOT NULL,
     state TEXT NOT NULL CHECK(state IN ('running','stopped','saved','cancelled')), activity_id TEXT
 );
+ALTER TABLE books ADD COLUMN IF NOT EXISTS owner_id TEXT;
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS owner_id TEXT;
+CREATE TABLE IF NOT EXISTS profiles (
+    id TEXT PRIMARY KEY, email TEXT NOT NULL, display_name TEXT, created_at BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS reading_groups (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES profiles(id),
+    created_at BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS group_members (
+    group_id TEXT NOT NULL REFERENCES reading_groups(id), user_id TEXT NOT NULL REFERENCES profiles(id),
+    role TEXT NOT NULL CHECK(role IN ('owner','member')), joined_at BIGINT NOT NULL,
+    PRIMARY KEY (group_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS group_invites (
+    token TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES reading_groups(id),
+    created_by TEXT NOT NULL REFERENCES profiles(id), created_at BIGINT NOT NULL,
+    used_at BIGINT, used_by TEXT REFERENCES profiles(id)
+);
+CREATE TABLE IF NOT EXISTS daily_checkins (
+    id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES reading_groups(id),
+    user_id TEXT NOT NULL REFERENCES profiles(id), checked_on TEXT NOT NULL, is_read INTEGER NOT NULL,
+    note TEXT, attachment_kind INTEGER, attachment_body TEXT, attachment_book_title TEXT,
+    attachment_page INTEGER, attachment_photo TEXT, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL,
+    UNIQUE (group_id, user_id, checked_on)
+);
+CREATE TABLE IF NOT EXISTS checkin_reactions (
+    checkin_id TEXT NOT NULL REFERENCES daily_checkins(id), user_id TEXT NOT NULL REFERENCES profiles(id),
+    created_at BIGINT NOT NULL, PRIMARY KEY (checkin_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS checkin_comments (
+    id TEXT PRIMARY KEY, checkin_id TEXT NOT NULL REFERENCES daily_checkins(id),
+    user_id TEXT NOT NULL REFERENCES profiles(id), body TEXT NOT NULL, created_at BIGINT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_activities_book_id ON activities(book_id);
 CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(date);
 CREATE INDEX IF NOT EXISTS idx_activities_kind ON activities(kind);
 CREATE INDEX IF NOT EXISTS idx_books_category ON books(category);
+CREATE INDEX IF NOT EXISTS idx_books_owner_id ON books(owner_id);
+CREATE INDEX IF NOT EXISTS idx_activities_owner_id ON activities(owner_id);
+CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_daily_checkins_feed ON daily_checkins(group_id, checked_on, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_checkin_comments_checkin ON checkin_comments(checkin_id, created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS one_active_reading
 ON reading_sessions ((1)) WHERE state IN ('running','stopped');
 """
@@ -44,11 +84,15 @@ def ensure_schema(conn):
         return
     if not conn.execute("SELECT 1 FROM sqlite_master WHERE name='activities'").fetchone():
         return
-    columns = {r[1] for r in conn.execute('PRAGMA table_info(activities)')}
+    activity_columns = {r[1] for r in conn.execute('PRAGMA table_info(activities)')}
     for name, kind in [('event_type', 'TEXT'), ('seconds_read', 'INTEGER'),
-                       ('base_page', 'INTEGER'), ('deleted_at', 'INTEGER'), ('updated_at', 'INTEGER')]:
-        if name not in columns:
+                       ('base_page', 'INTEGER'), ('deleted_at', 'INTEGER'), ('updated_at', 'INTEGER'),
+                       ('owner_id', 'TEXT')]:
+        if name not in activity_columns:
             conn.execute(f'ALTER TABLE activities ADD COLUMN {name} {kind}')
+    book_columns = {r[1] for r in conn.execute('PRAGMA table_info(books)')}
+    if 'owner_id' not in book_columns:
+        conn.execute('ALTER TABLE books ADD COLUMN owner_id TEXT')
     conn.executescript('''
         CREATE TABLE IF NOT EXISTS source_book_state (
             book_id TEXT PRIMARY KEY, raw_status INTEGER, raw_reading_now INTEGER,
@@ -66,5 +110,42 @@ def ensure_schema(conn):
         );
         CREATE UNIQUE INDEX IF NOT EXISTS one_active_reading
         ON reading_sessions((1)) WHERE state IN ('running','stopped');
+        CREATE INDEX IF NOT EXISTS idx_books_owner_id ON books(owner_id);
+        CREATE INDEX IF NOT EXISTS idx_activities_owner_id ON activities(owner_id);
+        CREATE TABLE IF NOT EXISTS profiles (
+            id TEXT PRIMARY KEY, email TEXT NOT NULL, display_name TEXT, created_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS reading_groups (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES profiles(id),
+            created_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS group_members (
+            group_id TEXT NOT NULL REFERENCES reading_groups(id), user_id TEXT NOT NULL REFERENCES profiles(id),
+            role TEXT NOT NULL CHECK(role IN ('owner','member')), joined_at INTEGER NOT NULL,
+            PRIMARY KEY (group_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS group_invites (
+            token TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES reading_groups(id),
+            created_by TEXT NOT NULL REFERENCES profiles(id), created_at INTEGER NOT NULL,
+            used_at INTEGER, used_by TEXT REFERENCES profiles(id)
+        );
+        CREATE TABLE IF NOT EXISTS daily_checkins (
+            id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES reading_groups(id),
+            user_id TEXT NOT NULL REFERENCES profiles(id), checked_on TEXT NOT NULL, is_read INTEGER NOT NULL,
+            note TEXT, attachment_kind INTEGER, attachment_body TEXT, attachment_book_title TEXT,
+            attachment_page INTEGER, attachment_photo TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+            UNIQUE (group_id, user_id, checked_on)
+        );
+        CREATE TABLE IF NOT EXISTS checkin_reactions (
+            checkin_id TEXT NOT NULL REFERENCES daily_checkins(id), user_id TEXT NOT NULL REFERENCES profiles(id),
+            created_at INTEGER NOT NULL, PRIMARY KEY (checkin_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS checkin_comments (
+            id TEXT PRIMARY KEY, checkin_id TEXT NOT NULL REFERENCES daily_checkins(id),
+            user_id TEXT NOT NULL REFERENCES profiles(id), body TEXT NOT NULL, created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
+        CREATE INDEX IF NOT EXISTS idx_daily_checkins_feed ON daily_checkins(group_id, checked_on, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_checkin_comments_checkin ON checkin_comments(checkin_id, created_at);
     ''')
     conn.commit()
