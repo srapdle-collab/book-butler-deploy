@@ -30,3 +30,6 @@ venv/
 
 # Supabase CLI local cache
 supabase/
+
+# Local Git worktrees
+.worktrees/
