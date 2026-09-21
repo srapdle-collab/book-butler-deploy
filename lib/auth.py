@@ -17,8 +17,19 @@ class AuthError(RuntimeError):
     """로그인/회원가입 요청을 사용자에게 설명 가능한 오류로 바꾼다."""
 
 
+def _setting(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if value:
+        return value
+    try:
+        import streamlit as st
+        return str(st.secrets.get(name, "")).strip()
+    except (FileNotFoundError, KeyError):
+        return ""
+
+
 def is_configured() -> bool:
-    return bool(os.environ.get("SUPABASE_URL", "").strip() and os.environ.get("SUPABASE_ANON_KEY", "").strip())
+    return bool(_setting("SUPABASE_URL") and _setting("SUPABASE_ANON_KEY"))
 
 
 def user_from_payload(payload: dict[str, Any]) -> AuthUser:
@@ -38,7 +49,7 @@ def _client():
         from supabase import create_client
     except ImportError as exc:  # pragma: no cover - 배포 의존성 설치 실패 방어
         raise AuthError("로그인 모듈을 불러오지 못했습니다.") from exc
-    return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_ANON_KEY"])
+    return create_client(_setting("SUPABASE_URL"), _setting("SUPABASE_ANON_KEY"))
 
 
 def sign_up(email: str, password: str, display_name: str) -> str:

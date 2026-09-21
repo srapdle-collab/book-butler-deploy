@@ -219,6 +219,7 @@ def render_add_book_form(conn) -> None:
                     "pages": int(pages) or None,
                     "status": status,
                     "cover_url": (selected or {}).get("cover_url"),
+                    "owner_id": authenticated_user.id if authenticated_user else None,
                 },
             )
             st.success(f"'{title.strip()}'을(를) 책장에 추가했습니다.")
@@ -333,43 +334,63 @@ def render_badges(conn) -> None:
 
 # --------------------------------------------------------------- main ----
 
-with st.sidebar:
-    st.title("📚 읽담")
-    for label in NAV_ITEMS:
-        active = st.session_state.view == label or (
-            label == "책장" and st.session_state.view == "책 상세"
-        )
-        if st.button(label, width="stretch", type="primary" if active else "secondary"):
-            goto(label)
-            st.rerun()
-
 conn = db.get_connection()
 try:
-    from lib import reading
-    active_timer = reading.active(conn)
-    if active_timer:
-        with st.sidebar:
-            active_book = db.get_book(conn, active_timer['book_id'])
-            st.info(f"독서 타이머: {active_book['title']}")
-            if st.button('타이머 이어보기', key='resume_timer'):
-                goto('책 상세', active_timer['book_id'])
+    from lib import ownership
+
+    # Auth 사용자는 자신의 계정에 연결된 서재만 열 수 있다. 비밀번호만 쓰는
+    # 기존 로컬 환경은 이전처럼 개인 서재 흐름을 유지한다.
+    has_personal_library = True
+    if authenticated_user:
+        ownership.claim_legacy_library(conn, authenticated_user)
+        has_personal_library = ownership.has_personal_library(conn, authenticated_user.id)
+    if not has_personal_library and st.session_state.view != "소그룹":
+        goto("소그룹")
+
+    navigation = NAV_ITEMS if has_personal_library else []
+    if authenticated_user:
+        navigation = [*navigation, "소그룹"]
+    with st.sidebar:
+        st.title("📚 읽담")
+        for label in navigation:
+            active = st.session_state.view == label or (
+                label == "책장" and st.session_state.view == "책 상세"
+            )
+            if st.button(label, width="stretch", type="primary" if active else "secondary"):
+                goto(label)
                 st.rerun()
+        if authenticated_user:
+            st.caption(authenticated_user.display_name or authenticated_user.email)
+
+    if has_personal_library:
+        from lib import reading
+        active_timer = reading.active(conn)
+        if active_timer:
+            with st.sidebar:
+                active_book = db.get_book(conn, active_timer['book_id'])
+                st.info(f"독서 타이머: {active_book['title']}")
+                if st.button('타이머 이어보기', key='resume_timer'):
+                    goto('책 상세', active_timer['book_id'])
+                    st.rerun()
     if st.session_state.get("notice"):
         st.toast(st.session_state.pop("notice"))
 
-    if st.session_state.view == "책장":
+    if st.session_state.view == "소그룹" and authenticated_user:
+        from lib.groups_ui import render as render_groups
+        render_groups(conn, authenticated_user)
+    elif has_personal_library and st.session_state.view == "책장":
         render_shelf(conn)
-    elif st.session_state.view == "책 상세":
+    elif has_personal_library and st.session_state.view == "책 상세":
         render_detail(conn, st.session_state.selected_book_id)
-    elif st.session_state.view == "타임라인":
+    elif has_personal_library and st.session_state.view == "타임라인":
         from lib.notebook_ui import timeline
         timeline(conn, goto)
-    elif st.session_state.view == "한 장의 추억":
+    elif has_personal_library and st.session_state.view == "한 장의 추억":
         from lib.sharing_ui import memory
         memory(conn, goto)
-    elif st.session_state.view == "통계":
+    elif has_personal_library and st.session_state.view == "통계":
         render_stats(conn)
-    elif st.session_state.view == "스트릭 / 뱃지":
+    elif has_personal_library and st.session_state.view == "스트릭 / 뱃지":
         render_badges(conn)
     if st.session_state.pop('scroll_to_top', False):
         import streamlit.components.v1 as components

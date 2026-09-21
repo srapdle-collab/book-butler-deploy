@@ -237,8 +237,8 @@ def insert_book(conn: sqlite3.Connection, book: dict[str, Any]) -> str:
         INSERT INTO books (
             id, title, author, publisher, isbn, subtitle, translator,
             category, pages, current_page, rating, status, read_count,
-            start_date, finish_date, cover_photo, cover_url
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            start_date, finish_date, cover_photo, cover_url, owner_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             book_id,
@@ -258,6 +258,7 @@ def insert_book(conn: sqlite3.Connection, book: dict[str, Any]) -> str:
             book.get("finish_date"),
             None,
             book.get("cover_url"),
+            book.get("owner_id"),
         ),
     )
     conn.commit()
@@ -283,8 +284,9 @@ def insert_activity(
         """
         INSERT INTO activities (
             id, book_id, kind, text, quote, page, date, photo, visibility,
-            pages_read, minutes_read
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'private', ?, ?)
+            pages_read, minutes_read, owner_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'private', ?, ?,
+            (SELECT owner_id FROM books WHERE id = ?))
         """,
         (
             activity_id,
@@ -297,6 +299,7 @@ def insert_activity(
             photo,
             pages_read,
             minutes_read,
+            book_id,
         ),
     )
     if commit:
