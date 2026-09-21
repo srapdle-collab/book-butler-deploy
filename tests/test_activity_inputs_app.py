@@ -39,6 +39,8 @@ def isolated_app(tmp_path, monkeypatch):
     monkeypatch.setenv("BOOK_BUTLER_PHOTOS_DIR", str(photos_dir))
     # 실제 .env의 잠금 설정이 AppTest용 임시 앱으로 흘러들지 않게 한다.
     monkeypatch.setenv("BOOK_BUTLER_APP_PASSWORD", "")
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "")
     return db_path, photos_dir
 
 

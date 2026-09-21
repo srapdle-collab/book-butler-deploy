@@ -5,3 +5,5 @@ python-dotenv>=1.0
 Pillow>=10.0
 
 psycopg[binary]>=3.2
+
+supabase>=2.10

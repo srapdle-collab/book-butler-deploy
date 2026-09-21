@@ -45,7 +45,54 @@ def require_app_password() -> None:
     st.stop()
 
 
-require_app_password()
+def require_authenticated_user():
+    """Auth가 설정된 배포에서는 계정 로그인 전 앱 본문을 숨긴다."""
+    from lib import auth
+
+    if not auth.is_configured():
+        require_app_password()
+        return None
+
+    current = st.session_state.get("auth_user")
+    if current:
+        return current
+
+    st.title("읽담")
+    st.caption("개인 서재와 소그룹을 사용하려면 로그인해주세요.")
+    login_email = st.text_input("이메일", key="login_email")
+    login_password = st.text_input("비밀번호", type="password", key="login_password")
+    def open_signup() -> None:
+        # 버튼 위젯 키와 별도 상태 키를 써야, 위젯 생성 뒤 상태를 바꾸는 오류가 없다.
+        st.session_state.signup_mode = True
+
+    login_col, signup_col = st.columns(2)
+    with login_col:
+        login = st.button("로그인", key="sign_in", type="primary", width="stretch")
+    with signup_col:
+        st.button("회원가입", key="show_sign_up", width="stretch", on_click=open_signup)
+
+    if st.session_state.get("signup_mode"):
+        display_name = st.text_input("표시 이름", key="sign_up_display_name")
+        if st.button("가입 메일 보내기", key="sign_up", type="primary"):
+            try:
+                message = auth.sign_up(login_email, login_password, display_name)
+            except auth.AuthError as exc:
+                st.error(str(exc))
+            else:
+                st.success(message)
+    if login:
+        try:
+            user, token = auth.sign_in(login_email, login_password)
+        except auth.AuthError as exc:
+            st.error(str(exc))
+        else:
+            st.session_state.auth_user = user
+            st.session_state.auth_access_token = token
+            st.rerun()
+    st.stop()
+
+
+authenticated_user = require_authenticated_user()
 
 from lib.theme import apply as apply_theme
 apply_theme()
@@ -175,6 +222,7 @@ def render_add_book_form(conn) -> None:
                     "pages": int(pages) or None,
                     "status": status,
                     "cover_url": (selected or {}).get("cover_url"),
+                    "owner_id": authenticated_user.id if authenticated_user else None,
                 },
             )
             st.success(f"'{title.strip()}'을(를) 책장에 추가했습니다.")
@@ -289,43 +337,63 @@ def render_badges(conn) -> None:
 
 # --------------------------------------------------------------- main ----
 
-with st.sidebar:
-    st.title("📚 읽담")
-    for label in NAV_ITEMS:
-        active = st.session_state.view == label or (
-            label == "책장" and st.session_state.view == "책 상세"
-        )
-        if st.button(label, width="stretch", type="primary" if active else "secondary"):
-            goto(label)
-            st.rerun()
-
 conn = db.get_connection()
 try:
-    from lib import reading
-    active_timer = reading.active(conn)
-    if active_timer:
-        with st.sidebar:
-            active_book = db.get_book(conn, active_timer['book_id'])
-            st.info(f"독서 타이머: {active_book['title']}")
-            if st.button('타이머 이어보기', key='resume_timer'):
-                goto('책 상세', active_timer['book_id'])
+    from lib import ownership
+
+    # Auth 사용자는 자신의 계정에 연결된 서재만 열 수 있다. 비밀번호만 쓰는
+    # 기존 로컬 환경은 이전처럼 개인 서재 흐름을 유지한다.
+    has_personal_library = True
+    if authenticated_user:
+        ownership.claim_legacy_library(conn, authenticated_user)
+        has_personal_library = ownership.has_personal_library(conn, authenticated_user.id)
+    if not has_personal_library and st.session_state.view != "소그룹":
+        goto("소그룹")
+
+    navigation = NAV_ITEMS if has_personal_library else []
+    if authenticated_user:
+        navigation = [*navigation, "소그룹"]
+    with st.sidebar:
+        st.title("📚 읽담")
+        for label in navigation:
+            active = st.session_state.view == label or (
+                label == "책장" and st.session_state.view == "책 상세"
+            )
+            if st.button(label, width="stretch", type="primary" if active else "secondary"):
+                goto(label)
                 st.rerun()
+        if authenticated_user:
+            st.caption(authenticated_user.display_name or authenticated_user.email)
+
+    if has_personal_library:
+        from lib import reading
+        active_timer = reading.active(conn)
+        if active_timer:
+            with st.sidebar:
+                active_book = db.get_book(conn, active_timer['book_id'])
+                st.info(f"독서 타이머: {active_book['title']}")
+                if st.button('타이머 이어보기', key='resume_timer'):
+                    goto('책 상세', active_timer['book_id'])
+                    st.rerun()
     if st.session_state.get("notice"):
         st.toast(st.session_state.pop("notice"))
 
-    if st.session_state.view == "책장":
+    if st.session_state.view == "소그룹" and authenticated_user:
+        from lib.groups_ui import render as render_groups
+        render_groups(conn, authenticated_user)
+    elif has_personal_library and st.session_state.view == "책장":
         render_shelf(conn)
-    elif st.session_state.view == "책 상세":
+    elif has_personal_library and st.session_state.view == "책 상세":
         render_detail(conn, st.session_state.selected_book_id)
-    elif st.session_state.view == "타임라인":
+    elif has_personal_library and st.session_state.view == "타임라인":
         from lib.notebook_ui import timeline
         timeline(conn, goto)
-    elif st.session_state.view == "한 장의 추억":
+    elif has_personal_library and st.session_state.view == "한 장의 추억":
         from lib.sharing_ui import memory
         memory(conn, goto)
-    elif st.session_state.view == "통계":
+    elif has_personal_library and st.session_state.view == "통계":
         render_stats(conn)
-    elif st.session_state.view == "스트릭 / 뱃지":
+    elif has_personal_library and st.session_state.view == "스트릭 / 뱃지":
         render_badges(conn)
     if st.session_state.pop('scroll_to_top', False):
         import streamlit.components.v1 as components
