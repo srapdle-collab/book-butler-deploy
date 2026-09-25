@@ -16,6 +16,11 @@ def apply():
     [data-testid="stMainBlockContainer"] {max-width:1140px;padding-top:2.25rem;}
     h1,h2,h3 {color:var(--accent-strong);letter-spacing:-.03em;font-weight:800;}
     h1 {font-size:2rem;}
+    h2 {font-size:1.5rem;line-height:1.4;}
+    .detail-title {font-family:inherit;font-size:1.4rem;font-weight:800;line-height:1.4;
+      color:var(--accent-strong);letter-spacing:-.02em;margin:.1rem 0 .2rem;word-break:keep-all;}
+    .detail-subtitle {font-size:.95rem;font-weight:500;color:var(--ink-soft);line-height:1.4;
+      margin:0 0 .5rem;word-break:keep-all;}
     p,label,.stCaption,[data-testid="stCaptionContainer"] {color:var(--ink);}
     [data-testid="stCaptionContainer"] {color:var(--ink-soft)!important;}
 
@@ -44,6 +49,16 @@ def apply():
     .stButton>button[kind="primary"]:hover {background:var(--accent-strong);border-color:var(--accent-strong);color:#fff9ee;transform:translateY(-1px);}
 
     [data-testid="stImage"] img {border-radius:6px;box-shadow:var(--shadow-sm);}
+
+    /* 책 상세 표지: 원본 이미지 크기와 무관하게 항상 2:3 비율 유지, 깨지지 않게 */
+    div.st-key-detail_cover {max-width:200px;margin:0 auto 1rem;}
+    div.st-key-detail_cover [data-testid="stImage"] {aspect-ratio:2/3;overflow:hidden;border-radius:8px;}
+    div.st-key-detail_cover [data-testid="stImage"] img {
+      width:100%!important;height:100%!important;max-width:none!important;object-fit:cover;
+    }
+    @media(max-width:640px) {
+      div.st-key-detail_cover {max-width:150px;}
+    }
 
     /* 로그인/비밀번호 관문 카드 */
     div.st-key-auth_card {

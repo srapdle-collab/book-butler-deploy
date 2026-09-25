@@ -1,11 +1,23 @@
 """책 상세와 전체 타임라인에서 공유하는 독서 노트 화면."""
 from __future__ import annotations
+import html
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import streamlit as st
 from lib import db
 
 KST = ZoneInfo('Asia/Seoul')
+
+
+def split_title(title):
+    """'제목 (부제)' 형태의 원제를 화면 표시용으로 본제/괄호 부제로 나눈다.
+    저장된 title 값 자체는 바꾸지 않는다."""
+    title = title or ''
+    if title.endswith(')') and ' (' in title:
+        main, _, rest = title.rpartition(' (')
+        if main.strip():
+            return main.strip(), '(' + rest
+    return title, None
 
 
 def date_label(timestamp):
@@ -147,9 +159,17 @@ def detail(conn,book_id,goto,management):
         goto('책장'); st.rerun()
     cover,info=st.columns([1,4])
     source=db.cover_source(book)
-    if source: cover.image(source,width='stretch')
+    if source:
+        with cover:
+            with st.container(key='detail_cover'):
+                st.image(source,width='stretch')
     with info:
-        st.header(book['title'])
+        main_title,paren_title=split_title(book['title'])
+        st.markdown(f'<h2 class="detail-title">{html.escape(main_title)}</h2>',unsafe_allow_html=True)
+        if paren_title:
+            st.markdown(f'<div class="detail-subtitle">{html.escape(paren_title)}</div>',unsafe_allow_html=True)
+        if book['subtitle']:
+            st.caption(book['subtitle'])
         st.write(book['author'] or '저자 미상')
         st.caption(f"{book['category'] or '미분류'} · {book['status']} · 완독 {book['read_count'] or 0}회")
         current=book['current_page'] or 0; total=book['pages'] or 0
