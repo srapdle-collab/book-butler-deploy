@@ -47,8 +47,13 @@ def execute(conn, query: str, params=()):
 def read_frame(conn, query: str, params=()):
     if is_postgres(conn):
         # psycopg의 dict row를 DataFrame으로 직접 변환해 열 이름을 보존한다.
-        return pd.DataFrame(conn.execute(query, params).fetchall())
-    return pd.read_sql_query(sql(conn, query), conn, params=params)
+        frame = pd.DataFrame(conn.execute(query, params).fetchall())
+    else:
+        frame = pd.read_sql_query(sql(conn, query), conn, params=params)
+    # 한 컬럼의 값이 전부 NULL이면 pandas가 float64/NaN으로 추론해
+    # row.get(col)이 참으로 잘못 판정되고 "nan" 문자열이 화면에 그대로
+    # 나온다. 모든 컬럼에서 NaN을 None으로 통일해 이 문제를 막는다.
+    return frame.where(pd.notna(frame), None)
 
 
 def scalar(row):

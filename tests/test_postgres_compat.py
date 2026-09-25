@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 
 def test_postgres_sql_uses_named_database_placeholders():
     from lib import database
@@ -40,6 +42,31 @@ def test_activity_position_uses_explicit_column_for_postgres():
         backend = 'postgres'
 
     assert database.activity_position(PostgresConnection()) == 'position'
+
+
+def test_read_frame_turns_all_null_postgres_column_into_none_not_nan():
+    """quote 컬럼이 전부 NULL이면 pandas가 float64/NaN으로 추론해
+    row.get('quote')가 참으로 잘못 판정되고 화면에 "nan"이 그대로
+    나온다(2026-09-26 실제 데이터에서 발견). None으로 통일해 막는다."""
+    from lib import database
+
+    class Cursor:
+        def fetchall(self):
+            return [
+                {'id': 'a', 'page': 187, 'quote': None, 'text': '4쪽을 0분 동안 읽었습니다'},
+                {'id': 'b', 'page': 183, 'quote': None, 'text': '176쪽을 49분 동안 읽었습니다'},
+            ]
+
+    class PostgresConnection:
+        backend = 'postgres'
+        def execute(self, query, params=()):
+            return Cursor()
+
+    frame = database.read_frame(PostgresConnection(), 'SELECT * FROM activities')
+    quote = frame.iloc[0]['quote']
+    assert quote is None
+    assert not (isinstance(quote, float) and math.isnan(quote))
+    assert not quote  # row.get('quote')가 거짓으로 판정돼야 한다
 
 
 def test_postgres_transaction_uses_advisory_lock_for_single_reading_timer():
