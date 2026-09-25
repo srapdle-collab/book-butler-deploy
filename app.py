@@ -32,16 +32,20 @@ def require_app_password() -> None:
     # 비밀번호를 아직 설정하지 않은 로컬 개발 환경은 기존 흐름을 유지한다.
     if not password or st.session_state.get("app_authenticated"):
         return
-    st.title("읽담")
-    st.caption("개인 독서 기록을 보려면 비밀번호를 입력해주세요.")
-    entered = st.text_input("비밀번호", type="password", key="app_password")
-    if st.button("열기", key="unlock_app", type="primary"):
-        if hmac.compare_digest(entered, password):
-            st.session_state.app_authenticated = True
-            st.session_state.pop("app_password", None)
-            st.rerun()
-        else:
-            st.error("비밀번호가 맞지 않습니다.")
+    _, mid, _ = st.columns([1, 1.3, 1])
+    with mid:
+        with st.container(border=True, key="auth_card"):
+            st.markdown('<div class="auth-badge">📖</div>', unsafe_allow_html=True)
+            st.title("읽담")
+            st.caption("개인 독서 기록을 보려면 비밀번호를 입력해주세요.")
+            entered = st.text_input("비밀번호", type="password", key="app_password")
+            if st.button("열기", key="unlock_app", type="primary", width="stretch"):
+                if hmac.compare_digest(entered, password):
+                    st.session_state.app_authenticated = True
+                    st.session_state.pop("app_password", None)
+                    st.rerun()
+                else:
+                    st.error("비밀번호가 맞지 않습니다.")
     st.stop()
 
 
@@ -57,45 +61,50 @@ def require_authenticated_user():
     if current:
         return current
 
-    st.title("읽담")
-    st.caption("개인 서재와 소그룹을 사용하려면 로그인해주세요.")
-    login_email = st.text_input("이메일", key="login_email")
-    login_password = st.text_input("비밀번호", type="password", key="login_password")
     def open_signup() -> None:
         # 버튼 위젯 키와 별도 상태 키를 써야, 위젯 생성 뒤 상태를 바꾸는 오류가 없다.
         st.session_state.signup_mode = True
 
-    login_col, signup_col = st.columns(2)
-    with login_col:
-        login = st.button("로그인", key="sign_in", type="primary", width="stretch")
-    with signup_col:
-        st.button("회원가입", key="show_sign_up", width="stretch", on_click=open_signup)
+    _, mid, _ = st.columns([1, 1.3, 1])
+    with mid:
+        with st.container(border=True, key="auth_card"):
+            st.markdown('<div class="auth-badge">📖</div>', unsafe_allow_html=True)
+            st.title("읽담")
+            st.caption("개인 서재와 소그룹을 사용하려면 로그인해주세요.")
+            login_email = st.text_input("이메일", key="login_email")
+            login_password = st.text_input("비밀번호", type="password", key="login_password")
 
-    if st.session_state.get("signup_mode"):
-        display_name = st.text_input("표시 이름", key="sign_up_display_name")
-        if st.button("가입 메일 보내기", key="sign_up", type="primary"):
-            try:
-                message = auth.sign_up(login_email, login_password, display_name)
-            except auth.AuthError as exc:
-                st.error(str(exc))
-            else:
-                st.success(message)
-    if login:
-        try:
-            user, token = auth.sign_in(login_email, login_password)
-        except auth.AuthError as exc:
-            st.error(str(exc))
-        else:
-            st.session_state.auth_user = user
-            st.session_state.auth_access_token = token
-            st.rerun()
+            login_col, signup_col = st.columns(2)
+            with login_col:
+                login = st.button("로그인", key="sign_in", type="primary", width="stretch")
+            with signup_col:
+                st.button("회원가입", key="show_sign_up", width="stretch", on_click=open_signup)
+
+            if st.session_state.get("signup_mode"):
+                display_name = st.text_input("표시 이름", key="sign_up_display_name")
+                if st.button("가입 메일 보내기", key="sign_up", type="primary", width="stretch"):
+                    try:
+                        message = auth.sign_up(login_email, login_password, display_name)
+                    except auth.AuthError as exc:
+                        st.error(str(exc))
+                    else:
+                        st.success(message)
+            if login:
+                try:
+                    user, token = auth.sign_in(login_email, login_password)
+                except auth.AuthError as exc:
+                    st.error(str(exc))
+                else:
+                    st.session_state.auth_user = user
+                    st.session_state.auth_access_token = token
+                    st.rerun()
     st.stop()
 
 
-authenticated_user = require_authenticated_user()
-
 from lib.theme import apply as apply_theme
 apply_theme()
+
+authenticated_user = require_authenticated_user()
 
 NAV_ITEMS = ["책장", "타임라인", "한 장의 추억", "통계", "스트릭 / 뱃지"]
 
