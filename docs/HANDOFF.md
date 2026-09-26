@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 사용자(David)/운영 담당자가 이어받을 작업 — 앱 DB role 미확정으로 서버 전용 접근정책 결정 중단 (2026-09-27, Codex)
+
+- **무엇을 했는지**: 사용자 제공 read-only 권한 결과와 읽담 코드의 DB/Auth/Storage/export 경로를 대조했다. chunk CRUD/export는 PostgreSQL 설정 시 Streamlit 서버·CLI의 psycopg 직접 연결을 쓰고 Data API 직접 호출은 필요하지 않다. anon 키는 Auth, service-role 키는 사진 Storage에 쓰인다. [접근정책 감사·조건부 REVOKE 후보](READING_CHUNK_PRODUCTION_MIGRATION_PLAN.md)를 기록했다.
+- **어디까지 끝났는지**: 운영 연결 role은 DSN 또는 `SUPABASE_DB_USER`로 런타임에서 결정되어 코드만으로 특정할 수 없다. 정책·RLS 필요 여부·REVOKE 안전성은 **미확정**. 읽담 문서 로컬 커밋만; 운영 DB 접속·DDL/DML·배포·환경변수 변경·main 반영·push 없음.
+- **확인해야 할 것**: 비밀값을 공개하지 않는 승인된 운영 read-only 조회에서 실제 앱 `current_user`/`session_user`, 생성 role 기본 ACL, 서버 role의 새 표 권한, `anon`/`authenticated`의 상속·PUBLIC 포함 실효 권한과 Data API 노출을 확인한다. 현 maintenance CLI는 CREATE4문장만 원자 적용하므로 REVOKE를 포함한 실행 경로가 아니다.
+- **다음 작업자**: 사용자/운영 담당자가 위 role/권한 metadata만 제공하거나 안전한 기존 조회 경로를 지정한다. 그 전에는 정책 확정·운영 DDL 승인을 요청하지 않는다.
+- **브랜치 / 커밋 / 배포 상태**: `codex/reading-chunks-1a-fixes`, 이번 문서 전용 로컬 커밋. main/origin=`4d97f4e`, deploy=`51e5b0c`; 운영 미배포.
+- **보류·실패·중단 이유**: 요청의 명시 중단 기준인 “실제 앱 연결 role을 코드만으로 확인할 수 없음”에 해당한다. **운영 NO-GO, 1차-A 미완료, 1차-B 금지**. 기존 public 표의 넓은 권한은 별도 위험이며 이번 범위에서 수정하지 않았다.
+
 ## 사용자(David)/운영 담당자가 이어받을 작업 — 1차-A 최소 migration SQL 확정, 권한 확인 전 적용 NO-GO (2026-09-27, Codex)
 
 - **무엇을 했는지**: 사용자가 전달한 운영 읽기 전용 집계(books 705, activities 5,667, NULL-owner 각각 0, reading_chunks/관련 인덱스 부재, 기존 RLS 비활성/정책 0)를 코드·Runbook과 대조했다. [최소 표 1개+인덱스 3개 계획](READING_CHUNK_PRODUCTION_MIGRATION_PLAN.md), 백업·검증·rollback·배포 순서를 확정했다.

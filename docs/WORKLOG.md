@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: 1차-A 서버 전용 DB 접근정책 코드 감사·중단
+
+- **목적**: 신규 `reading_chunks`를 Data API 직접 노출 없이 운영할 수 있는지, 특히 `anon`/`authenticated` REVOKE와 앱 CRUD의 양립 가능성을 판단한다.
+- **제공된 운영 결과**: 사용자 read-only 조회상 books705/activities5,667, NULL-owner0, chunk 표/index 없음, `books.id text PK`, 기존 public RLS off/policy0, anon 기존 표 광범위 GRANT, `pg_default_acl` 신규 relation 기본 GRANT 가능. 이번 세션에서 운영 DB 재조회 없음.
+- **코드 감사**: `app.py` → `lib/db.get_connection` → `lib/database.database_url_from_env` → psycopg; chunk UI/서비스는 이 SQL 연결을 받는다. export CLI도 동일 DSN의 read-only psycopg 연결. `lib/auth.py`의 anon 키는 Auth용이고 `lib/storage.py`의 service-role 키는 사진 Storage용이다. chunk Data API 호출은 검색되지 않았다. 실제 Postgres username은 환경의 URL 또는 `SUPABASE_DB_USER`로 결정되어 코드만으로 확인 불가. Secrets/.env 값은 읽지 않았다.
+- **판정/발견 문제**: 요청의 중단 기준에 따라 서버 전용 ACL/RLS 정책을 확정하지 않았다. CREATE4문장만으로는 자동 기본 GRANT 노출 위험이 있다. 두 role만 REVOKE해도 PUBLIC/역할 상속 권한이 남을 수 있다. 현 maintenance CLI는 CREATE4문장만 단일 transaction에 넣으므로 REVOKE 포함 migration의 실행 수단이 아니다. 조건부 SQL은 기존 계획 문서에만 제시했다.
+- **변경·검증**: 기존 migration 계획/HANDOFF/PROJECT와 이 WORKLOG만 갱신. 정적 코드 추적과 PostgreSQL/Supabase/Streamlit 공식 문서 대조, diff 검사. 제품 테스트는 코드 무변경이라 재실행하지 않음. 운영 SQL/DDL/DML·배포·환경변수·기존 표 권한 변경0.
+- **브랜치/커밋/남은 일**: `codex/reading-chunks-1a-fixes` 문서 전용 로컬 커밋, main/push/deploy 없음. 실제 앱 `current_user`/`session_user`, migration role의 기본 ACL, 상속/PUBLIC 포함 effective privilege, Data API exposed schema, 서버 role의 새 표 CRUD 근거를 비밀값 없이 확인해야 한다. 승인 전 운영 NO-GO, 1차-A 미완료/1차-B 금지. 공동 결정 변경은 없어 상위 CROSS는 보존했다.
+
 ## 2026-09-27 — Codex: Reading Chunk 운영 최소 additive migration 계획
 
 - **목적**: 사용자 제공 운영 read-only 결과를 기준으로 실제 적용 없이 표1/index3의 정확한 SQL과 안전한 순서·중단 조건을 확정했다.

@@ -2,6 +2,15 @@
 
 2026-09-27 / Codex. 이 문서는 **실행 승인서가 아니다**. 운영 DB 접속·DDL·DML·배포는 수행하지 않았다. 아래 운영 상태는 사용자가 전달한 읽기 전용 점검 결과이며 이 세션에서 독립 재조회하지 않았다.
 
+## 후속 접근정책 감사 — role 미확정으로 정책 결정 중단 (2026-09-27)
+
+- 사용자 추가 제공 결과: `books.id`는 `text NOT NULL PRIMARY KEY`이고 `books.owner_id`는 nullable. 기존 `public` 표에서 `anon`은 SELECT/INSERT/UPDATE/DELETE 등 넓은 권한을 가지며, `pg_default_acl`에는 신규 `public` relation에도 `anon`/`authenticated` 권한이 생길 수 있는 설정이 있다. 이 결과 역시 이번 세션에서 재조회하지 않았다. 따라서 아래 **기존 4 CREATE 문장만 실행하는 계획은 운영에 사용 금지**다.
+- 코드 경로: `app.py`의 Streamlit 서버가 로그인 후 `db.get_connection()`을 호출한다. `lib/db.py`는 PostgreSQL 설정 시 `psycopg.connect(...)`, `lib/database.py`는 `BOOK_BUTLER_DATABASE_URL` 또는 `SUPABASE_DB_USER` 등으로 DSN을 만든다. chunk UI/서비스는 이 연결의 SQL을 사용한다. `tools/export_chunks.py`도 같은 설정으로 `db.get_readonly_connection()`을 연다. Supabase `anon` 키는 `lib/auth.py`의 Auth 호출에, service-role 키는 `lib/storage.py`의 사진 Storage 호출에만 쓰이며 chunk의 Data API 호출은 없다. Auth JWT를 SQL 연결에 전달하거나 `SET ROLE`/RLS claim을 설정하는 코드도 없다. 따라서 `auth.uid()` 기반 RLS 정책이 현재 직접 PG 경로에서 그대로 동작한다고 추정하지 않는다. Streamlit root-level Secrets가 환경변수가 될 수 있으나 실제 운영 설정값/role은 확인하지 않았다([Streamlit Secrets](https://docs.streamlit.io/develop/concepts/connections/secrets-management)).
+- **중단 사유**: 실제 앱 연결 PostgreSQL role은 코드에 고정되지 않았다. `BOOK_BUTLER_DATABASE_URL`의 user 또는 `SUPABASE_DB_USER`가 운영 설정에서 결정되므로 현재 증거로는 서버 role이 `anon`/`authenticated`와 분리돼 있는지, REVOKE 이후 CRUD가 가능한지 증명할 수 없다. 비밀값을 열거나 임의 연결하지 않는다. 운영 접근정책, RLS 필요 여부, 최종 6문장 migration은 **미확정/NO-GO**다.
+- 조건부 서버 전용 후보: 실제 서버 role이 두 API 역할과 독립이고 신규 표에 SELECT/INSERT/UPDATE/DELETE 권한을 유지한다는 근거가 확보되면, 같은 트랜잭션에서 신규 표1/index3 생성 후 `REVOKE ALL ON TABLE public.reading_chunks FROM anon, authenticated;`를 검토한다. 이것은 **실행용 확정 SQL이 아니다**. PostgreSQL에서는 `PUBLIC` 또는 상속받은 다른 role의 권한이 있으면 두 role에서만 REVOKE해도 접근 가능하므로 effective privilege 검사가 필수다([PostgreSQL REVOKE](https://www.postgresql.org/docs/current/sql-revoke.html)). Supabase는 Data API 노출 객체에 GRANT와 RLS를 함께 검토하도록 안내한다([Supabase API 보안](https://supabase.com/docs/guides/api/securing-your-api), [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security)).
+- 현재 `lib/schema_maintenance.apply_reading_chunks()`와 `tools/schema_maintenance.py`의 승인 해시·단일 transaction은 **CREATE 4문장만** 처리한다. REVOKE가 포함된 migration이라고 간주하거나 먼저 4 CREATE를 커밋하면 안 된다. role 확인 후 단일 transaction의 전체 SQL/검증 경로를 별도 설계·검토해야 한다. 기존 표의 넓은 ACL/default ACL, 환경변수, 배포 설정은 이번 작업에서 변경하지 않는다.
+- 운영 DDL 직전 남은 읽기 전용 확인: 실제 앱 접속의 `current_user`/`session_user`(비밀번호/DSN 제외), migration 생성 role과 `pg_default_acl` 적용 관계, 서버 role의 CREATE 후 권한 근거(소유권 또는 명시 GRANT), `anon`/`authenticated`/`PUBLIC`·역할 상속의 effective privileges, Data API의 exposed schema, 새 표에 대한 직접 API 접근 필요성, 승인된 백업/복원. 운영 SQL/DDL/접속 테스트는 이번에 0건이다.
+
 ## 확인된 상태와 미확인 게이트
 
 - 전달된 운영 집계: books 705, activities 5,667, 두 표의 `owner_id IS NULL` 각각 0, profiles 1. `reading_chunks`와 관련 인덱스는 없음. 기존 표 RLS 비활성, 정책 0건, `public` USAGE/CREATE true.
