@@ -8,6 +8,18 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: 1차-A 운영 배포 전 종합 감사·합성 시뮬레이션
+- **목적·안전 경계**: 사용자 후속 승인에 따라 읽기 전용 분석에서 격리 테스트/시뮬레이션/문서화를 확대했다. 운영 배포·Supabase 접속/쓰기/DDL·환경변수 변경·1차-B·기존 사용자 파일 변경은 수행하지 않았다.
+- **Git**: `4d97f4e` 문서 3개/23행만 확인 후 origin push, main/origin 일치. 깨끗한 별도 worktree에서 `codex/reading-chunks-1a-audit` 분기. 원본 사용자 작업트리는 cbcf0b4 유지. 공동 저장소 remote는 여전히 없고 593b02c 보존; 감사 도중 추가된 타 작업자 39ed52d도 보존했다.
+- **코드 감사**: 배포 diff 12파일(+1051/-1), 제품 5파일. DB wrapper 연결 시 autocommit 31DDL, 전체 rerun과 CLI도 호출. 기존 ownership의 NULL-owner books/activities UPDATE 및 그룹 profile UPSERT를 확인했다. init 신규 차이는 table 1개/index 3개뿐이나 기존 27문장도 재실행된다.
+- **시뮬레이션**: 실제 데이터 없이 SQLite/PG17.5 WASM에 705권·5,666기록/기존 14표를 생성했다. 반복 init·재연결·구 init에서 전체 행/컬럼/PK/FK checksum 불변. PG 12시나리오로 빈 DB, 제약 5종, 중간 실패 부분 적용, 재실행, 잘못된 index, 부분 표, 명시 transaction rollback, READ ONLY 제어를 확인했다. 실제 Supabase/PgBouncer/psycopg/RLS/동시성 검증은 아니다.
+- **추가 테스트**: `8843b56`은 테스트 3파일만. 전체 **85 passed, 12 xfailed**(기존 65+추가 32), 13.01초. strict xfail을 해제한 감사 테스트는 20 pass/12 fail로 실제 실패를 별도 확인했다. 신규 AppTest 연속 수정→삭제 KeyError는 별도 세션 성공과 구분해 실제 브라우저 판정 대기로 기록했다.
+- **발견 문제**: NULL-page SQL 42P18, 사용자/book 경계 누락, 읽기 전용 export의 schema 호출, 특수 태그 3종, index 중복/손상 무검증, txt→index 중간 실패 복구 차단, index 중간 쓰기 truncation, 삭제 목적지 충돌 덮어쓰기, drift 미검증. 제품은 수정하지 않았고 감사 문서 AUDIT-01~11에 수정 필요성을 선기록했다.
+- **iCloud 실파일**: 기존 공유 index를 쓰지 않는 `_읽담_검증전용_20260927_16680d12`의 32 합성 chunk로 별도 CLI 8회. 최초 32작성, 무변경 3회 0작성, 내용·분 1갱신, 날짜·페이지 1이동+1갱신, 삭제 1이동, 최종 0작성. txt 32개/index 32행·ISBN/시간/sourceApp/ID/hash 일치. 기존 695항목 lstat 변경·누락 0. 이전 합성 txt/index 및 사용자 2문서 SHA-256도 동일. 테스트 산출물은 모두 보존.
+- **증거**: `/tmp/readdam-pg-audit-EnKMvd/report.json`, 추출 SQL 3개, pytest.xml; `/tmp/readdam-export-audit-e98hzG/report.json`·synthetic.sqlite. 테스트 스크립트는 Git에, 개인자료 없는 요약은 감사 문서에 보관한다. 의존성은 /tmp의 PGlite만 추가했고 프로젝트 requirements는 변경하지 않았다.
+- **문서·검증**: `READING_CHUNK_PREDEPLOY_AUDIT.md`와 `READING_CHUNK_DEPLOY_RUNBOOK.md`에 전체 감사·DoD·DB 변경 계획·metadata-only SQL·실행 금지 rollback 명령·GO/STOP·수동 UI 체크·1차-B 준비를 기록했다. HANDOFF/PROJECT/CROSS도 상태 기록. compileall/diff 검사 수행. 테스트·문서 커밋 분리, 이번 새 커밋 main 반영/push 없음.
+- **남은 일/위험**: 수정 승인 후 release blocker 해결→실제 PG/브라우저 확인→별도 운영 승인→runbook 순서. 현재 1차-A 미완료/1차-B 금지. 공동 PROJECT/WORKLOG의 오래된 내용은 사용자 미커밋이므로 수정하지 않았다.
+
 ## 2026-09-26 — Codex: 승인된 검증 기록 push 및 운영 검증 진입 중단
 - **목적·승인 범위**: 기존 기록 커밋 검토/push 후, 스키마 변경 없이 가능한 경우에만 운영 검증용 chunk 1건으로 화면·DB·export를 검증한다. 일반 배포·스키마/인덱스 변경·기존 데이터 변경·1차-B는 금지됐다.
 - **기록 검토·push**: `431fe44`는 HANDOFF/WORKLOG/PROJECT만 30행 추가·1행 삭제, `92e6d95`는 CROSS만 10행 추가·7행 삭제이며 합성 iCloud 검증 기록 외 변경이 없었다. 읽담 origin/main `54c0d23`에서 `431fe44`로 push하고 원격 SHA를 확인했다. 공동 저장소 `git remote -v` 결과가 비어 있어 `92e6d95`는 push 불가. 원격 추가/변경 없음.

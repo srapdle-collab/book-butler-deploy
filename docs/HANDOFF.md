@@ -21,6 +21,18 @@
 
 ## 항목
 
+## 사용자(David)/읽담 담당자가 이어받을 작업 — 종합 감사 완료, 제품 수정·운영 전 NO-GO (2026-09-27, Codex)
+
+아래의 단순 검증 진입 중단 상태를 확대 감사 결과로 대체한다. **운영 배포/쓰기/DDL/초기화 및 1차-B는 계속 금지다.**
+
+- **무엇을 했는지**: deploy `51e5b0c` → 제품 main `4d97f4e` 전체 diff와31문장 init, 기존 owner/profile 쓰기 경로를 추적했다. SQLite 및 PostgreSQL17.5 WASM(PGlite0.4.6)에서705권/5,666기록·기존14표 보존, 반복/부분 실패/rollback/재시작을 시뮬레이션했다. 제품 코드는 수정하지 않았다.
+- **어디까지 끝났는지**: 기존 기록 `4d97f4e`를 문서만임을 확인 후 origin/main에 push. 감사 테스트32개를 추가(`8843b56`), 전체85 PASS/12 strict XFAIL. `--runxfail`로12실패를 별도 재현했다. PG nullable-page 중복 쿼리42P18도 확인했다. iCloud 격리 TEST32개·CLI8회 정상 경로 PASS, 기존695항목 메타데이터 변경0.
+- **확인해야 할 것**: [종합 감사](READING_CHUNK_PREDEPLOY_AUDIT.md)의 AUDIT-01~11 및 [배포/복구 runbook](READING_CHUNK_DEPLOY_RUNBOOK.md). 읽기 전용 CLI 분리, actor/book 경계, NULL 비교, export 원자성/삭제 대상 덮어쓰기, 태그 escaping/index 검증은 수정·재시험 필요. 연속 UI 오류는 실제 브라우저 판정 필요. Supabase role/RLS/ACL/실제metadata는 미확인이다.
+- **다음 작업자**: 사용자 승인된 제품 수정 범위를 받은 읽담 담당자. 현 코드 그대로 배포하지 않는다. 운영 DB 직접 조회/배포는 별도 명시 승인·접근 경로 확보 후 runbook GO/STOP에 따른다.
+- **브랜치 / 커밋**: main/origin=`4d97f4e`, 감사 `codex/reading-chunks-1a-audit` in `/private/tmp/readdam-main-LIPAnD`; 테스트 `8843b56`, 이번 감사 문서는 후속 별도 커밋. 감사 변경은 main 반영/push하지 않는다. 원본 기능 브랜치/사용자2파일은 그대로다.
+- **배포 상태**: deploy/main=`51e5b0c`, 운영 접속·DB쓰기·DDL·배포0건. 설치 Chrome/Safari는 있으나 세션 제어 연결 없음. AppTest/WASM은 실제 운영 검증을 대체하지 않는다.
+- **보류·실패·중단 이유**:12개 예상 실패를 운영 성공으로 간주하지 않는다. 사용자 소유 파일·이전 합성 txt/index 해시 불변. 신규 테스트 산출물 root는 `예화창고/_읽담_검증전용_20260927_16680d12`(활성31txt/삭제보관1txt/index32행)이며 삭제하지 않았다. 공동 원격 미설정 유지, 다른 작업자의2차 설계 `39ed52d` 보존. 1차-A DoD는 BLOCKED다.
+
 ## 사용자(David)/읽담 담당자가 이어받을 작업 — 기록 push 완료, 운영 검증 진입 중단 (2026-09-26, Codex)
 
 아래의 기록 미push·운영 검증 미승인 상태를 대체한다. **제한된 운영 검증은 승인됐으나 배포·스키마 변경은 승인되지 않았다. 1차-A 완료 및 1차-B 진입은 불가하다.**
