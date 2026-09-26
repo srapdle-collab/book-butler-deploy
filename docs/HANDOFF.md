@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 사용자(David)/관리자가 이어받을 작업 — 운영 read-only 점검 연결 경로 미공급으로 중단 (2026-09-27, Codex)
+
+- **무엇을 했는지**: 제품5148d6f/문서22f7b1f/공동f7fe19b와 최신 지침을 확인했다. 연결 설정은 값 없이 존재 여부만 확인했고 모두 미공급/빈 값이다. 활성 DB connector와 브라우저 연결도 없다. `.env`/Secrets를 읽거나 환경을 바꾸지 않고 접속 전에 중단했다.
+- **어디까지 끝났는지**: 로컬 코드의 owner claim/profile DML 재확인과 [미실시·중단 기록](READING_CHUNK_PRODUCTION_PREFLIGHT.md)만 완료. 운영 연결/SQL0건. 실제 schema/index/constraint/RLS/ACL/role/version/count와 reading_chunks 존재 여부는 미확인이다.
+- **확인해야 할 것**: books705/activities5,666은 비교 기준이지 이번 실측치가 아니다. 표1+index3 초안은 조건부 계획이며 운영 필요 DDL로 확정하지 않았다. 기존 NULL-owner 일괄claim과 profile UPSERT는 운영 무변경 확인 전 Blocker로 유지한다.
+- **다음 작업자**: 사용자/관리자가 비밀값을 채팅에 노출하지 않는 승인된 기존 연결 경로를 제공하거나, 동일 앱 주체의 읽기 전용 조회 결과를 제공해야 한다. 환경변수·Secrets 변경을 에이전트가 임의 수행하지 않는다.
+- **브랜치 / 커밋 / 배포 상태**: 읽담 `codex/reading-chunks-1a-fixes`(시작22f7b1f), 공동 `codex/reading-chunks-preflight-docs`(시작f7fe19b)에 문서만 별도 기록. main/origin 로컬ref4d97f4e, deploy51e5b0c 유지. main/push/배포 없음.
+- **보류·실패·중단 이유**: read-only 점검 승인은 있으나 실행 가능한 안전한 연결이 없다. 운영 오류·drift를 발견한 것은 아니다. **운영 NO-GO,1차-A 미완료/1차-B 금지** 유지. 원본 사용자2문서와 공동 미커밋 문서는 hash 동일·미변경이다.
+
 ## 사용자(David)/읽담 담당자가 이어받을 작업 — 자동 init 분리·read-only preflight 완료, 운영 NO-GO (2026-09-27, Codex)
 
 아래 이전 수정 상태를 **수정 브랜치에 한해** 대체한다. 운영 Supabase 접속·쓰기·DDL·배포·실제 iCloud 접근·main 반영·push·1차-B는 실행하지 않았다.

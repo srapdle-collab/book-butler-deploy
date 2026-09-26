@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: 운영 read-only metadata/권한 점검 접속 전 중단
+
+- **목적/승인**: 사용자 지정 Astra High 유지. 운영 metadata/권한/aggregate count 읽기 전용 점검만 승인. 운영 쓰기·DDL·환경변수 변경·main/push/배포는 금지.
+- **실제 확인**: 읽담22f7b1f/제품5148d6f 및 별도 공동f7fe19b의 clean worktree 확인. 현재 process의 앱DB/표준PG 설정 존재 여부 boolean만 점검해 모두 미공급/빈 값 확인. 활성Supabase/Postgres connector 없음, psql은PATH에서 발견되지 않음, CUA apps/browsers 빈 목록. Cloud 실제설정 부재로 단정하지 않음.
+- **중단**: 승인된 연결 경로가 없어 운영접속/SQL 실행0건. `.env`·Secrets·개인자료 읽기/출력/로드, 환경설정, 사용자 데이터·schema 변경 없음. 보안 경계를 우회해 자격증명을 찾지 않았다. 실제 버전·pool mode·schema·RLS/ACL/role/count 전부미확인,705/5,666은문서상비교기준.
+- **분석/문서**: owner claim은 지정이메일 일치 시 두표의NULL-owner전체행 UPDATE, 소그룹화면은 user.id별profileUPSERT임을 코드에서 재확인. 운영대상행수 미확인으로Blocker유지. 최소DDL은Runbook의 표1/index3 조건부초안만 참조,실제필요량/승인hash생성없음. `READING_CHUNK_PRODUCTION_PREFLIGHT.md`/HANDOFF/PROJECT 및 공동별도branch에 중단상태 기록.
+- **검증/보호**: 문서diff검사,제품코드변경없음. 테스트재실행없음(기존154PASS는이전로컬결과). 사용자2기획문서 및 공동dirty PROJECT/WORKLOG hash동일. iCloud미접근. 문서만명시stage·별도commit,main/push/배포없음.
+- **다음단계**: 사용자/관리자가 기존앱주체의 안전한read-only연결 또는 비밀값을제외한metadata/count결과를 제공해야함. 비밀번호채팅전달 요청안함. 운영NO-GO/1차-A미완료/1차-B보류.
+
 ## 2026-09-27 — Codex: Reading Chunk 자동 schema-init 분리 및 read-only preflight
 
 - **목적/범위**: 사용자 확인 Astra High 유지. 일반 앱/로그인/조회/export의 schema mutation 차단과 명시 maintenance 분리. 운영접속/DDL/배포/main/push/사용자 archive/오늘의 서재/1차-B는 금지 범위로 유지했다.
