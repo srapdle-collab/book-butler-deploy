@@ -14,7 +14,7 @@ from typing import Any
 
 if __package__ in (None, ''):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from lib.schema import ensure_schema
+from lib.schema_maintenance import initialize_schema as ensure_schema
 from lib.source_semantics import source_event
 
 SCHEMA = """
@@ -110,7 +110,7 @@ def build_db(output_dir: Path, db_path: Path) -> None:
 
     conn = sqlite3.connect(db_path)
     conn.executescript(SCHEMA)
-    ensure_schema(conn)
+    ensure_schema(conn, approved=True)
 
     conn.executemany(
         """

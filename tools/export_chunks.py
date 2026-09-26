@@ -27,6 +27,7 @@ from dotenv import load_dotenv
 
 from lib import db
 from lib import reading_chunks as chunks
+from lib.schema_preflight import require_schema
 
 INDEX_HEADERS = ["chunkId", "상대경로", "updatedAt", "contentHash", "예화창고 경로들"]
 INVALID_FILENAME = re.compile(r'[\\/:*?"<>|\x00-\x1f\x7f]+')
@@ -190,6 +191,7 @@ def _selected_chunks(owner_id, chunk_ids):
         raise ValueError("owner-id와 하나 이상의 chunk-id를 명시해야 합니다.")
     conn = db.get_readonly_connection()
     try:
+        require_schema(conn)
         rows = []
         for chunk_id in sorted(set(chunk_ids)):
             row = chunks.get(conn, chunk_id, owner_id=owner_id, include_deleted=True)

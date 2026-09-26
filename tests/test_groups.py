@@ -3,7 +3,7 @@ import sqlite3
 import pytest
 
 from lib.auth import AuthUser
-from lib.schema import ensure_schema
+from lib.schema_maintenance import initialize_schema as ensure_schema
 from migration.load_db import SCHEMA
 
 
@@ -11,7 +11,7 @@ def _conn():
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
-    ensure_schema(conn)
+    ensure_schema(conn, approved=True)
     return conn
 
 

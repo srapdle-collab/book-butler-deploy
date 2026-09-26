@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from lib.schema import ensure_schema
+from lib.schema_preflight import require_schema
 from lib import database
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -42,71 +42,29 @@ def normalize_kind(value: Any) -> int:
     raise ValueError(f"지원하지 않는 activity kind: {value!r}")
 
 
-def _ensure_numeric_activity_kinds(conn: sqlite3.Connection) -> None:
-    table = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'activities'"
-    ).fetchone()
-    if table is None:
-        return
-    columns = conn.execute("PRAGMA table_info(activities)").fetchall()
-    kind_type = next(row[2].upper() for row in columns if row[1] == "kind")
-    if kind_type == "INTEGER":
-        return
-
-    rows = conn.execute("SELECT * FROM activities").fetchall()
-    converted = [tuple(row[:2]) + (normalize_kind(row[2]),) + tuple(row[3:]) for row in rows]
-    conn.execute("BEGIN")
-    conn.execute("ALTER TABLE activities RENAME TO activities_legacy_kind")
-    conn.execute(
-        """
-        CREATE TABLE activities (
-            id TEXT PRIMARY KEY,
-            book_id TEXT NOT NULL REFERENCES books(id),
-            kind INTEGER NOT NULL CHECK (kind BETWEEN 0 AND 7),
-            text TEXT,
-            quote TEXT,
-            page INTEGER,
-            date INTEGER NOT NULL,
-            photo TEXT,
-            visibility TEXT NOT NULL DEFAULT 'private',
-            pages_read INTEGER,
-            minutes_read INTEGER
-        )
-        """
-    )
-    conn.executemany(
-        """
-        INSERT INTO activities (
-            id, book_id, kind, text, quote, page, date, photo, visibility,
-            pages_read, minutes_read
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        converted,
-    )
-    conn.execute("DROP TABLE activities_legacy_kind")
-    conn.execute("CREATE INDEX idx_activities_book_id ON activities(book_id)")
-    conn.execute("CREATE INDEX idx_activities_date ON activities(date)")
-    conn.execute("CREATE INDEX idx_activities_kind ON activities(kind)")
-    conn.commit()
-
-
-def get_connection(db_path: Path | None = None):
-    """테스트/로컬은 SQLite, 배포 환경은 Supabase Postgres에 연결한다."""
+def connect(db_path: Path | None = None):
+    """Open an existing DB only. No schema mutation or legacy data conversion."""
     configured_override = os.environ.get("BOOK_BUTLER_DB_PATH") if db_path is None else None
     database_url = database.database_url_from_env() if db_path is None and not configured_override else None
     if database_url:
-        from psycopg import connect
+        from psycopg import connect as pg_connect
         from psycopg.rows import dict_row
-        raw = connect(database_url, row_factory=dict_row, autocommit=True, prepare_threshold=None)
-        conn = database.PostgresConnection(raw)
-        ensure_schema(conn)
-        return conn
-    configured_path = Path(os.environ.get("BOOK_BUTLER_DB_PATH", DB_PATH))
-    conn = sqlite3.connect(db_path or configured_path)
+        return database.PostgresConnection(pg_connect(database_url, row_factory=dict_row, autocommit=True, prepare_threshold=None))
+    path = Path(db_path or configured_override or DB_PATH).resolve()
+    conn = sqlite3.connect(path.as_uri() + "?mode=rw", uri=True)
     conn.row_factory = sqlite3.Row
-    _ensure_numeric_activity_kinds(conn)
-    ensure_schema(conn)
-    conn.execute('PRAGMA foreign_keys=ON')
+    conn.execute("PRAGMA foreign_keys=ON")  # connection setting, not persisted schema/data
+    return conn
+
+
+def get_connection(db_path: Path | None = None):
+    """Application connection: connect -> read-only contract inspection -> allow/STOP."""
+    conn = connect(db_path)
+    try:
+        require_schema(conn)
+    except BaseException:
+        conn.close()
+        raise
     return conn
 
 

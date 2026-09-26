@@ -1,6 +1,6 @@
 """Offline pre-deployment audit. Never connects to Supabase or the real archive.
 
-Strict xfails are reproduced safety defects, not accepted production behavior.
+Historical initializer limitations are not the normal application startup path.
 The historical initializer requires commit 51e5b0c in the local Git history.
 """
 from __future__ import annotations
@@ -15,6 +15,8 @@ import subprocess
 import pytest
 
 from lib import db, schema, reading_chunks as chunks
+from lib import schema_maintenance as maintenance
+from lib.schema_preflight import inspect_schema_read_only, SchemaNotReady
 from migration.load_db import SCHEMA
 from test_activity_inputs_app import isolated_app, open_detail
 from test_reading_chunks import _export_module, _save, _ids
@@ -78,7 +80,7 @@ def test_705_books_5666_records_all_existing_tables_unchanged_after_restart(tmp_
     conn = populated_legacy(path)
     before = fingerprint(conn)
     for _ in range(3):
-        schema.ensure_schema(conn)
+        maintenance.initialize_schema(conn, approved=True)
         assert fingerprint(conn) == before
     conn.close()
     for _ in range(3):
@@ -92,9 +94,13 @@ def test_705_books_5666_records_all_existing_tables_unchanged_after_restart(tmp_
 
 
 def test_empty_sqlite_is_not_bootstrapped(tmp_path):
-    conn = db.get_connection(tmp_path / "empty.sqlite")
-    assert conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall() == []
-    conn.close()
+    path = tmp_path / "empty.sqlite"
+    with pytest.raises(sqlite3.OperationalError):
+        db.get_connection(path)
+    assert not path.exists()
+    sqlite3.connect(path).close()
+    with pytest.raises(SchemaNotReady):
+        db.get_connection(path)
 
 
 def test_partial_chunk_table_fails_without_repair_and_preserves_old_data(tmp_path):
@@ -103,33 +109,34 @@ def test_partial_chunk_table_fails_without_repair_and_preserves_old_data(tmp_pat
     conn.execute("CREATE TABLE reading_chunks(chunk_id TEXT PRIMARY KEY)")
     conn.commit()
     with pytest.raises(sqlite3.OperationalError, match="no such column"):
-        schema.ensure_schema(conn)
+        maintenance.initialize_schema(conn, approved=True)
     assert fingerprint(conn) == before
     assert len(conn.execute("PRAGMA table_info(reading_chunks)").fetchall()) == 1
     conn.close()
 
 
-def test_missing_chunk_index_recreated_on_reexecution(tmp_path):
+def test_missing_chunk_index_recreated_by_explicit_bootstrap(tmp_path):
     conn = populated_legacy(tmp_path / "missing-index.sqlite")
-    schema.ensure_schema(conn)
+    maintenance.initialize_schema(conn, approved=True)
     conn.execute("DROP INDEX idx_reading_chunks_owner")  # disposable synthetic DB only
     before = fingerprint(conn)
-    schema.ensure_schema(conn)
+    maintenance.initialize_schema(conn, approved=True)
     assert conn.execute("SELECT name FROM sqlite_master WHERE name='idx_reading_chunks_owner'").fetchone()
     assert fingerprint(conn) == before
     conn.close()
 
 
-@pytest.mark.xfail(strict=True, reason="AUDIT-01: IF NOT EXISTS does not validate an existing index definition")
 def test_wrong_same_named_index_is_detected(tmp_path):
     conn = populated_legacy(tmp_path / "wrong-index.sqlite")
-    schema.ensure_schema(conn)
+    maintenance.initialize_schema(conn, approved=True)
     conn.execute("DROP INDEX idx_reading_chunks_owner")
     conn.execute("CREATE INDEX idx_reading_chunks_owner ON reading_chunks(book_title)")
-    schema.ensure_schema(conn)
+    maintenance.initialize_schema(conn, approved=True)
     columns = [row[2] for row in conn.execute("PRAGMA index_info(idx_reading_chunks_owner)")]
+    report = inspect_schema_read_only(conn)
+    assert any(i.status == "INDEX_DEFINITION_MISMATCH" and i.object == "idx_reading_chunks_owner" for i in report.issues)
     conn.close()
-    assert columns == ["owner_id", "deleted_at", "updated_at"]
+    assert columns == ["book_title"]  # AUDIT-01: detect, never silently repair.
 
 
 class RecordingPostgres:
@@ -148,7 +155,7 @@ class RecordingPostgres:
 
 def test_postgres_sql_delta_is_exactly_one_table_and_three_indexes():
     current, old = RecordingPostgres(), RecordingPostgres()
-    schema.ensure_schema(current)
+    maintenance.initialize_schema(current, approved=True)
     historical_schema()["ensure_schema"](old)
     added = [s for s in current.statements if s not in old.statements]
     assert len(current.statements) == 31
@@ -162,13 +169,13 @@ def test_postgres_sql_delta_is_exactly_one_table_and_three_indexes():
 
 def test_postgres_initializer_replays_and_has_no_transaction_control():
     recorder = RecordingPostgres()
-    schema.ensure_schema(recorder)
+    maintenance.initialize_schema(recorder, approved=True)
     first = recorder.statements[:]
-    schema.ensure_schema(recorder)
+    maintenance.initialize_schema(recorder, approved=True)
     assert recorder.statements == first * 2
     failing = RecordingPostgres("idx_reading_chunks_owner")
     with pytest.raises(RuntimeError, match="injected"):
-        schema.ensure_schema(failing)
+        maintenance.initialize_schema(failing, approved=True)
     assert any(s.startswith("CREATE TABLE IF NOT EXISTS reading_chunks") for s in failing.statements)
     assert not any(s.startswith(("BEGIN", "ROLLBACK", "COMMIT")) for s in failing.statements)
 
@@ -264,7 +271,7 @@ def test_export_never_initializes_schema(isolated_app, tmp_path, monkeypatch):
     conn.close()
     def forbidden(conn):
         pytest.fail("export invoked ensure_schema")
-    monkeypatch.setattr(db, "ensure_schema", forbidden)
+    monkeypatch.setattr(maintenance, "initialize_schema", forbidden)
     _export_module().export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
 
 
@@ -425,7 +432,7 @@ def test_missing_source_app_rejected_by_db(isolated_app):
 
 def test_old_initializer_accepts_new_schema_without_altering_data(tmp_path):
     conn = populated_legacy(tmp_path / "rollback.sqlite")
-    schema.ensure_schema(conn)
+    maintenance.initialize_schema(conn, approved=True)
     before = fingerprint(conn)
     historical_schema()["ensure_schema"](conn)
     assert fingerprint(conn) == before

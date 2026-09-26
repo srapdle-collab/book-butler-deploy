@@ -1,7 +1,7 @@
 import sqlite3
 
 from lib.auth import AuthUser
-from lib.schema import ensure_schema
+from lib.schema_maintenance import initialize_schema as ensure_schema
 from migration.load_db import SCHEMA
 
 
@@ -11,7 +11,7 @@ def test_legacy_library_is_claimed_only_by_configured_owner(monkeypatch):
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
-    ensure_schema(conn)
+    ensure_schema(conn, approved=True)
     conn.execute("INSERT INTO books (id, title) VALUES ('book-1', '개인 책')")
     conn.execute(
         "INSERT INTO activities (id, book_id, kind, page, date) VALUES ('activity-1', 'book-1', 2, 12, 1)"

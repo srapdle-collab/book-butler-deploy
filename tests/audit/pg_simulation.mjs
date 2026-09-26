@@ -118,7 +118,8 @@ await db.exec('DROP INDEX idx_reading_chunks_owner; CREATE INDEX idx_reading_chu
 await run(db,current);
 const wrongIndex = await scalar(db,"SELECT indexdef FROM pg_indexes WHERE indexname='idx_reading_chunks_owner'");
 assert.match(wrongIndex,/book_title/);
-report.cases.push({name:'same-name wrong index',status:'REPRODUCED_DEFECT',definition:wrongIndex});
+report.cases.push({name:'same-name wrong index in explicit legacy bootstrap',status:'LEGACY_INITIALIZER_LIMITATION',definition:wrongIndex,
+  runtimeGate:'Actual Python read-only detection and no-repair PASS is tested separately in pg_preflight_check.py (AUDIT-01).'});
 await db.close();
 
 db = new PGlite();

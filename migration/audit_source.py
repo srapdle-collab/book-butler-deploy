@@ -12,7 +12,7 @@ import uuid
 import zipfile
 
 from lib.source_semantics import classify_book, source_event
-from lib.schema import ensure_schema
+from lib.schema_maintenance import initialize_schema as ensure_schema
 
 
 def read_source(path):
@@ -22,7 +22,7 @@ def read_source(path):
 
 
 def apply_source(conn, books):
-    ensure_schema(conn)
+    ensure_schema(conn, approved=True)
     if conn.execute("SELECT 1 FROM app_migrations WHERE name='source-semantics-v1'").fetchone():
         return False
     with conn:

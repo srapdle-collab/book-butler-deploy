@@ -348,7 +348,18 @@ def render_badges(conn) -> None:
 
 # --------------------------------------------------------------- main ----
 
-conn = db.get_connection()
+from lib.schema_preflight import SchemaNotReady
+
+try:
+    conn = db.get_connection()
+except SchemaNotReady as exc:
+    st.error(str(exc))
+    st.caption("운영 안내: 읽기 전용 schema_preflight 결과를 확인하고 승인된 관리 작업으로만 준비해주세요.")
+    st.stop()
+except Exception:
+    # Driver errors can contain DSNs or other confidential connection details.
+    st.error("DB 연결을 확인하지 못했습니다 (UNKNOWN_ERROR). 자동 초기화하지 않습니다. 관리자에게 문의해주세요.")
+    st.stop()
 try:
     from lib import ownership
 

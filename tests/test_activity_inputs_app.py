@@ -6,6 +6,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 from migration.load_db import SCHEMA
+from lib.schema_maintenance import initialize_schema
 
 
 APP_PATH = Path(__file__).resolve().parents[1] / "app.py"
@@ -20,6 +21,7 @@ def isolated_app(tmp_path, monkeypatch):
     photos_dir = tmp_path / "photos"
     conn = sqlite3.connect(db_path)
     conn.executescript(SCHEMA)
+    initialize_schema(conn, approved=True)  # explicit synthetic fixture bootstrap
     conn.execute(
         """
         INSERT INTO books (

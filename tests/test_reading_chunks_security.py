@@ -76,8 +76,8 @@ def test_readonly_sqlite_denies_mutation_and_does_not_init(isolated_app, monkeyp
     conn = db.get_connection()
     _save(conn)
     conn.close()
-    monkeypatch.setattr(db, "ensure_schema", lambda *args: pytest.fail("schema init"))
-    monkeypatch.setattr(db, "_ensure_numeric_activity_kinds", lambda *args: pytest.fail("migration"))
+    from lib import schema_maintenance
+    monkeypatch.setattr(schema_maintenance, "initialize_schema", lambda *args: pytest.fail("schema init"))
     conn = db.get_readonly_connection()
     assert chunks.all_chunks(conn, owner_id=chunks.LOCAL_OWNER_ID)
     for sql in ["CREATE TABLE forbidden(id TEXT)", "UPDATE books SET title='forbidden'", "DELETE FROM reading_chunks"]:
@@ -110,7 +110,8 @@ def test_readonly_postgres_connection_policy(monkeypatch):
     monkeypatch.delenv("BOOK_BUTLER_DB_PATH", raising=False)
     monkeypatch.setattr(database, "database_url_from_env", lambda: "TEST-NO-NETWORK")
     monkeypatch.setattr(psycopg, "connect", connect)
-    monkeypatch.setattr(db, "ensure_schema", lambda *args: pytest.fail("schema init"))
+    from lib import schema_maintenance
+    monkeypatch.setattr(schema_maintenance, "initialize_schema", lambda *args: pytest.fail("schema init"))
     conn = db.get_readonly_connection()
     conn.close()
     assert calls == ["SHOW transaction_read_only", "close"]

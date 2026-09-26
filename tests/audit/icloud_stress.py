@@ -50,12 +50,14 @@ def main():
         os.environ.pop(key, None)
     from migration.load_db import SCHEMA
     from lib import db, reading_chunks as chunks
+    from lib.schema_maintenance import initialize_schema
 
     before = metadata(parent)
     output = parent / ("_읽담_검증전용_20260927_" + uuid.uuid4().hex[:8])
     assert not output.exists()
     conn = sqlite3.connect(synthetic_db)
     conn.executescript(SCHEMA)
+    initialize_schema(conn, approved=True)
     conn.commit()
     conn.close()
     conn = db.get_connection(synthetic_db)

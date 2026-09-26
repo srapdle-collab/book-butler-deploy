@@ -1,5 +1,7 @@
 import json
 import sqlite3
+import pytest
+from lib.schema_preflight import SchemaNotReady
 
 from lib import db
 from migration.load_db import SCHEMA, build_db
@@ -17,8 +19,8 @@ EXPECTED_KINDS = {
 }
 
 
-def test_opening_legacy_database_migrates_all_activity_kinds_to_integers(tmp_path):
-    """문자열 kind가 남아 새 기록과 통계가 서로 어긋나는 회귀를 막는다."""
+def test_opening_legacy_database_rejects_string_kinds_without_migration(tmp_path):
+    """일반 연결은 과거 문자열 kind를 변환하지 않고 안전 중단한다."""
     db_path = tmp_path / "legacy.db"
     conn = sqlite3.connect(db_path)
     conn.executescript(
@@ -54,7 +56,11 @@ def test_opening_legacy_database_migrates_all_activity_kinds_to_integers(tmp_pat
     conn.commit()
     conn.close()
 
-    migrated = db.get_connection(db_path)
+    before = db_path.read_bytes()
+    with pytest.raises(SchemaNotReady):
+        db.get_connection(db_path)
+    assert db_path.read_bytes() == before
+    migrated = sqlite3.connect(db_path)
     declared_type = next(
         row[2] for row in migrated.execute("PRAGMA table_info(activities)") if row[1] == "kind"
     )
@@ -63,9 +69,9 @@ def test_opening_legacy_database_migrates_all_activity_kinds_to_integers(tmp_pat
     ).fetchall()
     migrated.close()
 
-    assert declared_type == "INTEGER"
-    assert [row[1] for row in rows] == list(range(8))
-    assert {row[2] for row in rows} == {"integer"}
+    assert declared_type == "TEXT"
+    assert [row[1] for row in rows] == list(EXPECTED_KINDS)
+    assert {row[2] for row in rows} == {"text"}
 
 
 def test_build_db_stores_converted_json_kind_as_integer(tmp_path):

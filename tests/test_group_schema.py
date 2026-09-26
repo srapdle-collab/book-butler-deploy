@@ -1,6 +1,6 @@
 import sqlite3
 
-from lib.schema import ensure_schema
+from lib.schema_maintenance import initialize_schema as ensure_schema
 from migration.load_db import SCHEMA
 
 
@@ -12,7 +12,7 @@ def test_schema_adds_personal_ownership_and_group_tables():
     conn = sqlite3.connect(":memory:")
     conn.executescript(SCHEMA)
 
-    ensure_schema(conn)
+    ensure_schema(conn, approved=True)
 
     assert "owner_id" in _column_names(conn, "books")
     assert "owner_id" in _column_names(conn, "activities")
