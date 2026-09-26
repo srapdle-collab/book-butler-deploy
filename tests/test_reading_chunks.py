@@ -107,7 +107,10 @@ def test_txt_export_is_idempotent_and_moves_only_indexed_deleted_chunk(isolated_
     exported = archive / rows[0]["상대경로"]
     assert exported.read_bytes()[:3] != b"\xef\xbb\xbf"
     text = exported.read_text(encoding="utf-8")
+    assert "ISBN: 123" in text
+    assert "읽은 시간: 12분" in text
     assert "콘텐츠 타입: 예화 후보, 묵상 소재" in text
+    assert "출처 앱: 읽담 (readdam)" in text
     assert "chunkId: " + chunk["chunk_id"] in text
     assert exporter.export(tmp_path)["written"] == 0
 

@@ -64,8 +64,10 @@ def render_txt(chunk) -> str:
     lines = [
         f"제목: {chunk['book_title']}",
         f"저자: {chunk['author'] or '미상'}",
+        f"ISBN: {chunk['isbn'] or '미입력'}",
         f"읽은 날짜: {chunk['read_date']}",
         f"읽은 범위: {range_label}",
+        f"읽은 시간: {str(chunk['minutes']) + '분' if chunk['minutes'] is not None else '미입력'}",
         f"콘텐츠 타입: {_content_type_labels(chunk['content_types'])}",
         f"태그: {', '.join(chunk['tags']) or '없음'}",
         f"예화 태그: {', '.join(chunk['illustration_tags']) or '없음'}",
@@ -78,7 +80,7 @@ def render_txt(chunk) -> str:
         "",
         "---",
         f"chunkId: {chunk['chunk_id']}",
-        f"출처 앱: {_source_label(chunk['source_app'])}",
+        f"출처 앱: {_source_label(chunk['source_app'])} ({chunk['source_app']})",
         f"수정: {chunk['updated_at']}",
         "",
     ]

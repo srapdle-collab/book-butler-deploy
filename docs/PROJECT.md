@@ -20,3 +20,4 @@
 - 공통 결정·책임 범위·규격·진행상태의 정본은 `../CROSS_PROJECT_HANDOFF.md` 1절이다. 세부 설계는 `오늘의 서재/docs/READING_CHUNK_DESIGN.md`에 있다.
 - 읽담이 reading chunk의 최종 Source of Truth다. txt·예화창고는 파생 사본이다. 기존 activities 5,666건은 migration하지 않는다.
 - 1차-A(읽담 단독)는 `codex/reading-chunks-1a`의 `aeecb7f`에 구현됐다. main 반영·push·배포·운영 Supabase 적용은 아직 하지 않았다. 1차-B(오늘의 서재 API 연동)와 2차(예화창고)는 미착수다.
+- 2026-09-26 운영 적용 사전 점검에서 txt 출력의 ISBN·읽은 시간·sourceApp 코드를 보완했다. main 작업트리의 사용자 소유 미커밋 기획문서 2개 때문에 자동 main 반영은 중단했고 운영 적용은 여전히 대기 중이다.

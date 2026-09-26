@@ -8,6 +8,16 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-26 — Codex: Reading Chunk 1차-A 운영 적용 사전 점검
+- **작업 목적**: 1차-A 운영 반영 전 문서·구현·원격 상태를 확인한다.
+- **실제 변경 내용**: txt export에 ISBN, 읽은 시간, `sourceApp` 코드 표기를 추가했다. 사용자 소유 기획문서 2개는 변경하지 않았다.
+- **테스트 결과**: 전체 pytest 65개 통과, Python compileall 및 `git diff --check` 통과. 운영 화면·운영 Supabase·실제 txt 보관 루트는 검증하지 않았다.
+- **커밋**: `codex/reading-chunks-1a`의 이번 보완 커밋. 정확한 SHA는 Git 기록을 확인한다.
+- **배포 여부**: main 미반영, origin/deploy push 없음, 운영 배포 없음.
+- **발견 문제**: `main`·`origin/main`·`deploy/main`은 `51e5b0c`로 일치하지만, 사용자 소유 미커밋 기획문서 2개가 있어 AGENTS.md의 자동 main 반영 안전 조건을 만족하지 않는다. txt 보관 루트도 아직 지정되지 않았다.
+- **남은 작업**: 사용자 결정 후 안전한 main 반영, push, 배포, 운영 DB 및 실제 화면·txt export 검증.
+
+
 ## 2026-09-26 — Claude Code: 공동작업 기록 체계 정비 (문서만)
 - **작업 목적**: 읽담 ↔ 오늘의 서재 공동작업과 여러 작업자(ChatGPT 사령관·Codex·Claude Code·Work) 간 인계를 추적할 수 있는 기록 체계를 만든다.
 - **실제 변경 내용**: `docs/HANDOFF.md`를 신규 작성했다(작성 규칙과 현재 상태). 이 WORKLOG에 기록 규칙을 추가했고, `AGENTS.md`·`CLAUDE.md`를 신규 작성했다(작업 전 HANDOFF 필독, 연동 시 CROSS_PROJECT_HANDOFF 필독, 작업 후 기록 등 8개 원칙). `docs/PROJECT.md`에는 기록 체계와 Reading Chunk 진행상태를 추가했다. 상위 `../CROSS_PROJECT_HANDOFF.md`(동하비서 최상위 저장소)를 신규 작성하고, 오늘의 서재 AGENTS/CLAUDE/HANDOFF/WORKLOG에도 공용 참조를 추가했다(각 저장소에서 따로 커밋).
