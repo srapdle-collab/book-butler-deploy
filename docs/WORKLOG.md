@@ -8,6 +8,16 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-26 — Codex: 승인된 검증 기록 push 및 운영 검증 진입 중단
+- **목적·승인 범위**: 기존 기록 커밋 검토/push 후, 스키마 변경 없이 가능한 경우에만 운영 검증용 chunk 1건으로 화면·DB·export를 검증한다. 일반 배포·스키마/인덱스 변경·기존 데이터 변경·1차-B는 금지됐다.
+- **기록 검토·push**: `431fe44`는 HANDOFF/WORKLOG/PROJECT만 30행 추가·1행 삭제, `92e6d95`는 CROSS만 10행 추가·7행 삭제이며 합성 iCloud 검증 기록 외 변경이 없었다. 읽담 origin/main `54c0d23`에서 `431fe44`로 push하고 원격 SHA를 확인했다. 공동 저장소 `git remote -v` 결과가 비어 있어 `92e6d95`는 push 불가. 원격 추가/변경 없음.
+- **운영 진입 점검**: fetch 및 ls-remote로 deploy/main=`51e5b0c` 확인. 배포 소스에 reading chunk 서비스/UI/CLI/스키마가 없다. 브라우저 도구의 앱·브라우저 목록 모두 비어 있으며 운영 URL을 열려는 요청은 `Browser is not available: iab`로 실패했다. 실제 운영 화면/실행 버전은 확인하지 못했다. Supabase 접속·메타데이터 조회는 하지 않았고 운영 표의 부재를 단정하지 않는다.
+- **중단 근거·필요 범위**: 배포 소스 기준 실제 UI 검증에는 새 기능 배포가 필요하다. 제품 코드 차이는 `lib/notebook_ui.py`, `lib/reading_chunks.py`, `lib/reading_chunks_ui.py`, `lib/schema.py`, `tools/export_chunks.py`다(나머지는 문서·테스트). 새 앱과 CLI는 DB 연결 시 전체 `ensure_schema` DDL을 자동 실행하므로 제한된 검증 승인만으로 실행하지 않았다. 운영에 없는 경우 필요한 additive 정의는 reading_chunks 22필드, PK/UNIQUE/FK/CHECK와 chunk 전용 3인덱스다. 기존 표/인덱스 DDL도 포함된 초기화 전체 실행은 이번 승인 범위가 아니다.
+- **미실행 검증**: 운영 레코드 생성/화면 표시/수정/DB 반영/검색·필터/export/메타데이터/index/재export/soft delete/DB 삭제 확인 모두 미실행. 신규 테스트 레코드와 운영 export 산출물은 없다. 운영 DB 쓰기·DDL·배포 0건; 운영 데이터/구조의 전후 대조 검증은 미실시다.
+- **보존 확인**: 원본 기획문서 2개의 SHA-256은 이전 기록과 동일. 기존 합성 txt와 index 해시도 각각 `d5b596055dea2f33f3e736c0a06ae627751012d5affae109c55135c91ef6c915`, `83f927cee4e5148ddd8cf6fcc65557682566ca98d0f757f4af4164eee7fc7ce6`으로 동일. iCloud 파일 쓰기·이동·삭제 없음. 합성 chunk ID `64894842-88d0-48f4-8912-c9b2105b51ad`와 대응 index 행은 운영 테스트로 간주하지 않으며 사용자 정리 결정을 기다린다.
+- **실제 변경·검증·커밋**: 제품 코드 변경 없음. 이번 중단 결과만 HANDOFF/WORKLOG/PROJECT 및 공동 CROSS에 기록하여 각 저장소의 로컬 문서 커밋으로 남긴다. diff 검사 수행, 제품 코드 무변경이므로 기존 65개 테스트는 재실행하지 않는다. 이번 새 기록의 push는 하지 않는다.
+- **남은 작업**: 공동 원격 목적지 확인, 브라우저 및 안전한 운영 메타데이터 확인 경로 확보, 별도 배포·필요 시 additive 스키마 승인 후 제한된 1건 검증 재개. 1차-A 완료 불가, 1차-B 미진입.
+
 ## 2026-09-26 — Codex: iCloud 실경로 txt export·재export 검증
 - **작업 목적**: 확정 보관 루트 `/Users/donghakim/Library/Mobile Documents/com~apple~CloudDocs/예화창고`에서 1차-A export의 실제 파일 동작을 검증한다. 기존 예화 카테고리 폴더로 분류하는 2차 export는 범위 밖이다.
 - **검증 대상·격리**: main `54c0d23`의 `tools/export_chunks.py`를 수정 없이 CLI로 4회 실행했다. `/tmp/readdam-export-check-Hws0qK/synthetic.sqlite`만 `BOOK_BUTLER_DB_PATH`로 지정하고 dotenv 로딩을 비활성화했다. 운영 DB·사용자 SQLite·인증정보는 사용하지 않았다. 검증용 가상 책 1권과 chunk `64894842-88d0-48f4-8912-c9b2105b51ad` 1건을 만들었다.
