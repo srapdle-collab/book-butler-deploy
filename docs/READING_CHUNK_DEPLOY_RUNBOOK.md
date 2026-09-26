@@ -2,6 +2,8 @@
 
 2026-09-27 / Codex. 감사: [READING_CHUNK_PREDEPLOY_AUDIT.md](READING_CHUNK_PREDEPLOY_AUDIT.md).
 
+후속 로컬 수정 `038ab2e`: [수정 결과·export 복구 계약](READING_CHUNK_BLOCKER_FIXES.md)을 먼저 읽는다. 수정 브랜치에서 export의 init/전체 조각 처리는 제거됐으며 owner/ID 선택, atomic index/journal 복구를 사용한다. 아래 감사 당시 CLI 위험/복구 항목은 구 코드에 대한 기록이다. **앱 일반 연결의31DDL과 schema drift/운영 권한 검증은 여전히 미해결**이므로 현재 NO-GO는 유지한다. 새 CLI 역시 이번에는 운영에 실행하지 않았다.
+
 **현재 NO-GO. 이 문서의 운영 명령은 실행하지 않았다. 사용자 승인과 감사 blocker 해소 전에는 실행 금지다.**
 현재 제품 main/origin=`4d97f4e`, rollback 기준=`51e5b0c72deb0afe69767da05028dea95dd688d1`.
 신규 감사 브랜치는 테스트/문서만 포함하며 제품 수정은 없다.

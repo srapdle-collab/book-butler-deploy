@@ -1,5 +1,7 @@
 # 읽담
 
+최신 Reading Chunk 상태(2026-09-27): 수정 브랜치 `codex/reading-chunks-1a-fixes`의 `038ab2e`에서 사용자/책 격리·NULL SQL·선택 read-only export·파일/index 복구·태그·연속 UI를 수정했다. 123 PASS/1 XFAIL, 기존 합성14표 checksum 불변. main/push/배포 없음. 앱 일반 연결의 자동 init과 schema drift/운영 권한 검증은 남아 **운영 NO-GO/1차-B 금지 유지**. 상세는 [수정 결과](READING_CHUNK_BLOCKER_FIXES.md), 최신 인계는 HANDOFF를 따른다. 아래 날짜별 상태는 해당 시점의 기록이다.
+
 북스윙 개인 독서 기록을 보존하고 책장·독서 노트·타이머·공유·통계와 초대형 소그룹 인증을 제공하는 Streamlit 앱.
 도서비서 폴더는 독립 Git 저장소이며 상위 동하비서에서 제외된다. 서브모듈 관계가 없다.
 

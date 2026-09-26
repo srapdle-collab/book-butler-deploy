@@ -8,6 +8,18 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: Reading Chunk 운영 차단 결함 로컬 수정
+
+- **목적·범위**: 사용자 확인 Astra High 설정 유지. 감사에서 선기록한 owner/book, PG NULL, export 안전성, 특수 태그, 연속 UI 차단 문제를 로컬/격리 환경에서 수정. 운영 배포·Supabase 접속/쓰기/DDL·기존 데이터·환경 설정·사용자 archive·오늘의 서재·1차-B 변경 없음.
+- **Git 교차확인**: 읽담 aeecb7f/ae86be2는 main ancestry, 8843b56/6cdc7e7은 감사 브랜치에만 존재. 공동 f4bc698은 별도 저장소 main, cross-repo cherry-pick 없음. 깨끗한 감사 worktree에서 `codex/reading-chunks-1a-fixes` 분기했다. main/origin ref 4d97f4e, deploy ref 51e5b0c 유지, fetch/push 안 함.
+- **제품 수정**: 인증 actor 명시 전달/owner 필수/book 관계 대조, UPDATE owner+book+active 조건과 삭제 부활 거절. NULL 비교 CAST, JSON exact 태그 비교. export의 schema-init 없는 read-only snapshot/명시 ID 선택, no-clobber 삭제 보관, 임시 파일·fsync·atomic index, SHA 영수증/journal/로컬 writer 잠금. UI는 callback 요청을 다음 render의 widget 생성 전에 처리한다.
+- **테스트**: 27개 신규 pytest + 기존 감사 보강. 전체 **123 PASS/1 strict XFAIL**, 21.34초. xfail12→1, 해소된 감사31개는 runxfail로 PASS. Python53개 compile/Node syntax/diff PASS. 중간의 venv psycopg 미설치, Row 직렬화, 기존 UI 상태 오류는 원인 확인 후 해결했다. 별도 frontend build 없음.
+- **PostgreSQL·무결성**: PGlite17.5/0.4.6 기존12시나리오 재실행, NULL4조합 PASS,705책/5,666활동/기존14표 checksum 불변. Python service를 실제 WASM 엔진에 연결하는 추가 harness에서 owner/book 거절·정상 CRUD·태그·read-only 거절·선택 export/삭제 및14표 행 checksum 불변 확인. 실제 psycopg wire/Supabase/PgBouncer/RLS 검증은 아님.
+- **Export**: 생성/수정/이동/삭제 중 index 실패→fresh module 재실행, txt/state/index 교체 실패, index 완료 후 옛 파일 정리 실패, 충돌·변조·symlink·동시 writer 등을 임시 sentinel로 검증. /tmp root에서32 TEST/CLI8회, 최종txt32/index32행 유지. 실제 iCloud/기존 합성 산출물은 읽지도 쓰지도 않았다.
+- **증거**: `docs/READING_CHUNK_BLOCKER_FIXES.md`, `/tmp/readdam-fix-validation-gkS7kq/{pytest.xml,pg-report.json}`, `/tmp/readdam-export-audit-SXWQN8/report.json`. psycopg 패키지는 이미 요구사항에 있으며 누락된 /tmp 테스트 venv에만 설치했다.
+- **커밋/배포**: 제품·테스트 `038ab2e`, 인계/결과 문서는 별도 커밋. main 반영·push·운영 배포 없음. 원본 기획문서2개 및 공동 dirty PROJECT/WORKLOG hash 불변. 공동 CROSS는 깨끗함 확인 후 현 상태만 별도 기록한다.
+- **남은 blocker/다음 단계**: AUDIT-01 drift1건은 strict xfail 유지(자동 schema repair 금지). 앱의 기존31DDL init/owner claim 경로는 미변경이므로 앱 init 분리·read-only preflight 범위를 먼저 확정해야 한다. 구형 export byte 검증 실패는 STOP. 이후 별도 승인된 운영 metadata/권한·backup·배포·1건 UI/DB/export/무결성 확인. **운영 NO-GO, 1차-A 완료/1차-B 진입 불가**.
+
 ## 2026-09-27 — Codex: 1차-A 운영 배포 전 종합 감사·합성 시뮬레이션
 - **목적·안전 경계**: 사용자 후속 승인에 따라 읽기 전용 분석에서 격리 테스트/시뮬레이션/문서화를 확대했다. 운영 배포·Supabase 접속/쓰기/DDL·환경변수 변경·1차-B·기존 사용자 파일 변경은 수행하지 않았다.
 - **Git**: `4d97f4e` 문서 3개/23행만 확인 후 origin push, main/origin 일치. 깨끗한 별도 worktree에서 `codex/reading-chunks-1a-audit` 분기. 원본 사용자 작업트리는 cbcf0b4 유지. 공동 저장소 remote는 여전히 없고 593b02c 보존; 감사 도중 추가된 타 작업자 39ed52d도 보존했다.

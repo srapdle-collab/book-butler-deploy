@@ -21,6 +21,18 @@
 
 ## 항목
 
+## 사용자(David)/읽담 담당자가 이어받을 작업 — 1차-A 차단 결함 로컬 수정, 운영 NO-GO 유지 (2026-09-27, Codex)
+
+아래의 제품 무수정 감사 상태를 이 수정 브랜치에 한해 대체한다. **운영 접속·배포·DB 쓰기/DDL·사용자 예화창고 접근·1차-B는 실행하지 않았다.**
+
+- **무엇을 했는지**: actor/owner/book 격리, PostgreSQL NULL 쪽수 타입, 선택·읽기 전용 export, 삭제 충돌 no-clobber, atomic index/journal 복구·txt SHA 영수증, 특수 태그 exact filter, 동일 세션 수정→재수정→soft delete를 수정했다. 스키마/기존 books·activities·통계 변경 없음.
+- **어디까지 끝났는지**: 제품·테스트 `038ab2e` 로컬 커밋. 전체 **123 PASS / 1 strict XFAIL**, 감사 xfail **12→1**. Python53개/Node compile·diff PASS. PostgreSQL 시뮬레이션 및 실제 Python service→PG WASM 격리 검증 PASS; 기존14표 checksum 불변. /tmp에서32 TEST/CLI8회 export 검증, 실제 iCloud는 미접근.
+- **확인해야 할 것**: [수정 결과·사용/복구 계약](READING_CHUNK_BLOCKER_FIXES.md). export CLI는 `--owner-id` 및 반복 가능한 `--chunk-id` 필수. `.export-state.json`/`.export-pending.json`/잠금을 사용하며, 실패 복구는 동일 owner/ID 선택으로만 한다. 구형 파일의 byte 일치가 확인되지 않으면 덮어쓰지 않고 중단한다.
+- **다음 작업자**: 운영 접속 전 앱 일반 연결의 자동 init 분리·읽기 전용 schema preflight 범위를 확정할 읽담 담당자. 운영 권한·metadata·실제 psycopg/PgBouncer·실제 화면·수정판 iCloud 검증은 이후 별도 승인 필요.
+- **브랜치 / 커밋**: `codex/reading-chunks-1a-fixes`, `/private/tmp/readdam-main-LIPAnD`, 제품 `038ab2e`(감사 `8843b56/6cdc7e7` 후속). main/origin ref=`4d97f4e`, deploy ref=`51e5b0c`. 이번 main 반영·push 없음. 원본 사용자2문서 및 공동 미커밋 문서 hash 불변.
+- **배포 상태**: 미배포. 운영 Supabase 접속·쓰기·DDL0. 제품/테스트 커밋과 이 문서 기록 커밋을 분리한다. 공동 원격 미설정 유지.
+- **보류·실패·중단 이유**: AUDIT-01의 잘못된 동일이름 index 감지/자동 교정은 미해결(스키마 변경 금지). 앱의31DDL 자동 init과 owner claim도 기존대로라 현 브랜치를 운영 GO로 볼 수 없다. 일반 동시 편집/의미중복 직렬화·다른 기기 iCloud 잠금은 보장하지 않는다. 1차-A 미완료·1차-B 금지 유지.
+
 ## 사용자(David)/읽담 담당자가 이어받을 작업 — 종합 감사 완료, 제품 수정·운영 전 NO-GO (2026-09-27, Codex)
 
 아래의 단순 검증 진입 중단 상태를 확대 감사 결과로 대체한다. **운영 배포/쓰기/DDL/초기화 및 1차-B는 계속 금지다.**
