@@ -1,6 +1,6 @@
 # 읽담
 
-최신 Reading Chunk 상태(2026-09-27): 수정 브랜치 `codex/reading-chunks-1a-fixes`의 `038ab2e`에서 사용자/책 격리·NULL SQL·선택 read-only export·파일/index 복구·태그·연속 UI를 수정했다. 123 PASS/1 XFAIL, 기존 합성14표 checksum 불변. main/push/배포 없음. 앱 일반 연결의 자동 init과 schema drift/운영 권한 검증은 남아 **운영 NO-GO/1차-B 금지 유지**. 상세는 [수정 결과](READING_CHUNK_BLOCKER_FIXES.md), 최신 인계는 HANDOFF를 따른다. 아래 날짜별 상태는 해당 시점의 기록이다.
+최신 Reading Chunk 상태(2026-09-27): 수정 브랜치 `codex/reading-chunks-1a-fixes`의 `5148d6f`에서 **일반 연결 자동 schema-init을 제거하고 read-only schema preflight를 추가**했다. 038ab2e의 CRUD/export 안전성 수정도 포함한다.154 PASS/0 XFAIL, AUDIT-01 감지·중단 PASS, 기존합성14표 checksum불변. 스키마는 앱이 고치지 않고 명시 승인된 maintenance로만 준비한다. main/push/배포 없음. 운영schema·권한·RLS/ACL·실제연결/화면/iCloud 검증은 남아 **운영 NO-GO/1차-B 금지 유지**. [새 구조/검증 결과](READING_CHUNK_SCHEMA_PREFLIGHT.md)와 HANDOFF/Runbook을 따른다. 아래 날짜별 상태는 해당 시점의 기록이다.
 
 북스윙 개인 독서 기록을 보존하고 책장·독서 노트·타이머·공유·통계와 초대형 소그룹 인증을 제공하는 Streamlit 앱.
 도서비서 폴더는 독립 Git 저장소이며 상위 동하비서에서 제외된다. 서브모듈 관계가 없다.
@@ -8,6 +8,7 @@
 - 숫자 activity kind는 원본과 호환한다. 원본 생명주기 의미 정정은 `SOURCE_AUDIT.md` 참고.
 - `reading_chunks`는 기존 `activities`와 별도인 additive 조각 보관 표다. 읽담 화면에서 만든 조각은 `source_app=readdam`이며, UUID·스냅샷 책 정보·태그·콘텐츠 타입·소프트 삭제를 가진다. 기존 책·기록·통계에는 연결하거나 변환하지 않는다.
 - 실제 DB/사진/백업은 Git에서 제외한다. 테스트는 별도 임시 DB만 쓴다.
+- DB 일반 연결은 `connect → read-only preflight → OK/안전중단`이다.15필수표/13named index/reading_chunks22컬럼·제약·구조계약v1을 검사하며 drift자동수정과 SQLite kind자동변환은 없다. `tools/schema_preflight.py`는read-only, `tools/schema_maintenance.py`는기본계획출력/명시승인hash가있는transaction만additive실행. 기존 full initializer는 offline bootstrap에만남고 운영1A용이아니다. 운영DDL권한/RLS정책은이기능으로승인되지않는다.
 - Supabase Auth 계정이 개인 서재와 소그룹을 분리한다. 기존 705권 서재는 Cloud Secret `READDAM_OWNER_EMAIL`과 일치하는 계정만 소유자로 연결하며, 소그룹에는 사용자가 선택한 인용구·사진 스냅샷과 일일 인증·반응·댓글만 공유한다. 전체공개 피드·뱃지는 구현하지 않는다.
 - `migration/load_db.py`는 초기 적재 전용이며 기존 DB를 재생성하므로 사용 중인 DB에 실행하지 않는다.
 - 영속 데이터는 Supabase Postgres(`bookbutler-prod`, 서울 리전)에 저장한다. 로컬 개발/테스트는 SQLite를 유지하며, `BOOK_BUTLER_DATABASE_URL` 또는 Supabase DB 환경변수가 있으면 Postgres로 연결한다.

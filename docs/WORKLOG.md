@@ -8,6 +8,17 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: Reading Chunk 자동 schema-init 분리 및 read-only preflight
+
+- **목적/범위**: 사용자 확인 Astra High 유지. 일반 앱/로그인/조회/export의 schema mutation 차단과 명시 maintenance 분리. 운영접속/DDL/배포/main/push/사용자 archive/오늘의 서재/1차-B는 금지 범위로 유지했다.
+- **Git**: 읽담 시작952c3b3·제품기준038ab2e, 공동b2d9112의 실제 저장소와 ancestry 확인. 제품·테스트 **5148d6f**, 문서는 별도 커밋. `codex/reading-chunks-1a-fixes`에서만 작업, main/origin 로컬ref4d97f4e·deploy51e5b0c 불변, fetch/push 안 함. 공동 기록은 b2d9112 기반 별도 `codex/reading-chunks-preflight-docs` worktree에 작성하여 공동 main도 변경하지 않는다.
+- **구현**: db.connect/require_schema 분리, schema.py는 기존DDL 상수만 유지, full initializer는 explicit maintenance 모듈로 이동. SQLite 연결 시 TEXT-kind 변환 삭제·drift STOP.15표/13named index/22chunk컬럼·제약·정의·validity·구조계약v1 검사. read-only CLI와 승인hash 계획/transaction/재검사 기반 좁은 additive CLI 추가. 기존 migration 도구는 import/명시 initializer 호출만 변경, 사용자 데이터 변환 실행 없음.
+- **검증**: 전체154 PASS/0 XFAIL(24.17초), 신규preflight30테스트, 기존회귀 모두PASS. AUDIT-01은 같은이름 잘못된index 감지/자동수정금지 기준PASS로 xfail제거. Python63파일compile·Node2개syntax·diff PASS. SQLiteauthorizer의 Python3.9 None해제 차이는 harness수정으로 해결, 최종미해명실패0.
+- **PostgreSQL/무결성**: 새Python→PG17.5WASM14시나리오 PASS, READ ONLY·9 drift·AUDIT01·중간DDL전체rollback·4DDL승인/no-op/누락index복구 검증.705책/5,666활동 및 다른12표 각1행의 전체행/컬럼/제약checksum 불변;14표 집계SHA256 `632df820c461f571ad2a4717e0ed8df2500a3d1e1d02e8e8a43f8130634605cd` 전후일치. 기존12시나리오 및 실제Pythonservice CRUD/export/소유권도재검증. 실제Supabase/psycopgwire/PgBouncer/RLS 검증아님.
+- **증거/문서**: `READING_CHUNK_SCHEMA_PREFLIGHT.md`, 갱신Runbook/PROJECT/HANDOFF/AGENTS. `/tmp/readdam-preflight-validation-K5XgQm/{pytest.xml,pg-preflight.json,pg-service.json,pg-legacy.json}`. 기존legacy init시뮬레이션의 wrongindex한계는 역사대조로 유지하고 런타임detection PASS와구분했다.
+- **보호**: 원본기획문서2개 SHA256 동일(`75fd87c2…1808e9`, `515a448b…86bc`), 공동dirty PROJECT/WORKLOG hash동일. 실제iCloud·기존합성파일 읽기/쓰기없음, 환경설정/의존성설치없음, 공동remote미설정 유지.
+- **판정/남은일**: 로컬요구사항GO, 운영NO-GO. preflight는구조검사만이며 기존owner claim/profile DML과 RLS/ACL을 안전하다고 판정하지 않는다. 다음은별도승인된 운영read-only metadata/권한점검. 그뒤정확한DDL/backup·동등staging·main/push/배포·실제화면/export검증 각각승인필요.1차-A완료/1차-B진입보류.
+
 ## 2026-09-27 — Codex: Reading Chunk 운영 차단 결함 로컬 수정
 
 - **목적·범위**: 사용자 확인 Astra High 설정 유지. 감사에서 선기록한 owner/book, PG NULL, export 안전성, 특수 태그, 연속 UI 차단 문제를 로컬/격리 환경에서 수정. 운영 배포·Supabase 접속/쓰기/DDL·기존 데이터·환경 설정·사용자 archive·오늘의 서재·1차-B 변경 없음.

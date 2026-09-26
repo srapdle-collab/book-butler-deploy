@@ -2,6 +2,8 @@
 
 2026-09-27 / Codex / 사용자 확인 설정 Astra High. 제품·테스트 커밋 `038ab2e`.
 
+후속 `5148d6f`: [schema-init 분리/preflight 결과](READING_CHUNK_SCHEMA_PREFLIGHT.md). 아래 당시 잔여 AUDIT-01은 **감지·안전중단 범위에서 PASS**, 자동 init은 수정 브랜치 일반 연결에서 제거됐다.154 PASS/0 XFAIL이며 운영권한/실사용 검증 대기로 NO-GO는 유지한다. 아래는038ab2e 시점의 기록이다.
+
 **로컬 수정·격리 검증 완료. 운영 배포 판정은 NO-GO 유지.** 운영 Supabase 접속·쓰기·DDL, 배포, 환경 설정 변경, 실제 예화창고 접근, 오늘의 서재 수정, 1차-B 구현은 하지 않았다.
 이 기록은 `6cdc7e7`의 [종합 감사](READING_CHUNK_PREDEPLOY_AUDIT.md)에 대한 후속이다. 과거 감사 결과를 삭제하거나 당시 통과로 바꾸지 않는다.
 

@@ -32,5 +32,5 @@
 - 이 폴더는 독립 Git 저장소이며 상위 동하비서에서 제외된다.
 - 원격: `origin`(비공개 원본), `deploy`(배포용 공개 미러). push·배포 미러 동기화는 사용자 요청이 있을 때만 한다.
 - main 반영은 최상위 `../AGENTS.md`의 "안전하다" 조건(fast-forward 가능, 다른 미커밋 작업 없음)을 확인한 뒤에만 한다.
-- 앱은 Postgres 연결 시 `ensure_schema`로 표를 추가한다. 따라서 main 반영과 배포가 운영 Supabase 스키마 변경으로 이어질 수 있다. 스키마가 바뀐 커밋의 배포는 사용자 승인 후에만 한다.
+- 수정 브랜치의 앱 연결은 read-only schema preflight만 수행하고 drift 시 중단한다. schema mutation은 명시적 maintenance 경로만 사용한다. main/구 배포판에는 자동 init이 남아 있으므로 버전을 반드시 확인한다. 운영 metadata 접속·DDL·main 반영·push·배포는 각각 사용자 승인 범위를 지킨다. `docs/READING_CHUNK_SCHEMA_PREFLIGHT.md`와 배포 Runbook을 따른다.
 - `.env`·Secrets·실제 DB·사진·백업은 읽거나 출력하거나 커밋하지 않는다.

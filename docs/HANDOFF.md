@@ -21,6 +21,18 @@
 
 ## 항목
 
+## 사용자(David)/읽담 담당자가 이어받을 작업 — 자동 init 분리·read-only preflight 완료, 운영 NO-GO (2026-09-27, Codex)
+
+아래 이전 수정 상태를 **수정 브랜치에 한해** 대체한다. 운영 Supabase 접속·쓰기·DDL·배포·실제 iCloud 접근·main 반영·push·1차-B는 실행하지 않았다.
+
+- **무엇을 했는지**: 일반 연결의 schema-init/SQLite kind 자동변환 제거. connect→read-only 구조검사→OK/안전중단. 앱 오류 안내와 export 사전점검 추가. 명시 maintenance는 읽기 전용 계획을 기본값으로 하고, 승인hash·transaction·최종검사로 reading_chunks 신규표/누락index만 적용 가능하다. drift는 자동 교정하지 않는다.
+- **어디까지 끝났는지**: 제품·테스트 `5148d6f` 로컬 커밋. 전체154 PASS/0 XFAIL, Python63파일·Node2개·diff PASS. 새 PostgreSQL WASM14시나리오 및 기존12시나리오/서비스 검증 완료. 합성705책/5,666기록/기존14표 checksum 불변. AUDIT-01은 감지·중단·교정금지 기준 PASS.
+- **확인해야 할 것**: [새 구조·테스트 결과](READING_CHUNK_SCHEMA_PREFLIGHT.md), [최신 Runbook](READING_CHUNK_DEPLOY_RUNBOOK.md). contract는 구조 기반v1이며 DB version marker는 만들지 않는다. preflight는 ACL/RLS 검증을 대신하지 않는다. 기존 owner claim·소그룹 profile DML은 별개로 남아 있다.
+- **다음 작업자**: 사용자에게 운영 read-only metadata/권한 점검만 별도 승인을 요청할 읽담 담당자. 운영 점검이 승인돼도 DDL/배포까지 승인된 것으로 해석하지 않는다.
+- **브랜치 / 커밋**: `codex/reading-chunks-1a-fixes`, `/private/tmp/readdam-main-LIPAnD`, 시작952c3b3→5148d6f + 별도 문서 커밋. main/origin 로컬ref4d97f4e, deploy51e5b0c 유지. 공동 b2d9112는 별도 저장소 커밋이며 cherry-pick하지 않았다. 공동 상태 문서는 `codex/reading-chunks-preflight-docs` 별도 worktree에만 기록하고 공동 main도 유지한다.
+- **배포 상태**: 미배포·미push·main 미반영. 원본 사용자2문서 및 공동 dirty PROJECT/WORKLOG hash 불변. 사용자/합성 iCloud 파일 미접근.
+- **보류·실패·중단 이유**: 로컬 구현 GO이나 **운영 NO-GO /1차-A 미완료/1차-B 금지**. 운영 schema·권한·RLS/ACL·psycopg/PgBouncer·실제 화면·수정판 iCloud 검증과 승인이 남아 있다.
+
 ## 사용자(David)/읽담 담당자가 이어받을 작업 — 1차-A 차단 결함 로컬 수정, 운영 NO-GO 유지 (2026-09-27, Codex)
 
 아래의 제품 무수정 감사 상태를 이 수정 브랜치에 한해 대체한다. **운영 접속·배포·DB 쓰기/DDL·사용자 예화창고 접근·1차-B는 실행하지 않았다.**

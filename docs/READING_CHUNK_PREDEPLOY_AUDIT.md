@@ -2,6 +2,8 @@
 
 2026-09-27 / Codex. 제품 기준 `main=4d97f4e`, 배포 미러 `51e5b0c`.
 
+후속 상태: `038ab2e`의 [차단결함 수정](READING_CHUNK_BLOCKER_FIXES.md), `5148d6f`의 [자동 init 분리/읽기 전용 preflight](READING_CHUNK_SCHEMA_PREFLIGHT.md)를 함께 읽는다. 현재 수정 브랜치는154 PASS/0 XFAIL이며 AUDIT-01은 감지·중단 PASS다. 아래는 당시main감사 원본으로 보존하며 운영NO-GO는 계속된다.
+
 **판정: NO-GO. 운영 배포·운영 DB 쓰기/DDL/초기화·1차-B는 실행하지 않았다.**
 이번 변경은 테스트·시뮬레이션·문서뿐이다. 제품 코드 수정은 하지 않았다. 아래 재현 결함을 해결하지 않고 배포 승인을 요청하지 않는다.
 실행 절차와 정확한 additive SQL은 [배포/복구 runbook](READING_CHUNK_DEPLOY_RUNBOOK.md)을 따른다. 이 문서는 승인서가 아니다.
