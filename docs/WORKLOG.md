@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: Reading Chunk 운영 최소 additive migration 계획
+
+- **목적**: 사용자 제공 운영 read-only 결과를 기준으로 실제 적용 없이 표1/index3의 정확한 SQL과 안전한 순서·중단 조건을 확정했다.
+- **자료/판정**: books705/activities5,667 및 두 표 NULL-owner0, chunk 표/index 부재, 기존 RLS 비활성/정책0은 사용자 제공 결과이며 이번 세션 직접 조회하지 않았다. 이전 5,666 기록은 과거 기준으로 보존한다. `public` CREATE 가능만으로 FK REFERENCES·새 표 기본 ACL/anon/authenticated 접근을 증명할 수 없어 운영 NO-GO로 판정했다. 필요 시 새 RLS/GRANT 정책은 별도 결정/승인 대상이다.
+- **실제 변경**: [실행 보류 계획](READING_CHUNK_PRODUCTION_MIGRATION_PLAN.md), HANDOFF/PROJECT/Runbook 문서만 갱신. 제품 코드, 기존 데이터·표, 운영 DB, 환경변수, iCloud 파일, 오늘의 서재는 변경하지 않았다. 공동 결정 변경이 없어 CROSS는 수정하지 않았다.
+- **검증**: `lib/schema_maintenance`가 생성할 PostgreSQL 4문장과 Runbook SQL을 대조하고 `git diff --check` 및 명시 staged 경로 검사를 수행했다. 실제 운영 SQL/DDL/DML·실행 테스트는 0건; 기존 154 PASS는 앞선 로컬 결과이며 이번에 재실행하지 않았다.
+- **커밋/배포**: `codex/reading-chunks-1a-fixes`의 문서 전용 로컬 커밋. main 반영·push·배포 없음. 원본 사용자 소유 기획문서 2개와 공동 dirty 문서의 전후 SHA-256 보존을 확인한다.
+- **남은 일/위험**: 생성 role 기본 ACL/Data API 노출, FK 권한·books.id 제약, 전체 이름 충돌, 백업/복원, 운영 role 권한 및 별도 DDL/배포 승인. `public` 신규 표가 Data API에 노출될 가능성은 정책 확인 전 Blocker. 1차-A 미완료·1차-B 진입 금지.
+
 ## 2026-09-27 — Codex: 운영 read-only metadata/권한 점검 접속 전 중단
 
 - **목적/승인**: 사용자 지정 Astra High 유지. 운영 metadata/권한/aggregate count 읽기 전용 점검만 승인. 운영 쓰기·DDL·환경변수 변경·main/push/배포는 금지.

@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 사용자(David)/운영 담당자가 이어받을 작업 — 1차-A 최소 migration SQL 확정, 권한 확인 전 적용 NO-GO (2026-09-27, Codex)
+
+- **무엇을 했는지**: 사용자가 전달한 운영 읽기 전용 집계(books 705, activities 5,667, NULL-owner 각각 0, reading_chunks/관련 인덱스 부재, 기존 RLS 비활성/정책 0)를 코드·Runbook과 대조했다. [최소 표 1개+인덱스 3개 계획](READING_CHUNK_PRODUCTION_MIGRATION_PLAN.md), 백업·검증·rollback·배포 순서를 확정했다.
+- **어디까지 끝났는지**: 문서 계획만 작성. 운영 DB 접속·DDL/DML·배포 없음. 운영 결과는 사용자 제공 자료이며 이번 세션 직접 재조회 아님. 제품 코드·사용자 파일 변경 없음.
+- **확인해야 할 것**: 실제 migration role의 `current_user`/기본 ACL, `anon`·`authenticated` Data API 노출, `books.id` 타입/제약 및 FK 권한, 신규 객체명 전체 충돌, 앱 role 권한, 백업 복구 가능성을 읽기 전용 확인. 기본 GRANT로 RLS 없는 새 표가 노출된다면 정책 결정 전 STOP. 전달 activities 5,667은 이전 5,666 기록보다 1건 많으므로 사전 기준을 다시 잡고 원인을 확인한다.
+- **다음 작업자**: 사용자/운영 담당자가 누락 metadata를 안전한 조회 결과로 제공하고, 보안·백업 범위를 확정한 뒤 별도 DDL/배포 승인을 결정한다.
+- **브랜치 / 커밋 / 배포 상태**: 읽담 `codex/reading-chunks-1a-fixes`에서 문서만 기록. main/origin=`4d97f4e`, deploy=`51e5b0c` 유지. main 반영·push·운영 배포 없음.
+- **보류·실패·중단 이유**: 신규 `public` 표의 기본 권한과 RLS 필요성을 현재 자료만으로 확정할 수 없다. **운영 적용 NO-GO, 1차-A 미완료, 1차-B 금지**.
+
 ## 사용자(David)/관리자가 이어받을 작업 — 운영 read-only 점검 연결 경로 미공급으로 중단 (2026-09-27, Codex)
 
 - **무엇을 했는지**: 제품5148d6f/문서22f7b1f/공동f7fe19b와 최신 지침을 확인했다. 연결 설정은 값 없이 존재 여부만 확인했고 모두 미공급/빈 값이다. 활성 DB connector와 브라우저 연결도 없다. `.env`/Secrets를 읽거나 환경을 바꾸지 않고 접속 전에 중단했다.

@@ -2,7 +2,7 @@
 
 2026-09-27 / Codex. 감사: [READING_CHUNK_PREDEPLOY_AUDIT.md](READING_CHUNK_PREDEPLOY_AUDIT.md).
 
-최신 로컬 수정 `5148d6f`: [schema-init 분리/preflight](READING_CHUNK_SCHEMA_PREFLIGHT.md)와 `038ab2e`의 [export 복구 계약](READING_CHUNK_BLOCKER_FIXES.md)을 먼저 읽는다. 수정 브랜치는 앱/export 모두 schema mutation 없이 검사하고 drift에서 중단한다. AUDIT-01 감지 PASS,154 PASS/0 XFAIL이다. **운영 schema·RLS/ACL·연결·화면·수정판 iCloud 미검증**으로 NO-GO는 유지한다. 아래 명령은 운영에서 실행하지 않았다.
+최신 로컬 수정 `5148d6f`: [schema-init 분리/preflight](READING_CHUNK_SCHEMA_PREFLIGHT.md)와 `038ab2e`의 [export 복구 계약](READING_CHUNK_BLOCKER_FIXES.md)을 먼저 읽는다. 수정 브랜치는 앱/export 모두 schema mutation 없이 검사하고 drift에서 중단한다. AUDIT-01 감지 PASS,154 PASS/0 XFAIL이다. 사용자가 제공한 운영 read-only 집계로 chunk 표/index 부재가 확인돼 [최소 migration 계획](READING_CHUNK_PRODUCTION_MIGRATION_PLAN.md)을 작성했으나, 신규 public 표 기본 ACL/Data API 노출·생성 role·FK 권한·백업 미확인으로 **적용 NO-GO**다. 아래 명령은 운영에서 실행하지 않았다.
 
 **현재 NO-GO. 이 문서의 운영 명령은 실행하지 않았다. 사용자 승인과 감사 blocker 해소 전에는 실행 금지다.**
 현재 제품 main/origin=`4d97f4e`, rollback 기준=`51e5b0c72deb0afe69767da05028dea95dd688d1`.

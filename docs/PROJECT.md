@@ -1,6 +1,6 @@
 # 읽담
 
-운영 점검 상태(2026-09-27): read-only metadata/권한 점검은 승인됐지만 현재 세션에 연결 설정·DB connector·브라우저 연결이 없어 **접속 전에 중단**했다. 운영 SQL0건이며 실제 표/reading_chunks 존재·RLS/ACL·버전·count는 미확인이다. 기존705/5,666을 현재 실측치로 인용하지 않는다. 비밀값을 노출하지 않는 승인된 연결 경로가 필요하다. [중단 기록](READING_CHUNK_PRODUCTION_PREFLIGHT.md). 운영 NO-GO/1차-A 미완료/1차-B 금지는 유지한다.
+운영 점검 상태(2026-09-27): 사용자 제공 read-only 결과로 books705/activities5,667, 양쪽 NULL-owner0, reading_chunks와 관련 인덱스 부재, 기존 표 RLS 비활성/정책0을 확인했다(이번 세션 직접 운영 조회 아님). 새 표1+명명 인덱스3의 [최소 migration SQL과 절차](READING_CHUNK_PRODUCTION_MIGRATION_PLAN.md)는 확정했으나, 생성 계정의 기본 ACL/Data API 노출·FK 권한·백업이 미확인이라 **적용 NO-GO**다. 기존 [접속 전 중단 기록](READING_CHUNK_PRODUCTION_PREFLIGHT.md)은 이전 세션의 역사이며 현재 결과를 부정하지 않는다. 1차-A 미완료/1차-B 금지는 유지한다.
 
 최신 Reading Chunk 상태(2026-09-27): 수정 브랜치 `codex/reading-chunks-1a-fixes`의 `5148d6f`에서 **일반 연결 자동 schema-init을 제거하고 read-only schema preflight를 추가**했다. 038ab2e의 CRUD/export 안전성 수정도 포함한다.154 PASS/0 XFAIL, AUDIT-01 감지·중단 PASS, 기존합성14표 checksum불변. 스키마는 앱이 고치지 않고 명시 승인된 maintenance로만 준비한다. main/push/배포 없음. 운영schema·권한·RLS/ACL·실제연결/화면/iCloud 검증은 남아 **운영 NO-GO/1차-B 금지 유지**. [새 구조/검증 결과](READING_CHUNK_SCHEMA_PREFLIGHT.md)와 HANDOFF/Runbook을 따른다. 아래 날짜별 상태는 해당 시점의 기록이다.
 
