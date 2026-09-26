@@ -17,7 +17,7 @@ import pytest
 from lib import db, schema, reading_chunks as chunks
 from migration.load_db import SCHEMA
 from test_activity_inputs_app import isolated_app, open_detail
-from test_reading_chunks import _export_module, _save
+from test_reading_chunks import _export_module, _save, _ids
 
 
 def historical_schema():
@@ -37,9 +37,9 @@ def fingerprint(conn):
         "AND name NOT LIKE 'sqlite_%' AND name != 'reading_chunks' ORDER BY name"
     ).fetchall()
     for (table,) in tables:
-        columns = conn.execute(f'PRAGMA table_info("{table}")').fetchall()
-        rows = sorted(conn.execute(f'SELECT * FROM "{table}"').fetchall(), key=repr)
-        foreign_keys = conn.execute(f'PRAGMA foreign_key_list("{table}")').fetchall()
+        columns = [tuple(row) for row in conn.execute(f'PRAGMA table_info("{table}")')]
+        rows = sorted((tuple(row) for row in conn.execute(f'SELECT * FROM "{table}"')), key=repr)
+        foreign_keys = [tuple(row) for row in conn.execute(f'PRAGMA foreign_key_list("{table}")')]
         payload = json.dumps([columns, foreign_keys, rows], ensure_ascii=False).encode()
         result[table] = (len(rows), hashlib.sha256(payload).hexdigest())
     return result
@@ -192,16 +192,15 @@ def test_null_metadata_long_korean_multiline_and_reexport(isolated_app, tmp_path
     row = _save(conn, minutes=None, page_start=None, page_end=None, original_text="긴 한글 메모\n" * 20000)
     conn.close()
     exporter = _export_module()
-    assert exporter.export(tmp_path)["written"] == 1
+    assert exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())["written"] == 1
     path = next((tmp_path / "독서조각").rglob("*.txt"))
     text = path.read_text()
     assert "ISBN: 미입력" in text and "읽은 시간: 미입력" in text
     assert "출처 앱: 읽담 (readdam)" in text and row["original_text"] in text
     assert ":" not in path.name and "?" not in path.name
-    assert exporter.export(tmp_path)["written"] == 0
+    assert exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())["written"] == 0
 
 
-@pytest.mark.xfail(strict=True, raises=KeyError, reason="AUDIT-07: AppTest chained edit/delete hits cleared widget state; real browser confirmation required")
 def test_ui_edit_filter_and_soft_delete(isolated_app):
     conn = db.get_connection()
     row = _save(conn)
@@ -214,12 +213,16 @@ def test_ui_edit_filter_and_soft_delete(isolated_app):
     at.text_area(key="chunk_input_user_note").set_value("TEST 수정")
     at.button(key="save_reading_chunk").click().run()
     assert not at.exception
+    at.button(key=f"chunk_edit_{row['chunk_id']}").click().run()
+    at.text_area(key="chunk_input_user_note").set_value("TEST 재수정")
+    at.button(key="save_reading_chunk").click().run()
+    assert not at.exception
     at.button(key=f"chunk_delete_{row['chunk_id']}").click().run()
     at.button(key=f"chunk_delete_confirm_{row['chunk_id']}").click().run()
     assert not at.exception
     conn = db.get_connection()
-    deleted = chunks.get(conn, row["chunk_id"], include_deleted=True)
-    assert deleted["user_note"] == "TEST 수정" and deleted["deleted_at"]
+    deleted = chunks.get(conn, row["chunk_id"], include_deleted=True, owner_id=chunks.LOCAL_OWNER_ID)
+    assert deleted["user_note"] == "TEST 재수정" and deleted["deleted_at"]
     conn.close()
 
 
@@ -233,19 +236,18 @@ def test_ui_edit_then_fresh_session_delete(isolated_app):
     at.button(key="save_reading_chunk").click().run()
     assert not at.exception
     conn = db.get_connection()
-    assert chunks.get(conn, row["chunk_id"])["user_note"] == "TEST 새 세션 수정"
+    assert chunks.get(conn, row["chunk_id"], owner_id=chunks.LOCAL_OWNER_ID)["user_note"] == "TEST 새 세션 수정"
     conn.close()
     at = open_detail()
     at.button(key=f"chunk_delete_{row['chunk_id']}").click().run()
     at.button(key=f"chunk_delete_confirm_{row['chunk_id']}").click().run()
     assert not at.exception
     conn = db.get_connection()
-    assert chunks.get(conn, row["chunk_id"]) is None
-    assert chunks.get(conn, row["chunk_id"], include_deleted=True)["deleted_at"]
+    assert chunks.get(conn, row["chunk_id"], owner_id=chunks.LOCAL_OWNER_ID) is None
+    assert chunks.get(conn, row["chunk_id"], include_deleted=True, owner_id=chunks.LOCAL_OWNER_ID)["deleted_at"]
     conn.close()
 
 
-@pytest.mark.xfail(strict=True, reason="AUDIT-08: save accepts a chunkId belonging to another book/owner")
 def test_cross_book_existing_id_rejected(isolated_app):
     conn = db.get_connection()
     row = _save(conn)
@@ -256,7 +258,6 @@ def test_cross_book_existing_id_rejected(isolated_app):
     conn.close()
 
 
-@pytest.mark.xfail(strict=True, reason="AUDIT-09: export opens schema-mutating app connection instead of a read-only connection")
 def test_export_never_initializes_schema(isolated_app, tmp_path, monkeypatch):
     conn = db.get_connection()
     _save(conn)
@@ -264,15 +265,14 @@ def test_export_never_initializes_schema(isolated_app, tmp_path, monkeypatch):
     def forbidden(conn):
         pytest.fail("export invoked ensure_schema")
     monkeypatch.setattr(db, "ensure_schema", forbidden)
-    _export_module().export(tmp_path)
+    _export_module().export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
 
 
-@pytest.mark.xfail(strict=True, reason="AUDIT-10: interrupted index rewrite truncates the previously valid index")
 def test_index_write_failure_preserves_previous_index(isolated_app, tmp_path, monkeypatch):
     conn = db.get_connection()
     row = _save(conn)
     exporter = _export_module()
-    exporter.export(tmp_path)
+    exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     index = tmp_path / "독서조각" / "_index.csv"
     before = index.read_bytes()
     _save(conn, chunk_id=row["chunk_id"], user_note="TEST update")
@@ -284,17 +284,16 @@ def test_index_write_failure_preserves_previous_index(isolated_app, tmp_path, mo
     with monkeypatch.context() as scoped:
         scoped.setattr(csv.DictWriter, "writerow", failing)
         with pytest.raises(OSError):
-            exporter.export(tmp_path)
+            exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     assert index.read_bytes() == before
     conn.close()
 
 
 @pytest.mark.parametrize("tag,stored,should_match", [('a_b','axb',False), ('a%b','axxxb',False), ('인용"태그','인용"태그',True)])
-@pytest.mark.xfail(strict=True, reason="AUDIT-02: tag LIKE wildcard/JSON escaping does not implement exact tag matching")
 def test_exact_special_character_tag_filter(isolated_app, tag, stored, should_match):
     conn = db.get_connection()
     _save(conn, tags=[stored], illustration_tags=[])
-    result = bool(chunks.list_for_book(conn, "book-1", tag=tag))
+    result = bool(chunks.list_for_book(conn, "book-1", tag=tag, owner_id=chunks.LOCAL_OWNER_ID))
     conn.close()
     assert result == should_match
 
@@ -317,15 +316,15 @@ def test_date_pages_edit_moves_one_txt_and_missing_txt_is_rebuilt(isolated_app, 
     conn = db.get_connection()
     row = _save(conn)
     exporter = _export_module()
-    exporter.export(tmp_path)
+    exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     previous = next((tmp_path / "독서조각").rglob("*.txt"))
     _save(conn, chunk_id=row["chunk_id"], read_date="2027-01-01", page_start=60, page_end=65, user_note="TEST v2")
-    result = exporter.export(tmp_path)
+    result = exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     assert result["moved"] == 1 and result["written"] == 1 and not previous.exists()
     current = tmp_path / "독서조각" / index_rows(tmp_path)[0]["상대경로"]
     assert "2027/2027-01" in current.as_posix() and "p60-65" in current.name
     current.unlink()  # test-generated tmp_path file only
-    assert exporter.export(tmp_path)["written"] == 1 and current.exists()
+    assert exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())["written"] == 1 and current.exists()
     conn.close()
 
 
@@ -338,7 +337,7 @@ def test_unindexed_existing_file_is_not_overwritten(isolated_app, tmp_path):
     target.parent.mkdir(parents=True)
     target.write_text("TEST existing sentinel")
     with pytest.raises(RuntimeError, match="덮어쓰지"):
-        exporter.export(tmp_path)
+        exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     assert target.read_text() == "TEST existing sentinel"
 
 
@@ -348,39 +347,36 @@ def test_eight_character_collision_uses_twelve_characters(isolated_app, tmp_path
         _save(conn, chunk_id=prefix+"-4000-8000-000000000001", user_note=f"TEST {i}")
     conn.close()
     exporter = _export_module()
-    assert exporter.export(tmp_path)["written"] == 2
+    assert exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())["written"] == 2
     assert len(list((tmp_path / "독서조각").rglob("*.txt"))) == 2
-    assert exporter.export(tmp_path)["written"] == 0
+    assert exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())["written"] == 0
 
 
-@pytest.mark.xfail(strict=True, reason="AUDIT-03: duplicate index chunkId is silently collapsed")
 def test_duplicate_index_row_rejected(isolated_app, tmp_path):
     conn = db.get_connection()
     _save(conn)
     conn.close()
     exporter = _export_module()
-    exporter.export(tmp_path)
+    exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     index = tmp_path / "독서조각" / "_index.csv"
     with index.open("a") as handle:
         handle.write(index.read_text().splitlines(keepends=True)[1])
     with pytest.raises(RuntimeError):
-        exporter.export(tmp_path)
+        exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
 
 
-@pytest.mark.xfail(strict=True, reason="AUDIT-04: unchanged DB metadata leaves a corrupted indexed txt undetected")
 def test_changed_indexed_txt_detected(isolated_app, tmp_path):
     conn = db.get_connection()
     _save(conn)
     conn.close()
     exporter = _export_module()
-    exporter.export(tmp_path)
+    exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     path = next((tmp_path / "독서조각").rglob("*.txt"))
     path.write_text("TEST damaged content")
     with pytest.raises(RuntimeError):
-        exporter.export(tmp_path)
+        exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
 
 
-@pytest.mark.xfail(strict=True, reason="AUDIT-05: interruption after txt creation leaves an unindexed file and blocks retry")
 def test_retry_after_index_write_failure(isolated_app, tmp_path, monkeypatch):
     conn = db.get_connection()
     _save(conn)
@@ -391,28 +387,27 @@ def test_retry_after_index_write_failure(isolated_app, tmp_path, monkeypatch):
         raise OSError("TEST index write failure")
     monkeypatch.setattr(exporter, "write_index", fail)
     with pytest.raises(OSError):
-        exporter.export(tmp_path)
+        exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     monkeypatch.setattr(exporter, "write_index", writer)
-    exporter.export(tmp_path)
+    exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     assert len(index_rows(tmp_path)) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="AUDIT-06: same known 12-char deleted destination may overwrite another indexed txt")
 def test_deleted_path_collision_does_not_overwrite(isolated_app, tmp_path):
     conn = db.get_connection()
     exporter = _export_module()
     rows = [_save(conn, chunk_id=f"abcdef12-abcd-4000-8000-{i:012d}", read_date=f"2026-09-{i:02d}", user_note=f"TEST {i}") for i in [1,2,3]]
     # Same deleted basename can arise from different prior date directories.
-    exporter.export(tmp_path)
+    exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     archive = tmp_path / "독서조각"
     victim = archive / "_삭제됨" / exporter.filename_for(rows[0], 12)
     short = archive / "_삭제됨" / exporter.filename_for(rows[0], 8)
     victim.parent.mkdir()
     victim.write_text("TEST protected collision sentinel")
     short.write_text("TEST shorter collision sentinel")
-    chunks.soft_delete(conn, rows[0]["chunk_id"])
+    chunks.soft_delete(conn, rows[0]["chunk_id"], owner_id=chunks.LOCAL_OWNER_ID)
     try:
-        exporter.export(tmp_path)
+        exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     except RuntimeError:
         pass
     assert victim.read_text() == "TEST protected collision sentinel"

@@ -65,12 +65,10 @@ report.cases.push({name:'populated baseline + 4 initializations + old-code schem
 const duplicateSql = readFileSync('lib/reading_chunks.py','utf8').match(/def _duplicate[\s\S]*?query = """([\s\S]*?)"""/)[1];
 let parameter = 0;
 const pgQuery = duplicateSql.replaceAll('?', () => '$'+(++parameter));
-try {
-  await db.query(pgQuery,['audit-owner','b0','2026-09-27',null,null,null,null,'hash']);
-  report.cases.push({name:'nullable-page duplicate query',status:'PASS'});
-} catch(error) {
-  report.cases.push({name:'nullable-page duplicate query',status:'REPRODUCED_DEFECT',code:error.code,message:error.message});
+for (const [start,end] of [[null,null],[null,10],[10,null],[10,12]]) {
+  await db.query(pgQuery,['audit-owner','b0','2026-09-27',start,start,end,end,'hash']);
 }
+report.cases.push({name:'nullable-page duplicate query: all 4 combinations',status:'PASS'});
 // Explicit PREPARE types are a diagnostic control, NOT a product change.
 await db.exec(`PREPARE typed_duplicate(text,text,text,integer,integer,integer,integer,text) AS ${pgQuery}`);
 await db.exec("EXECUTE typed_duplicate('audit-owner','b0','2026-09-27',NULL,NULL,NULL,NULL,'hash')");

@@ -146,7 +146,7 @@ def forms(conn,book,goto):
             else: close_input('기록을 저장했습니다.')
 
 
-def detail(conn,book_id,goto,management):
+def detail(conn,book_id,goto,management,*,owner_id):
     book=db.get_book(conn,book_id) if book_id else None
     if book is None:
         st.info('책장에서 책을 선택해주세요.'); return
@@ -177,7 +177,7 @@ def detail(conn,book_id,goto,management):
     management(conn,book)
     forms(conn,book,goto)
     from lib.reading_chunks_ui import render as render_reading_chunks
-    render_reading_chunks(conn, book)
+    render_reading_chunks(conn, book, owner_id=owner_id)
     st.subheader('독서 노트')
     rows=db.list_activities(conn,book_id)
     choice=st.radio('기록 보기',['전체','인용구·메모','사진','진도'],horizontal=True,key='detail_filter')

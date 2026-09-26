@@ -13,6 +13,7 @@ from test_activity_inputs_app import fetch_one, isolated_app, open_detail
 
 def _save(conn, **overrides):
     values = {
+        "owner_id": chunks.LOCAL_OWNER_ID,
         "book_id": "book-1",
         "read_date": "2026-09-26",
         "page_start": 45,
@@ -40,8 +41,8 @@ def test_chunk_is_additive_and_duplicate_requires_explicit_choice(isolated_app):
         _save(conn)
     duplicate = _save(conn, allow_duplicate=True)
     assert duplicate["chunk_id"] != chunk["chunk_id"]
-    assert len(chunks.list_for_book(conn, "book-1", tag="용서")) == 2
-    assert not chunks.list_for_book(conn, "book-1", tag="없는 태그")
+    assert len(chunks.list_for_book(conn, "book-1", tag="용서", owner_id=chunks.LOCAL_OWNER_ID)) == 2
+    assert not chunks.list_for_book(conn, "book-1", tag="없는 태그", owner_id=chunks.LOCAL_OWNER_ID)
     conn.close()
 
 
@@ -56,9 +57,9 @@ def test_chunk_update_and_soft_delete_are_separate_from_existing_records(isolate
     assert updated["position_note"] == "전자책 42%"
     assert updated["page_start"] is None
     assert updated["source_app"] == "readdam"
-    chunks.soft_delete(conn, chunk["chunk_id"])
-    assert chunks.list_for_book(conn, "book-1") == []
-    deleted = chunks.get(conn, chunk["chunk_id"], include_deleted=True)
+    chunks.soft_delete(conn, chunk["chunk_id"], owner_id=chunks.LOCAL_OWNER_ID)
+    assert chunks.list_for_book(conn, "book-1", owner_id=chunks.LOCAL_OWNER_ID) == []
+    deleted = chunks.get(conn, chunk["chunk_id"], include_deleted=True, owner_id=chunks.LOCAL_OWNER_ID)
     assert deleted["deleted_at"]
     assert fetch_one(isolated_app[0], "SELECT COUNT(*) FROM activities") == (0,)
     conn.close()
@@ -93,12 +94,21 @@ def _export_module():
     return module
 
 
+def _ids():
+    """Explicit synthetic selection for export tests (not a product default)."""
+    conn = db.get_readonly_connection()
+    try:
+        return [row["chunk_id"] for row in chunks.all_chunks(conn, owner_id=chunks.LOCAL_OWNER_ID)]
+    finally:
+        conn.close()
+
+
 def test_txt_export_is_idempotent_and_moves_only_indexed_deleted_chunk(isolated_app, tmp_path):
     conn = db.get_connection()
     chunk = _save(conn)
     conn.close()
     exporter = _export_module()
-    first = exporter.export(tmp_path)
+    first = exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     archive = tmp_path / "독서조각"
     index_path = archive / "_index.csv"
     with index_path.open(encoding="utf-8", newline="") as handle:
@@ -112,12 +122,12 @@ def test_txt_export_is_idempotent_and_moves_only_indexed_deleted_chunk(isolated_
     assert "콘텐츠 타입: 예화 후보, 묵상 소재" in text
     assert "출처 앱: 읽담 (readdam)" in text
     assert "chunkId: " + chunk["chunk_id"] in text
-    assert exporter.export(tmp_path)["written"] == 0
+    assert exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())["written"] == 0
 
     conn = db.get_connection()
-    chunks.soft_delete(conn, chunk["chunk_id"])
+    chunks.soft_delete(conn, chunk["chunk_id"], owner_id=chunks.LOCAL_OWNER_ID)
     conn.close()
-    result = exporter.export(tmp_path)
+    result = exporter.export(tmp_path, owner_id=chunks.LOCAL_OWNER_ID, chunk_ids=_ids())
     assert result["moved"] == 1
     assert not exported.exists()
     assert any((archive / "_삭제됨").glob(f"*{chunk['chunk_id'][:8]}.txt"))

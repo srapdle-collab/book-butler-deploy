@@ -243,7 +243,9 @@ def render_add_book_form(conn) -> None:
 
 def render_detail(conn, book_id):
     from lib.notebook_ui import detail
-    detail(conn, book_id, goto, render_book_management)
+    from lib.reading_chunks import LOCAL_OWNER_ID
+    detail(conn, book_id, goto, render_book_management,
+           owner_id=authenticated_user.id if authenticated_user else LOCAL_OWNER_ID)
 
 
 def render_book_management(conn, book) -> None:

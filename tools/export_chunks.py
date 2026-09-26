@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """읽담 reading_chunks를 사람이 보관하는 UTF-8 txt로 내보낸다.
 
-예: python tools/export_chunks.py --output-root /Volumes/Archive
+예: python tools/export_chunks.py --output-root /Volumes/Archive --owner-id OWNER --chunk-id UUID
 
 명시한 보관 루트의 ``독서조각/``만 만들고 관리한다. 예화창고는 실제 위치와
 구조를 확인하는 다음 단계 전까지 전혀 건드리지 않는다.
@@ -10,10 +10,14 @@ from __future__ import annotations
 
 import argparse
 import csv
+import fcntl
+import hashlib
+import io
+import json
 import os
 import re
-import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 if __package__ in (None, ""):
@@ -25,7 +29,7 @@ from lib import db
 from lib import reading_chunks as chunks
 
 INDEX_HEADERS = ["chunkId", "상대경로", "updatedAt", "contentHash", "예화창고 경로들"]
-INVALID_FILENAME = re.compile(r'[\\/:*?"<>|\r\n]+')
+INVALID_FILENAME = re.compile(r'[\\/:*?"<>|\x00-\x1f\x7f]+')
 
 
 def safe_title(value: str | None) -> str:
@@ -88,7 +92,10 @@ def render_txt(chunk) -> str:
 
 
 def _safe_path(root: Path, relative: str) -> Path:
-    candidate = (root / relative).resolve()
+    raw = root / relative
+    if raw.is_symlink():
+        raise RuntimeError("심볼릭 링크 파일은 내보내기 대상이 될 수 없습니다.")
+    candidate = raw.resolve()
     try:
         candidate.relative_to(root.resolve())
     except ValueError as exc:
@@ -103,97 +110,236 @@ def read_index(path: Path) -> dict[str, dict[str, str]]:
         reader = csv.DictReader(handle)
         if reader.fieldnames != INDEX_HEADERS:
             raise RuntimeError("_index.csv 헤더가 예상과 달라 안전하게 갱신할 수 없습니다.")
-        return {row["chunkId"]: row for row in reader if row.get("chunkId")}
+        result, paths = {}, set()
+        for row in reader:
+            if (set(row) != set(INDEX_HEADERS) or any(row[k] is None for k in INDEX_HEADERS)
+                    or not all(row[k] for k in INDEX_HEADERS[:4])
+                    or row["chunkId"] in result or row["상대경로"] in paths):
+                raise RuntimeError("_index.csv 중복 또는 잘못된 행을 발견했습니다.")
+            _safe_path(path.parent, row["상대경로"])
+            result[row["chunkId"]] = row
+            paths.add(row["상대경로"])
+        return result
+
+
+def _index_bytes(rows):
+    handle = io.StringIO(newline="")
+    writer = csv.DictWriter(handle, fieldnames=INDEX_HEADERS)
+    writer.writeheader()
+    for chunk_id in sorted(rows):
+        writer.writerow(rows[chunk_id])
+    return handle.getvalue().encode("utf-8")
+
+
+def _digest(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def _file_hash(path):
+    return _digest(path.read_bytes()) if path.exists() else None
+
+
+def _json_bytes(value):
+    return (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
+
+
+def _sync_directory(path):
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _atomic_write(path, data, *, replace=True):
+    """Same-directory staged write. New destinations use link/no-clobber."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(prefix=".readdam-tmp-", dir=path.parent)
+    staged = Path(temporary)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if replace:
+            os.replace(staged, path)
+        else:
+            # Unlike rename/replace, link fails if another file already exists.
+            os.link(staged, path)
+            staged.unlink()
+        _sync_directory(path.parent)
+    finally:
+        if staged.exists():
+            staged.unlink()
 
 
 def write_index(path: Path, rows: dict[str, dict[str, str]]) -> None:
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=INDEX_HEADERS)
-        writer.writeheader()
-        for chunk_id in sorted(rows):
-            writer.writerow(rows[chunk_id])
+    _atomic_write(path, _index_bytes(rows))
 
 
 def _target_for(chunk, known_paths: dict[str, str]) -> Path:
-    target = relative_path_for(chunk, 8)
-    other = known_paths.get(target.as_posix())
-    if other and other != chunk["chunk_id"]:
-        target = relative_path_for(chunk, 12)
-    return target
+    for length in (8, 12, len(chunk["chunk_id"])):
+        target = relative_path_for(chunk, length)
+        if known_paths.get(target.as_posix()) in (None, chunk["chunk_id"]):
+            return target
+    raise RuntimeError("파일명 충돌을 해결할 수 없습니다.")
 
 
-def export(output_root: Path) -> dict[str, int]:
-    """명시 보관 루트 아래 독서조각과 그 index만 갱신하고 건수를 돌려준다."""
-    archive = output_root.resolve() / "독서조각"
-    archive.mkdir(parents=True, exist_ok=True)
-    index_path = archive / "_index.csv"
-    index = read_index(index_path)
-    known_paths = {row["상대경로"]: chunk_id for chunk_id, row in index.items() if row.get("상대경로")}
-    conn = db.get_connection()
+def _selected_chunks(owner_id, chunk_ids):
+    if not owner_id or not chunk_ids or any(not isinstance(item, str) or not item for item in chunk_ids):
+        raise ValueError("owner-id와 하나 이상의 chunk-id를 명시해야 합니다.")
+    conn = db.get_readonly_connection()
     try:
-        rows = chunks.all_chunks(conn, include_deleted=True)
+        rows = []
+        for chunk_id in sorted(set(chunk_ids)):
+            row = chunks.get(conn, chunk_id, owner_id=owner_id, include_deleted=True)
+            if row is None:
+                raise ValueError("요청한 조각이 없거나 해당 사용자의 조각이 아닙니다.")
+            rows.append(row)
+        return rows
     finally:
         conn.close()
 
-    written = moved = deleted = 0
+
+def _plan(archive, rows, owner_id):
+    index_path = _safe_path(archive, "_index.csv")
+    state_path = _safe_path(archive, ".export-state.json")
+    index = read_index(index_path)
+    state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+    known_paths = {row["상대경로"]: chunk_id for chunk_id, row in index.items()}
+    operations, cleanup = [], []
+    result = dict(written=0, moved=0, deleted=0, total=len(rows))
     for chunk in rows:
-        old = index.get(chunk["chunk_id"])
+        chunk_id = chunk["chunk_id"]
+        old = index.get(chunk_id)
         old_relative = old.get("상대경로") if old else ""
         old_path = _safe_path(archive, old_relative) if old_relative else None
+        old_bytes = old_path.read_bytes() if old_path and old_path.exists() else None
+        receipt = state.get(chunk_id)
+        rendered = render_txt(chunk).encode("utf-8")
+        if receipt and receipt["owner_id"] != owner_id:
+            raise RuntimeError("보관 목록의 소유자가 일치하지 않습니다.")
+        if old_bytes is not None:
+            if receipt:
+                if receipt["path"] != old_relative or receipt["sha256"] != _digest(old_bytes):
+                    raise RuntimeError("기존 txt가 외부에서 변경되었습니다. 덮어쓰지 않습니다.")
+            elif old_bytes != rendered:
+                # Legacy index has no byte digest: never guess ownership of modified text.
+                raise RuntimeError("기존 txt 무결성을 확인할 수 없습니다. 덮어쓰지 않습니다.")
         if chunk["deleted_at"]:
-            if old_path and old_path.exists() and not old_relative.startswith("_삭제됨/"):
-                destination = Path("_삭제됨") / old_path.name
-                destination_path = _safe_path(archive, destination.as_posix())
-                if destination_path.exists():
-                    destination = Path("_삭제됨") / filename_for(chunk, 12)
-                    destination_path = _safe_path(archive, destination.as_posix())
-                destination_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(old_path), str(destination_path))
-                moved += 1
-                old_relative = destination.as_posix()
-            if old:
-                index[chunk["chunk_id"]] = {
-                    "chunkId": chunk["chunk_id"], "상대경로": old_relative,
-                    "updatedAt": chunk["updated_at"], "contentHash": chunk["content_hash"],
-                    "예화창고 경로들": "",
-                }
-            deleted += 1
-            continue
-
-        target_relative = _target_for(chunk, known_paths)
-        target_path = _safe_path(archive, target_relative.as_posix())
-        if old_path and old_relative != target_relative.as_posix() and old_path.exists():
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            if target_path.exists():
-                raise RuntimeError(f"내보낼 대상 파일이 이미 있습니다: {target_path}")
-            shutil.move(str(old_path), str(target_path))
-            moved += 1
-        elif target_path.exists() and not old:
-            # index에 없는 파일은 사용자가 만든 것으로 간주한다.
-            raise RuntimeError(f"목록에 없는 기존 파일을 덮어쓰지 않습니다: {target_path}")
-
-        changed = not old or old.get("updatedAt") != chunk["updated_at"] or old.get("contentHash") != chunk["content_hash"]
-        if changed or not target_path.exists():
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            with target_path.open("w", encoding="utf-8", newline="\n") as handle:
-                handle.write(render_txt(chunk))
-            written += 1
-        index[chunk["chunk_id"]] = {
-            "chunkId": chunk["chunk_id"], "상대경로": target_relative.as_posix(),
+            result["deleted"] += 1
+            if not old:
+                continue
+            if old_bytes is None:
+                raise RuntimeError("삭제 보관할 기존 txt가 없습니다. 자동으로 대체하지 않습니다.")
+            rendered = old_bytes  # preserve the last exported version, not a new tombstone body
+            target = Path(old_relative)
+            if not old_relative.startswith("_삭제됨/"):
+                target = Path("_삭제됨") / old_path.name
+                suffix = 0
+                while target.as_posix() in known_paths or _safe_path(archive, target.as_posix()).exists():
+                    suffix += 1
+                    target = Path("_삭제됨") / f"{Path(filename_for(chunk, len(chunk_id))).stem}_{suffix}.txt"
+        else:
+            target = _target_for(chunk, known_paths)
+        relative = target.as_posix()
+        destination = _safe_path(archive, relative)
+        same_path = relative == old_relative
+        if not same_path and destination.exists():
+            raise RuntimeError("목록에 없는 기존 파일을 덮어쓰지 않습니다.")
+        expected = _digest(old_bytes) if same_path and old_bytes is not None else None
+        if expected != _digest(rendered):
+            operations.append(dict(path=relative, before=expected, text=rendered.decode("utf-8")))
+            if not chunk["deleted_at"]:
+                result["written"] += 1
+        if old_bytes is not None and not same_path:
+            cleanup.append(dict(path=old_relative, sha256=_digest(old_bytes)))
+            result["moved"] += 1
+        index[chunk_id] = {
+            "chunkId": chunk_id, "상대경로": relative,
             "updatedAt": chunk["updated_at"], "contentHash": chunk["content_hash"],
-            "예화창고 경로들": "",
+            "예화창고 경로들": old["예화창고 경로들"] if old else "",
         }
-        known_paths[target_relative.as_posix()] = chunk["chunk_id"]
-    write_index(index_path, index)
-    return {"written": written, "moved": moved, "deleted": deleted, "total": len(rows)}
+        state[chunk_id] = dict(owner_id=owner_id, path=relative, sha256=_digest(rendered))
+        known_paths[relative] = chunk_id
+    return dict(version=1, owner_id=owner_id, chunk_ids=sorted(row["chunk_id"] for row in rows),
+                index_before=_file_hash(index_path), state_before=_file_hash(state_path),
+                index=index, state=state, operations=operations, cleanup=cleanup, result=result)
+
+
+def _complete(archive, plan):
+    index_path = _safe_path(archive, "_index.csv")
+    state_path = _safe_path(archive, ".export-state.json")
+    for path, before, after in [(index_path, plan["index_before"], _index_bytes(plan["index"])),
+                                 (state_path, plan["state_before"], _json_bytes(plan["state"]))]:
+        if _file_hash(path) not in (before, _digest(after)):
+            raise RuntimeError("내보내기 도중 목록이 변경되었습니다. 복구를 중단합니다.")
+    # Validate every remaining file before making any further change on recovery.
+    for operation in plan["operations"]:
+        actual = _file_hash(_safe_path(archive, operation["path"]))
+        if actual not in (operation["before"], _digest(operation["text"].encode("utf-8"))):
+            raise RuntimeError("내보내기 도중 txt가 변경되었습니다. 복구를 중단합니다.")
+    for old in plan["cleanup"]:
+        if _file_hash(_safe_path(archive, old["path"])) not in (None, old["sha256"]):
+            raise RuntimeError("이전 txt가 변경되었습니다. 삭제하지 않습니다.")
+    for operation in plan["operations"]:
+        path = _safe_path(archive, operation["path"])
+        data = operation["text"].encode("utf-8")
+        if _file_hash(path) != _digest(data):
+            _atomic_write(path, data, replace=operation["before"] is not None)
+    _atomic_write(state_path, _json_bytes(plan["state"]))
+    write_index(index_path, plan["index"])
+    # Only after an intact new index is durable may an old managed path be removed.
+    for old in plan["cleanup"]:
+        path = _safe_path(archive, old["path"])
+        if path.exists():
+            if _file_hash(path) != old["sha256"]:
+                raise RuntimeError("이전 txt가 변경되었습니다. 삭제하지 않습니다.")
+            path.unlink()
+            _sync_directory(path.parent)
+    pending = _safe_path(archive, ".export-pending.json")
+    pending.unlink()
+    _sync_directory(archive)
+
+
+def export(output_root: Path, *, owner_id: str, chunk_ids: list[str]) -> dict[str, int]:
+    """Explicit selection, read-only DB snapshot, single writer, recoverable file transaction.
+
+    The local lock does not coordinate different iCloud devices: use one exporting device.
+    A pending journal is replayed only by the identical owner/ID selection.
+    """
+    rows = _selected_chunks(owner_id, chunk_ids)  # validate all IDs before touching files
+    archive = output_root.resolve() / "독서조각"
+    if archive.is_symlink():
+        raise RuntimeError("독서조각 보관 폴더가 심볼릭 링크입니다. 내보내지 않습니다.")
+    archive.mkdir(parents=True, exist_ok=True)
+    lock_path = _safe_path(archive, ".export.lock")
+    with lock_path.open("a+b") as lock:
+        try:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RuntimeError("다른 내보내기가 실행 중입니다.") from exc
+        pending = _safe_path(archive, ".export-pending.json")
+        if pending.exists():
+            previous = json.loads(pending.read_text(encoding="utf-8"))
+            if (previous["version"] != 1 or previous["owner_id"] != owner_id
+                    or previous["chunk_ids"] != sorted(set(chunk_ids))):
+                raise RuntimeError("미완료 내보내기는 같은 사용자/조각 선택으로 먼저 복구해야 합니다.")
+            _complete(archive, previous)
+        plan = _plan(archive, rows, owner_id)
+        _atomic_write(pending, _json_bytes(plan), replace=False)
+        _complete(archive, plan)
+        return plan["result"]
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-root", required=True, type=Path, help="독서조각을 만들 명시적 보관 루트")
+    parser.add_argument("--owner-id", required=True, help="검증된 요청 사용자 ID (인증을 대신하지 않음)")
+    parser.add_argument("--chunk-id", required=True, action="append", help="내보낼 조각 ID; 여러 개는 옵션 반복")
     args = parser.parse_args()
     load_dotenv()
-    result = export(args.output_root)
+    result = export(args.output_root, owner_id=args.owner_id, chunk_ids=args.chunk_id)
     print(f"내보내기 완료: {result['written']}개 작성, {result['moved']}개 이동, {result['deleted']}개 삭제 처리 ({result['total']}개 조각)")
 
 

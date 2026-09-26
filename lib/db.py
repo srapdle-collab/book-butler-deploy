@@ -110,6 +110,35 @@ def get_connection(db_path: Path | None = None):
     return conn
 
 
+def get_readonly_connection(db_path: Path | None = None):
+    """Export 전용 snapshot. 스키마 초기화/정규화/파일 생성은 하지 않는다."""
+    configured_override = os.environ.get("BOOK_BUTLER_DB_PATH") if db_path is None else None
+    database_url = database.database_url_from_env() if db_path is None and not configured_override else None
+    if database_url:
+        from psycopg import connect, IsolationLevel
+        from psycopg.rows import dict_row
+        raw = connect(database_url, row_factory=dict_row, autocommit=False, prepare_threshold=None)
+        try:
+            raw.read_only = True
+            raw.isolation_level = IsolationLevel.REPEATABLE_READ
+            if database.scalar(raw.execute("SHOW transaction_read_only").fetchone()) != "on":
+                raise RuntimeError("읽기 전용 DB 연결을 확인하지 못했습니다.")
+        except BaseException:
+            raw.close()
+            raise
+        return database.PostgresConnection(raw)
+    path = Path(db_path or configured_override or DB_PATH).resolve()
+    conn = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA query_only=ON")
+        conn.execute("BEGIN")
+    except BaseException:
+        conn.close()
+        raise
+    return conn
+
+
 def photo_path(filename: str | None) -> Path | None:
     if not filename:
         return None

@@ -77,39 +77,53 @@ def _decode(row):
     return result
 
 
-def get(conn, chunk_id: str, *, include_deleted: bool = False):
-    query = "SELECT * FROM reading_chunks WHERE chunk_id=?"
-    if not include_deleted:
-        query += " AND deleted_at IS NULL"
-    return _decode(database.execute(conn, query, (chunk_id,)).fetchone())
+def _require_owner(conn, owner_id):
+    if not owner_id or (database.is_postgres(conn) and owner_id == LOCAL_OWNER_ID):
+        raise ValueError("인증된 사용자 정보가 필요합니다.")
 
 
-def list_for_book(conn, book_id: str, *, tag: str | None = None, include_deleted: bool = False):
-    query = "SELECT * FROM reading_chunks WHERE book_id=?"
-    params: list[str] = [book_id]
+def get(conn, chunk_id: str, *, owner_id: str, include_deleted: bool = False):
+    _require_owner(conn, owner_id)
+    query = "SELECT * FROM reading_chunks WHERE chunk_id=? AND owner_id=?"
     if not include_deleted:
         query += " AND deleted_at IS NULL"
-    if tag:
-        # JSON1/Postgres JSON 연산자에 의존하지 않아 두 DB에서 동일하게 동작한다.
-        query += " AND (tags LIKE ? OR illustration_tags LIKE ?)"
-        needle = f'%"{tag.strip()}"%'
-        params.extend([needle, needle])
+    result = _decode(database.execute(conn, query, (chunk_id, owner_id)).fetchone())
+    if result:
+        _book_snapshot(conn, result["book_id"], owner_id)
+    return result
+
+
+def list_for_book(conn, book_id: str, *, owner_id: str, tag: str | None = None, include_deleted: bool = False):
+    _book_snapshot(conn, book_id, owner_id)
+    query = "SELECT * FROM reading_chunks WHERE book_id=? AND owner_id=?"
+    params: list[str] = [book_id, owner_id]
+    if not include_deleted:
+        query += " AND deleted_at IS NULL"
     query += " ORDER BY read_date DESC, created_at DESC"
-    return [_decode(row) for row in database.execute(conn, query, params).fetchall()]
+    rows = [_decode(row) for row in database.execute(conn, query, params).fetchall()]
+    # JSON 문자열에 LIKE를 적용하면 %, _, 인용부호가 오동작한다.
+    needle = (tag or "").strip()
+    return [row for row in rows if not needle or needle in row["tags"] or needle in row["illustration_tags"]]
 
 
-def all_chunks(conn, *, include_deleted: bool = True):
-    query = "SELECT * FROM reading_chunks"
+def all_chunks(conn, *, owner_id: str, include_deleted: bool = True):
+    _require_owner(conn, owner_id)
+    query = "SELECT * FROM reading_chunks WHERE owner_id=?"
     if not include_deleted:
-        query += " WHERE deleted_at IS NULL"
+        query += " AND deleted_at IS NULL"
     query += " ORDER BY updated_at, chunk_id"
-    return [_decode(row) for row in database.execute(conn, query).fetchall()]
+    rows = [_decode(row) for row in database.execute(conn, query, (owner_id,)).fetchall()]
+    for row in rows:
+        _book_snapshot(conn, row["book_id"], owner_id)
+    return rows
 
 
-def _book_snapshot(conn, book_id: str):
+def _book_snapshot(conn, book_id: str, owner_id: str):
+    _require_owner(conn, owner_id)
     book = database.execute(conn, "SELECT * FROM books WHERE id=?", (book_id,)).fetchone()
-    if book is None:
-        raise ValueError("책 정보를 찾을 수 없습니다.")
+    local_legacy = book is not None and not database.is_postgres(conn) and owner_id == LOCAL_OWNER_ID and book["owner_id"] is None
+    if book is None or (book["owner_id"] != owner_id and not local_legacy):
+        raise ValueError("책과 사용자 정보가 일치하지 않습니다.")
     return book
 
 
@@ -137,8 +151,8 @@ def _duplicate(conn, *, owner_id, book_id, read_date, page_start, page_end, dige
     query = """
         SELECT * FROM reading_chunks
         WHERE owner_id=? AND book_id=? AND read_date=?
-          AND (page_start=? OR (page_start IS NULL AND ? IS NULL))
-          AND (page_end=? OR (page_end IS NULL AND ? IS NULL))
+          AND (page_start=? OR (page_start IS NULL AND CAST(? AS INTEGER) IS NULL))
+          AND (page_end=? OR (page_end IS NULL AND CAST(? AS INTEGER) IS NULL))
           AND content_hash=?
           AND deleted_at IS NULL
     """
@@ -152,6 +166,7 @@ def _duplicate(conn, *, owner_id, book_id, read_date, page_start, page_end, dige
 def save(
     conn,
     *,
+    owner_id: str,
     book_id: str,
     chunk_id: str | None = None,
     read_date: str | None = None,
@@ -170,9 +185,12 @@ def save(
 
     source_app은 읽담 화면에서만 만드는 1차-A 규칙에 따라 항상 ``readdam``이다.
     """
-    existing = get(conn, chunk_id, include_deleted=True) if chunk_id else None
-    book = _book_snapshot(conn, book_id)
-    owner_id = book["owner_id"] or LOCAL_OWNER_ID
+    book = _book_snapshot(conn, book_id, owner_id)
+    existing = get(conn, chunk_id, owner_id=owner_id, include_deleted=True) if chunk_id else None
+    if chunk_id and existing is None and database.execute(conn, "SELECT chunk_id FROM reading_chunks WHERE chunk_id=?", (chunk_id,)).fetchone():
+        raise ValueError("읽은 조각과 사용자 정보가 일치하지 않습니다.")
+    if existing and (existing["book_id"] != book_id or existing["deleted_at"]):
+        raise ValueError("다른 책의 조각 또는 삭제된 조각은 수정할 수 없습니다.")
     read_date = read_date or (existing and existing["read_date"]) or today_kst()
     page_start = int(page_start) if page_start is not None else None
     page_end = int(page_end) if page_end is not None else None
@@ -215,25 +233,29 @@ def save(
             ),
         )
     else:
-        database.execute(
+        cursor = database.execute(
             conn,
             """UPDATE reading_chunks SET read_date=?, page_start=?, page_end=?, position_note=?,
                 minutes=?, original_text=?, user_note=?, tags=?, illustration_tags=?, content_types=?,
-                content_hash=?, updated_at=?, deleted_at=NULL WHERE chunk_id=?""",
+                content_hash=?, updated_at=? WHERE chunk_id=? AND owner_id=? AND book_id=? AND deleted_at IS NULL""",
             (
                 read_date, page_start, page_end, position_note, minutes, original_text or None,
                 user_note or None, json.dumps(tags, ensure_ascii=False),
                 json.dumps(illustration_tags, ensure_ascii=False), json.dumps(content_types, ensure_ascii=False),
-                digest, timestamp, chunk_id,
+                digest, timestamp, chunk_id, owner_id, book_id,
             ),
         )
+        if cursor.rowcount != 1:
+            raise ValueError("읽은 조각이 변경되어 저장하지 못했습니다.")
     conn.commit()
-    return get(conn, chunk_id, include_deleted=True)
+    return get(conn, chunk_id, owner_id=owner_id, include_deleted=True)
 
 
-def soft_delete(conn, chunk_id: str):
-    chunk = get(conn, chunk_id)
+def soft_delete(conn, chunk_id: str, *, owner_id: str):
+    chunk = get(conn, chunk_id, owner_id=owner_id)
     if chunk is None:
         raise ValueError("읽은 조각을 찾을 수 없습니다.")
-    database.execute(conn, "UPDATE reading_chunks SET deleted_at=?, updated_at=? WHERE chunk_id=?", (now_iso(), now_iso(), chunk_id))
+    cursor = database.execute(conn, "UPDATE reading_chunks SET deleted_at=?, updated_at=? WHERE chunk_id=? AND owner_id=? AND book_id=? AND deleted_at IS NULL", (now_iso(), now_iso(), chunk_id, owner_id, chunk["book_id"]))
+    if cursor.rowcount != 1:
+        raise ValueError("읽은 조각이 변경되어 삭제하지 못했습니다.")
     conn.commit()
