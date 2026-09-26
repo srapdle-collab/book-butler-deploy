@@ -8,6 +8,20 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-26 — Codex: iCloud 실경로 txt export·재export 검증
+- **작업 목적**: 확정 보관 루트 `/Users/donghakim/Library/Mobile Documents/com~apple~CloudDocs/예화창고`에서 1차-A export의 실제 파일 동작을 검증한다. 기존 예화 카테고리 폴더로 분류하는 2차 export는 범위 밖이다.
+- **검증 대상·격리**: main `54c0d23`의 `tools/export_chunks.py`를 수정 없이 CLI로 4회 실행했다. `/tmp/readdam-export-check-Hws0qK/synthetic.sqlite`만 `BOOK_BUTLER_DB_PATH`로 지정하고 dotenv 로딩을 비활성화했다. 운영 DB·사용자 SQLite·인증정보는 사용하지 않았다. 검증용 가상 책 1권과 chunk `64894842-88d0-48f4-8912-c9b2105b51ad` 1건을 만들었다.
+- **최초 export**: `독서조각/2026/2026-09/2026-09-26_읽담_검증용_가상도서_p45-52_64894842.txt` 1개와 `독서조각/_index.csv` 1개 생성. 한글·공백이 포함된 iCloud 경로에서 정상 읽기/쓰기 확인. txt UTF-8(BOM 없음)·LF 확인.
+- **실제 본문 대조**: 제목 `읽담_검증용_가상도서`, 저자 `검증용 가상 저자`, 합성 ISBN `9780000000002`, 날짜 `2026-09-26`, 범위 `45–52쪽`, 시간 최초 12분→갱신 후 15분, 원문·메모·태그·예화 태그·콘텐츠 타입·chunkId·`출처 앱: 읽담 (readdam)`이 모두 포함됨을 assert로 확인했다.
+- **재export**: 1차 결과 `1개 작성`; 동일 데이터 2차 `0개 작성`(txt SHA-256·mtime 불변, index 바이트 동일); 동일 ID의 메모/시간을 수정한 3차 `1개 작성`(같은 경로 내용 갱신, 파일 수 1개 유지); 같은 수정 데이터 4차 `0개 작성`. 자동 번호 증가·중복 파일 생성 없음.
+- **index**: 매회 데이터 1행 유지. 상대경로가 실제 txt를 가리키고 chunkId·updatedAt·contentHash가 합성 DB 값과 일치했다. 내용 수정 시 updatedAt/contentHash가 갱신됐으며 예화창고 경로들 필드는 비어 있다.
+- **사용자 파일 보존**: 시작 전 `독서조각/`은 없었다. 기존 690개 파일·디렉터리 항목을 lstat로 비교해 누락 0, mode/size/mtime/ctime/inode 변경 0을 확인했다. 기존 파일 본문·해시는 읽지 않았다. 새 독서조각 폴더와 검증용 txt/index만 추가했다.
+- **증거**: 일회성 스크립트 `verify_export.py`, `report.json`, 전후 메타데이터 목록은 `/tmp/readdam-export-check-Hws0qK/`에 있다. 최종 txt SHA-256 `d5b596055dea2f33f3e736c0a06ae627751012d5affae109c55135c91ef6c915`. 검증용 txt/index는 사용자 확인을 위해 보존한다.
+- **실제 변경·커밋**: HANDOFF/WORKLOG/PROJECT 결과 기록만 변경해 main에서 로컬 문서 커밋한다. 제품 코드·테스트 코드 변경 없음. origin push·deploy push 없음.
+- **발견 문제·한계**: 검증한 단일 chunk의 생성/무변경 재실행/내용 갱신에서 결함 없음. iCloud 원격 업로드 및 다른 기기의 동기화 완료는 미검증. 기존 65개 회귀 테스트는 제품 코드 변경이 없어 재실행하지 않았다.
+- **남은 작업**: 별도 승인 후 운영 배포·Supabase 표/권한/사용자 분리·기존 데이터 보존·운영 화면 기능 및 운영 DB 기반 export 검증. 1차-A 전체 완료 및 1차-B 진입은 불가하다.
+
+
 ## 2026-09-26 — Codex: 별도 worktree에서 1차-A main 반영·origin push
 - **작업 목적**: 사용자 소유 미커밋 기획문서 2개를 그대로 보존하면서, 명시적으로 승인된 main 반영과 origin push만 수행한다.
 - **실제 변경 내용**: origin/deploy를 fetch해 양쪽 main과 로컬 main이 `51e5b0c`임을 확인했다. `main..cbcf0b4`의 12개 파일을 검토해 사용자 소유 파일·배포 자동화 변경이 없음을 확인했다. 깨끗한 `/tmp/readdam-main-LIPAnD` worktree에서 main을 `cbcf0b4`까지 fast-forward했다. 기능 수정은 없고 HANDOFF/PROJECT의 현재 상태와 이 기록을 갱신했다.

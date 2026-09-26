@@ -20,4 +20,5 @@
 - 공통 결정·책임 범위·규격·진행상태의 정본은 `../CROSS_PROJECT_HANDOFF.md` 1절이다. 세부 설계는 `오늘의 서재/docs/READING_CHUNK_DESIGN.md`에 있다.
 - 읽담이 reading chunk의 최종 Source of Truth다. txt·예화창고는 파생 사본이다. 기존 activities 5,666건은 migration하지 않는다.
 - 1차-A(읽담 단독)는 `aeecb7f`에 구현됐고, txt 출력의 ISBN·읽은 시간·sourceApp 코드 보완 `cbcf0b4`까지 main·origin/main에 반영됐다(2026-09-26). 사용자 승인에 따라 별도 worktree에서 fast-forward했고 반영 후 전체 테스트 65개가 통과했다. 원본 작업트리의 사용자 소유 미커밋 기획문서 2개는 보존 중이다.
-- 운영 배포와 Supabase 적용은 보류 상태이며 `deploy/main`은 `51e5b0c`다. origin push만으로 배포 미러를 동기화하지 않는다. 실제 txt export·재export·`_index.csv` 검증은 보관 루트 확정 후 수행한다. **1차-A는 완전 완료가 아니며 1차-B(오늘의 서재 API 연동)와 2차(예화창고)는 미착수**다.
+- 운영 배포와 Supabase 적용은 보류 상태이며 `deploy/main`은 `51e5b0c`다. origin push만으로 배포 미러를 동기화하지 않는다. **1차-A는 운영 검증 전으로 완전 완료가 아니며 1차-B(오늘의 서재 API 연동)와 2차(예화 카테고리별 분류 export)는 미착수**다.
+- txt 보관 루트는 `/Users/donghakim/Library/Mobile Documents/com~apple~CloudDocs/예화창고`로 확정됐다. 1차-A는 그 아래 `독서조각/`만 관리한다. 합성 임시 SQLite의 검증용 chunk 1건으로 실제 txt 생성·동일 항목 재export·내용 갱신·index 일치를 2026-09-26 확인했다. 기존 690개 항목의 전후 메타데이터 변경·삭제는 없었다. 운영 DB 기반 export와 iCloud 기기간 동기화는 아직 검증하지 않았다.
