@@ -61,6 +61,30 @@ CREATE TABLE IF NOT EXISTS checkin_comments (
     id TEXT PRIMARY KEY, checkin_id TEXT NOT NULL REFERENCES daily_checkins(id),
     user_id TEXT NOT NULL REFERENCES profiles(id), body TEXT NOT NULL, created_at BIGINT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS reading_chunks (
+    chunk_id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL,
+    book_id TEXT REFERENCES books(id),
+    book_title TEXT NOT NULL,
+    author TEXT,
+    isbn TEXT,
+    source_app TEXT NOT NULL CHECK(source_app IN ('readdam', 'today-library')),
+    source_ref TEXT UNIQUE,
+    read_date TEXT NOT NULL,
+    page_start INTEGER,
+    page_end INTEGER,
+    position_note TEXT,
+    minutes INTEGER,
+    original_text TEXT,
+    user_note TEXT,
+    tags TEXT NOT NULL DEFAULT '[]',
+    illustration_tags TEXT NOT NULL DEFAULT '[]',
+    content_types TEXT NOT NULL DEFAULT '[]',
+    content_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT
+);
 CREATE INDEX IF NOT EXISTS idx_activities_book_id ON activities(book_id);
 CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(date);
 CREATE INDEX IF NOT EXISTS idx_activities_kind ON activities(kind);
@@ -70,6 +94,9 @@ CREATE INDEX IF NOT EXISTS idx_activities_owner_id ON activities(owner_id);
 CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_daily_checkins_feed ON daily_checkins(group_id, checked_on, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_checkin_comments_checkin ON checkin_comments(checkin_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_reading_chunks_book ON reading_chunks(book_id, deleted_at, read_date DESC);
+CREATE INDEX IF NOT EXISTS idx_reading_chunks_owner ON reading_chunks(owner_id, deleted_at, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reading_chunks_duplicate ON reading_chunks(owner_id, book_id, read_date, page_start, page_end, content_hash);
 CREATE UNIQUE INDEX IF NOT EXISTS one_active_reading
 ON reading_sessions ((1)) WHERE state IN ('running','stopped');
 """
@@ -145,9 +172,36 @@ def ensure_schema(conn):
             id TEXT PRIMARY KEY, checkin_id TEXT NOT NULL REFERENCES daily_checkins(id),
             user_id TEXT NOT NULL REFERENCES profiles(id), body TEXT NOT NULL, created_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS reading_chunks (
+            chunk_id TEXT PRIMARY KEY,
+            owner_id TEXT NOT NULL,
+            book_id TEXT REFERENCES books(id),
+            book_title TEXT NOT NULL,
+            author TEXT,
+            isbn TEXT,
+            source_app TEXT NOT NULL CHECK(source_app IN ('readdam', 'today-library')),
+            source_ref TEXT UNIQUE,
+            read_date TEXT NOT NULL,
+            page_start INTEGER,
+            page_end INTEGER,
+            position_note TEXT,
+            minutes INTEGER,
+            original_text TEXT,
+            user_note TEXT,
+            tags TEXT NOT NULL DEFAULT '[]',
+            illustration_tags TEXT NOT NULL DEFAULT '[]',
+            content_types TEXT NOT NULL DEFAULT '[]',
+            content_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            deleted_at TEXT
+        );
         CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
         CREATE INDEX IF NOT EXISTS idx_daily_checkins_feed ON daily_checkins(group_id, checked_on, created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_checkin_comments_checkin ON checkin_comments(checkin_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_reading_chunks_book ON reading_chunks(book_id, deleted_at, read_date DESC);
+        CREATE INDEX IF NOT EXISTS idx_reading_chunks_owner ON reading_chunks(owner_id, deleted_at, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_reading_chunks_duplicate ON reading_chunks(owner_id, book_id, read_date, page_start, page_end, content_hash);
     ''')
     reaction_columns = {r[1] for r in conn.execute('PRAGMA table_info(checkin_reactions)')}
     if 'emoji' not in reaction_columns:

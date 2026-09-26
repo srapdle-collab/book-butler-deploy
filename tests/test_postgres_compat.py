@@ -20,6 +20,16 @@ def test_postgres_schema_preserves_activity_order_and_single_active_session():
     assert "WHERE state IN ('running','stopped')" in ddl
 
 
+def test_postgres_schema_adds_reading_chunks_without_changing_activities():
+    from lib import schema
+
+    ddl = schema.POSTGRES_SCHEMA
+    assert "CREATE TABLE IF NOT EXISTS reading_chunks" in ddl
+    assert "source_app TEXT NOT NULL CHECK(source_app IN ('readdam', 'today-library'))" in ddl
+    assert "source_ref TEXT UNIQUE" in ddl
+    assert "idx_reading_chunks_duplicate" in ddl
+
+
 def test_database_url_is_constructed_from_supabase_pooler_environment(monkeypatch):
     from lib import database
 

@@ -152,7 +152,7 @@ def detail(conn,book_id,goto,management):
         st.info('책장에서 책을 선택해주세요.'); return
     if st.session_state.get('form_book')!=book_id:
         for key in list(st.session_state):
-            if key.startswith(('edit_','manage_','quote_','note_','photo_','progress_')): st.session_state.pop(key,None)
+            if key.startswith(('edit_','manage_','quote_','note_','photo_','progress_','chunk_')): st.session_state.pop(key,None)
         st.session_state.record_mode=None
         st.session_state.form_book=book_id
     if st.button('← 책장으로'):
@@ -176,6 +176,8 @@ def detail(conn,book_id,goto,management):
         st.progress(min(max(current/total,0),1) if total else 0,text=f'{current} / {total or "미정"}쪽')
     management(conn,book)
     forms(conn,book,goto)
+    from lib.reading_chunks_ui import render as render_reading_chunks
+    render_reading_chunks(conn, book)
     st.subheader('독서 노트')
     rows=db.list_activities(conn,book_id)
     choice=st.radio('기록 보기',['전체','인용구·메모','사진','진도'],horizontal=True,key='detail_filter')
