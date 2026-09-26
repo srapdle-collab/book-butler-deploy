@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-26 — Codex: 별도 worktree에서 1차-A main 반영·origin push
+- **작업 목적**: 사용자 소유 미커밋 기획문서 2개를 그대로 보존하면서, 명시적으로 승인된 main 반영과 origin push만 수행한다.
+- **실제 변경 내용**: origin/deploy를 fetch해 양쪽 main과 로컬 main이 `51e5b0c`임을 확인했다. `main..cbcf0b4`의 12개 파일을 검토해 사용자 소유 파일·배포 자동화 변경이 없음을 확인했다. 깨끗한 `/tmp/readdam-main-LIPAnD` worktree에서 main을 `cbcf0b4`까지 fast-forward했다. 기능 수정은 없고 HANDOFF/PROJECT의 현재 상태와 이 기록을 갱신했다.
+- **테스트 결과**: 반영 후 전체 pytest **65 passed in 10.04s**, `compileall app.py lib tools`, `git diff --check 51e5b0c HEAD` 통과. 테스트는 별도 임시 SQLite를 사용하며 운영 DB에는 접속하지 않았다.
+- **커밋 / push**: 기능 `aeecb7f`, 문서 `ae86be2`, 보완 `cbcf0b4`가 main에 포함됐다. `origin/main`에 `cbcf0b4` push 및 원격 SHA 확인 완료. 이번 상태 문서는 별도 main 커밋으로 origin에도 push한다.
+- **배포 여부**: 사용자 지시에 따라 deploy 미러 push와 운영 배포·Supabase 적용은 수행하지 않았다. 원격 `deploy/main=51e5b0c` 확인.
+- **발견 문제**: 병합 충돌·테스트 실패 없음. 원본 작업트리는 기능 브랜치와 사용자 소유 미커밋 2개를 그대로 유지한다. 최신 인계 문서는 main worktree에 있다.
+- **남은 작업**: 운영 적용 별도 승인 후 표·제약·인덱스·사용자 분리·기존 데이터 무변경 및 운영 화면 생성/수정/필터/soft delete/동일 ID 저장 확인. 보관 루트 확정 후 실제 txt export·재export·`_index.csv` 검증. 1차-A 완전 완료 및 1차-B 진입은 보류한다.
+
 ## 2026-09-26 — Codex: Reading Chunk 1차-A 운영 적용 사전 점검
 - **작업 목적**: 1차-A 운영 반영 전 문서·구현·원격 상태를 확인한다.
 - **실제 변경 내용**: txt export에 ISBN, 읽은 시간, `sourceApp` 코드 표기를 추가했다. 사용자 소유 기획문서 2개는 변경하지 않았다.
