@@ -1,5 +1,22 @@
 # 읽담 작업 기록
 
+이 파일은 **역사 기록**이다. 현재 상태와 다음 행동은 `docs/HANDOFF.md`, 프로젝트 간 공통 결정은 `../CROSS_PROJECT_HANDOFF.md`에 둔다.
+
+기록 규칙 (2026-09-26부터):
+- 최신 항목을 맨 위에 추가한다. 제목은 `## <날짜> — <작업자>: <작업명>` 형식이다.
+- 최소 항목은 작업 목적, 실제 변경 내용, 테스트 결과, 커밋(브랜치), 배포 여부, 발견 문제, 남은 작업이다. 해당 없음은 "없음"으로 쓴다.
+- 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
+- 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
+
+## 2026-09-26 — Claude Code: 공동작업 기록 체계 정비 (문서만)
+- **작업 목적**: 읽담 ↔ 오늘의 서재 공동작업과 여러 작업자(ChatGPT 사령관·Codex·Claude Code·Work) 간 인계를 추적할 수 있는 기록 체계를 만든다.
+- **실제 변경 내용**: `docs/HANDOFF.md`를 신규 작성했다(작성 규칙과 현재 상태). 이 WORKLOG에 기록 규칙을 추가했고, `AGENTS.md`·`CLAUDE.md`를 신규 작성했다(작업 전 HANDOFF 필독, 연동 시 CROSS_PROJECT_HANDOFF 필독, 작업 후 기록 등 8개 원칙). `docs/PROJECT.md`에는 기록 체계와 Reading Chunk 진행상태를 추가했다. 상위 `../CROSS_PROJECT_HANDOFF.md`(동하비서 최상위 저장소)를 신규 작성하고, 오늘의 서재 AGENTS/CLAUDE/HANDOFF/WORKLOG에도 공용 참조를 추가했다(각 저장소에서 따로 커밋).
+- **테스트 결과**: 문서 작업이라 테스트를 실행하지 않았다. 1차-A의 스키마 필드와 txt 파일명 규칙이 공통 설계와 일치하는지 코드를 읽어 대조했다.
+- **커밋**: `codex/reading-chunks-1a`에 문서 커밋. 기능 코드·스키마·테스트는 변경하지 않았다.
+- **배포 여부**: 없음. main 반영·push 없음.
+- **발견 문제**: 없음(읽담 쪽). 최상위 저장소 관련 불일치는 공용 계약서가 아니라 최상위 문서 소관이며, 이번 보고에 따로 남겼다.
+- **남은 작업**: 1차-A 사용자 검토와 main 반영·운영 적용 승인, 1차-B 담당 지정 (`docs/HANDOFF.md` 참고).
+
 ## 2026-09-26 — Codex: Reading Chunk MVP 1차-A
 - SQLite·Postgres 초기화에 `reading_chunks`를 비파괴 추가했다. 기존 `books`·`activities`와 activity kind·통계는 변경하지 않았고, `chunk_id`·`source_ref` 유일성·`source_app`·콘텐츠 해시·소프트 삭제·검색 인덱스를 분리해 보관한다.
 - 책 상세에 읽은 날짜·페이지 범위 또는 위치·시간·원문·메모·태그·예화 태그·콘텐츠 타입을 갖춘 읽은 조각 입력, 태그 필터 목록, 수정, 소프트 삭제를 추가했다. 읽담에서 새로 만드는 조각은 항상 `source_app=readdam`이다.
@@ -7,6 +24,7 @@
 - `tools/export_chunks.py --output-root <보관루트>`는 명시한 루트의 `독서조각/`만 UTF-8(BOM 없음)·LF txt와 `_index.csv`로 관리한다. 변경분만 다시 쓰고, 제목·날짜 변경은 index에 기록된 파일만 옮기며, 소프트 삭제된 조각은 `_삭제됨/`으로 이동한다. 예화창고는 위치·구조가 확인되지 않아 이번 범위에서 건드리지 않았다.
 - 검증: 임시 x86_64 가상환경에서 전체 pytest **65개 통과**, py_compile 및 `git diff --check` 통과. 기존 `.venv`는 ARM NumPy와 현재 x86_64 Python의 아키텍처가 달라 사용하지 않았다.
 - 운영 Supabase에는 비밀값을 읽지 않는 규칙상 이 세션에서 접속·적용하지 않았다. 배포/앱 시작 시 Postgres `ensure_schema`가 additive 표·인덱스만 생성한다. RLS·통계·기존 데이터·오늘의 서재 코드는 변경하지 않았다.
+- 보강(2026-09-26, Claude Code): 커밋 `aeecb7f feat: add reading chunk mvp 1a`, 브랜치 `codex/reading-chunks-1a`. main 반영·push·배포·운영 Supabase 직접 적용은 하지 않았다. 사용자 소유 미커밋 기획문서 2개는 보존했다. 기존 activities 5,666건은 migration하지 않고 신규 chunk부터 공통 규격을 적용한다(`../CROSS_PROJECT_HANDOFF.md` 1.2절).
 
 ## 2026-09-20 — Codex: 인용구·메모 공유 통합
 - 책 상세, 전체 타임라인, 한 장의 추억에 같은 `공유` 버튼을 적용했다. 책장에서 책을 열어도 같은 상세 진입 경로를 사용한다.

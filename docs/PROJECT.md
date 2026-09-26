@@ -11,3 +11,12 @@
 - 영속 데이터는 Supabase Postgres(`bookbutler-prod`, 서울 리전)에 저장한다. 로컬 개발/테스트는 SQLite를 유지하며, `BOOK_BUTLER_DATABASE_URL` 또는 Supabase DB 환경변수가 있으면 Postgres로 연결한다.
 - 사진은 비공개 Supabase Storage `book-photos` 버킷에 저장하고 서버가 짧은 만료의 서명 URL을 발급한다. 서비스 키는 `.env` 또는 Streamlit secrets에만 둔다.
 - 공개 Streamlit Community Cloud 앱은 배포 전용 공개 미러 `srapdle-collab/book-butler-deploy`에서 제공한다. 앱 시작 비밀번호와 Supabase 접속 정보는 Cloud Secrets에만 두며, 원본 저장소 `srapdle-collab/book-butler`는 비공개로 유지한다. 배포 미러는 검증된 `main` 변경을 `git push deploy main`으로 수동 동기화한다.
+
+## 공동작업 기록 체계
+- 작업자 규칙: `AGENTS.md`(정본), `CLAUDE.md`(Claude 진입점). 여러 작업자가 번갈아 작업하므로 항상 공동작업으로 간주한다.
+- 현재 상태·다음 행동은 `docs/HANDOFF.md`(최신 항목 맨 위), 상세 역사는 `docs/WORKLOG.md`, 프로젝트 간 계약은 동하비서 최상위 `CROSS_PROJECT_HANDOFF.md`에 둔다.
+
+## Reading Chunk 공동작업 (오늘의 서재 연동)
+- 공통 결정·책임 범위·규격·진행상태의 정본은 `../CROSS_PROJECT_HANDOFF.md` 1절이다. 세부 설계는 `오늘의 서재/docs/READING_CHUNK_DESIGN.md`에 있다.
+- 읽담이 reading chunk의 최종 Source of Truth다. txt·예화창고는 파생 사본이다. 기존 activities 5,666건은 migration하지 않는다.
+- 1차-A(읽담 단독)는 `codex/reading-chunks-1a`의 `aeecb7f`에 구현됐다. main 반영·push·배포·운영 Supabase 적용은 아직 하지 않았다. 1차-B(오늘의 서재 API 연동)와 2차(예화창고)는 미착수다.
