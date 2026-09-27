@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: Reading Chunk 비공개 기본 migration 재설계
+
+- **목적/범위**: 운영 read-only 프리플라이트로 확인한 `postgres` 앱 주체와 default ACL/Data API 노출 위험을 반영해 신규 `reading_chunks`만 생성 즉시 비공개로 만든다. 운영 DB 적용, 기존 표·default ACL·Supabase role 정책·배포·iCloud는 변경하지 않는다.
+- **구현**: PostgreSQL 계획을 표1/index3 CREATE 뒤 RLS 활성화와 `PUBLIC`/`anon`/`authenticated`/`service_role`별 `REVOKE ALL PRIVILEGES`까지 총9문장으로 확장했다. 기존 `database.transaction()` 안에서 구조 post-check 후 ACL/RLS/policy/app-role post-check를 수행한다. 외부4주체의 SELECT/INSERT/UPDATE/DELETE가 모두 false, policy0, RLS on, owner/current/session=`postgres`, postgres CRUD 모두 true가 아니면 fail-closed로 rollback한다. SQLite의 기존4CREATE 경로와 전역 default ACL은 건드리지 않았다.
+- **TDD/검증**: 신규 pytest3개를 먼저 실패 확인(4문장, post-check 부재) 후 구현했다. 전체 **157 passed**. PostgreSQL17 WASM에서 위험한 default ACL을 합성해 중간 DDL 실패 및 service_role REVOKE 누락의 전체 rollback, 정상9DDL 뒤 외부권한 false/RLS on/policy0/postgres CRUD true, 예상 밖 policy 감지, 반복 no-op, 기존14표 checksum 불변을 확인했다. 기존 PostgreSQL Reading Chunk CRUD/export 회귀도 PASS했다.
+- **컴파일/품질**: Python compile, Node audit script syntax, `git diff --check` 최종 PASS. 비밀정보·운영 연결 사용 없음. `reading_chunks`에는 serial/identity가 없어 sequence 권한 정책이 필요하지 않다.
+- **커밋/배포**: 제품·테스트 `4362e8c`, 브랜치 `codex/reading-chunks-private-default`. main/origin/deploy 반영·push·운영 migration 없음. 원본 dirty 작업트리의 사용자 문서2개는 수정하지 않았다.
+- **남은 일/위험**: 실제 psycopg/PgBouncer/Supabase 환경과 backup/maintenance 창은 별도 승인 후 확인한다. 기존 public 표의 넓은 ACL/RLS는 이번 후보가 변경하지 않는다. 다음은 운영 적용이 아니라 동일 대상의 dry-run 9문장·plan SHA를 재검토하는 일이다. 1차-A 운영 미완료/1차-B 보류.
+
 ## 2026-09-27 — Codex: 1차-A 서버 전용 DB 접근정책 코드 감사·중단
 
 - **목적**: 신규 `reading_chunks`를 Data API 직접 노출 없이 운영할 수 있는지, 특히 `anon`/`authenticated` REVOKE와 앱 CRUD의 양립 가능성을 판단한다.

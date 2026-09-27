@@ -1,6 +1,6 @@
 # Reading Chunk 1차-A — schema-init 분리 및 읽기 전용 사전점검
 
-2026-09-27 / Codex / 사용자 확인 Astra High 설정 유지. 제품·테스트 `5148d6f`.
+2026-09-27 / Codex / 사용자 확인 Astra High 설정 유지. 이 문서의 schema-init 분리 기준은 제품·테스트 `5148d6f`다. 후속 `4362e8c`는 PostgreSQL 신규표 계획에 RLS·외부4role REVOKE·보안 post-check를 같은 transaction으로 추가했으며, 최신 상태는 HANDOFF와 운영 migration 계획을 따른다.
 
 **로컬 구현·격리 검증 PASS, 운영 NO-GO 유지.** 운영 Supabase 접속·쓰기·DDL·배포·환경 설정 변경·실제 iCloud 접근 없음. main 반영/push 및 1차-B 없음. 과거 감사와 수정 결과는 당시 기록이며 아래가 수정 브랜치의 최신 동작이다.
 

@@ -2,7 +2,7 @@
 
 2026-09-27 / Codex. 감사: [READING_CHUNK_PREDEPLOY_AUDIT.md](READING_CHUNK_PREDEPLOY_AUDIT.md).
 
-최신 로컬 수정 `5148d6f`: [schema-init 분리/preflight](READING_CHUNK_SCHEMA_PREFLIGHT.md)와 `038ab2e`의 [export 복구 계약](READING_CHUNK_BLOCKER_FIXES.md)을 먼저 읽는다. 수정 브랜치는 앱/export 모두 schema mutation 없이 검사하고 drift에서 중단한다. AUDIT-01 감지 PASS,154 PASS/0 XFAIL이다. 사용자 제공 운영 read-only 결과상 신규 public 표에 anon/authenticated 기본 GRANT 가능성이 있다. [최소 migration·접근정책 보류 계획](READING_CHUNK_PRODUCTION_MIGRATION_PLAN.md)의 CREATE4문장만으로는 안전하지 않으며, 현 `schema_maintenance --apply`는 REVOKE를 같은 transaction에 포함하지 않는다. 실제 앱 연결 role·Data API 실효 권한·백업이 확인되기 전 **적용 NO-GO**다. 아래 명령은 운영에서 실행하지 않았다.
+최신 로컬 수정 `4362e8c`: `5148d6f`의 [schema-init 분리/preflight](READING_CHUNK_SCHEMA_PREFLIGHT.md)와 `038ab2e`의 [export 복구 계약](READING_CHUNK_BLOCKER_FIXES.md)을 포함한다. 운영 read-only 프리플라이트에서 앱 주체 `postgres`와 신규 public relation의 외부 role 기본 GRANT 위험을 확인했다. 현 PostgreSQL `schema_maintenance --apply` 후보는 CREATE4 뒤 RLS와 외부4role REVOKE를 더한 9문장 및 구조·보안 post-check를 같은 transaction에서 수행한다. 로컬157 PASS와 PostgreSQL17 WASM 검증은 통과했지만 실제 backup·maintenance 창·동일 대상 계획 SHA·운영 적용 승인은 없으므로 **적용 NO-GO**다. 아래 명령은 운영에서 실행하지 않았다.
 
 **현재 NO-GO. 이 문서의 운영 명령은 실행하지 않았다. 사용자 승인과 감사 blocker 해소 전에는 실행 금지다.**
 현재 제품 main/origin=`4d97f4e`, rollback 기준=`51e5b0c72deb0afe69767da05028dea95dd688d1`.
@@ -23,7 +23,7 @@ python -B tools/schema_maintenance.py --configured-postgres
 
 # backup·RLS/ACL·대상·maintenance 창·정확한 SQL을 별도 승인받은 후만:
 python -B tools/schema_maintenance.py --configured-postgres --apply --approve-plan <승인된_plan_sha256>
-# transaction 안에서 재계획/hash검사 → 승인 CREATE → preflight → commit.
+# transaction 안에서 재계획/hash검사 → 승인 CREATE+RLS+REVOKE → 구조·보안 post-check → commit.
 # 실패 시 전체 rollback. 실패 로그/metadata 확인 전 자동 재시도 금지.
 python -B tools/schema_preflight.py --configured-postgres
 ```

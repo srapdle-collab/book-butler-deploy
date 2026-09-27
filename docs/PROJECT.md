@@ -1,8 +1,8 @@
 # 읽담
 
-운영 점검 상태(2026-09-27): 사용자 제공 read-only 결과로 books705/activities5,667, 양쪽 NULL-owner0, reading_chunks/index 부재와 `books.id text PK`를 확인했다(이번 세션 직접 운영 조회 아님). 기존 public 표에는 anon 광범위 GRANT가 있고 신규 relation에도 anon/authenticated 기본 GRANT가 생길 수 있어 표1+인덱스3만의 적용은 금지다. 읽담의 chunk CRUD/export는 코드상 서버·CLI의 직접 psycopg 연결이고 Data API는 사용하지 않지만 **실제 앱 DB role은 런타임 설정으로 결정되어 미확인**이다. 따라서 REVOKE/RLS 정책도 확정하지 못했으며 [최소 migration 및 접근정책 보류 계획](READING_CHUNK_PRODUCTION_MIGRATION_PLAN.md)에서 필요한 metadata를 적었다. 기존 [접속 전 중단 기록](READING_CHUNK_PRODUCTION_PREFLIGHT.md)은 이전 세션의 역사다. 운영 NO-GO/1차-A 미완료/1차-B 금지는 유지한다.
+운영 점검 상태(2026-09-27): 승인된 read-only 프리플라이트에서 앱 DB 주체 `postgres`, books705/activities5,667, 양쪽 NULL-owner0, reading_chunks/index 부재, `books.id text PK`, 신규 public relation의 anon/authenticated/service_role 기본 GRANT 가능성과 Data API 노출을 확인했다. 이에 `4362e8c`는 신규 표1+index3+RLS+`PUBLIC`/`anon`/`authenticated`/`service_role` REVOKE와 보안 post-check를 단일 transaction 후보로 구현했다. 기존 표/default ACL/Data API 설정은 변경하지 않는다. 로컬 후보만 준비됐고 운영 DB 적용·main/push/deploy는 없어 운영 NO-GO/1차-A 미완료/1차-B 금지를 유지한다. [운영 migration 계획](READING_CHUNK_PRODUCTION_MIGRATION_PLAN.md)을 따른다.
 
-최신 Reading Chunk 상태(2026-09-27): 수정 브랜치 `codex/reading-chunks-1a-fixes`의 `5148d6f`에서 **일반 연결 자동 schema-init을 제거하고 read-only schema preflight를 추가**했다. 038ab2e의 CRUD/export 안전성 수정도 포함한다.154 PASS/0 XFAIL, AUDIT-01 감지·중단 PASS, 기존합성14표 checksum불변. 스키마는 앱이 고치지 않고 명시 승인된 maintenance로만 준비한다. main/push/배포 없음. 운영schema·권한·RLS/ACL·실제연결/화면/iCloud 검증은 남아 **운영 NO-GO/1차-B 금지 유지**. [새 구조/검증 결과](READING_CHUNK_SCHEMA_PREFLIGHT.md)와 HANDOFF/Runbook을 따른다. 아래 날짜별 상태는 해당 시점의 기록이다.
+최신 Reading Chunk 상태(2026-09-27): `codex/reading-chunks-private-default`의 `4362e8c`는 `5148d6f`의 자동 schema-init 제거/read-only 구조검사와 `038ab2e`의 CRUD/export 안전성 수정을 포함한다. 전체157 PASS, PostgreSQL 위험 default ACL·rollback·ACL/RLS post-check 및 기존14표 불변 검증 PASS. 스키마는 앱이 고치지 않고 명시 승인된 maintenance로만 준비한다. main/push/배포 없음. 실제 운영 apply·화면/iCloud 검증은 남아 **운영 NO-GO/1차-B 금지 유지**. [새 구조/검증 결과](READING_CHUNK_SCHEMA_PREFLIGHT.md)와 HANDOFF/Runbook을 따른다. 아래 날짜별 상태는 해당 시점의 기록이다.
 
 북스윙 개인 독서 기록을 보존하고 책장·독서 노트·타이머·공유·통계와 초대형 소그룹 인증을 제공하는 Streamlit 앱.
 도서비서 폴더는 독립 Git 저장소이며 상위 동하비서에서 제외된다. 서브모듈 관계가 없다.
@@ -10,7 +10,7 @@
 - 숫자 activity kind는 원본과 호환한다. 원본 생명주기 의미 정정은 `SOURCE_AUDIT.md` 참고.
 - `reading_chunks`는 기존 `activities`와 별도인 additive 조각 보관 표다. 읽담 화면에서 만든 조각은 `source_app=readdam`이며, UUID·스냅샷 책 정보·태그·콘텐츠 타입·소프트 삭제를 가진다. 기존 책·기록·통계에는 연결하거나 변환하지 않는다.
 - 실제 DB/사진/백업은 Git에서 제외한다. 테스트는 별도 임시 DB만 쓴다.
-- DB 일반 연결은 `connect → read-only preflight → OK/안전중단`이다.15필수표/13named index/reading_chunks22컬럼·제약·구조계약v1을 검사하며 drift자동수정과 SQLite kind자동변환은 없다. `tools/schema_preflight.py`는read-only, `tools/schema_maintenance.py`는기본계획출력/명시승인hash가있는transaction만additive실행. 기존 full initializer는 offline bootstrap에만남고 운영1A용이아니다. 운영DDL권한/RLS정책은이기능으로승인되지않는다.
+- DB 일반 연결은 `connect → read-only preflight → OK/안전중단`이다.15필수표/13named index/reading_chunks22컬럼·제약·구조계약v1을 검사하며 drift자동수정과 SQLite kind자동변환은 없다. `tools/schema_preflight.py`는read-only다. PostgreSQL의 `tools/schema_maintenance.py` 신규표 계획은 명시승인hash·단일transaction 안에서 표/index/RLS/외부4role REVOKE/구조·보안 post-check를 수행하며, 실패 시 rollback한다. 기존 full initializer는 offline bootstrap에만 남고 운영1A용이 아니다.
 - Supabase Auth 계정이 개인 서재와 소그룹을 분리한다. 기존 705권 서재는 Cloud Secret `READDAM_OWNER_EMAIL`과 일치하는 계정만 소유자로 연결하며, 소그룹에는 사용자가 선택한 인용구·사진 스냅샷과 일일 인증·반응·댓글만 공유한다. 전체공개 피드·뱃지는 구현하지 않는다.
 - `migration/load_db.py`는 초기 적재 전용이며 기존 DB를 재생성하므로 사용 중인 DB에 실행하지 않는다.
 - 영속 데이터는 Supabase Postgres(`bookbutler-prod`, 서울 리전)에 저장한다. 로컬 개발/테스트는 SQLite를 유지하며, `BOOK_BUTLER_DATABASE_URL` 또는 Supabase DB 환경변수가 있으면 Postgres로 연결한다.

@@ -1,6 +1,18 @@
-# Reading Chunk 1차-A — 운영 migration 최종 계획(실행 보류)
+# Reading Chunk 1차-A — 운영 migration 후보(실행 보류)
 
-2026-09-27 / Codex. 이 문서는 **실행 승인서가 아니다**. 운영 DB 접속·DDL·DML·배포는 수행하지 않았다. 아래 운영 상태는 사용자가 전달한 읽기 전용 점검 결과이며 이 세션에서 독립 재조회하지 않았다.
+2026-09-27 / Codex. 이 문서는 **실행 승인서가 아니다**. 운영 DB DDL·DML·배포는 수행하지 않았다.
+
+## 최신 후속 — 비공개 기본 migration 후보 `4362e8c`
+
+아래의 “role 미확정/CREATE4만 가능” 상태는 후속 read-only 프리플라이트와 코드 수정으로 대체됐다. 앱 연결 주체는 `postgres`이며 신규 relation에 `anon`/`authenticated`/`service_role` 기본 권한이 생길 수 있고, Data API에서 기존 public 표의 anon 접근이 확인됐다.
+
+- PostgreSQL 신규 계획은 table1+index3 CREATE, `ENABLE ROW LEVEL SECURITY`, `PUBLIC`/`anon`/`authenticated`/`service_role` 각각 `REVOKE ALL PRIVILEGES`의 **9문장**이다.
+- 9문장과 구조·보안 post-check는 기존 하나의 transaction 안에서 실행된다. 중간 SQL, 구조검사, ACL/RLS/policy/app-role 검사 중 하나라도 실패하면 commit하지 않는다.
+- post-check는 외부4주체의 SELECT/INSERT/UPDATE/DELETE=false, RLS=true, policy0, owner/current/session=`postgres`, postgres CRUD=true를 요구한다.
+- 별도 허용 policy, `ALTER DEFAULT PRIVILEGES`, 기존 `books`/`activities`/`profiles`, 기존 Data API/role 구성은 변경하지 않는다. reading_chunks는 serial/identity를 쓰지 않는다.
+- 로컬 전체157 PASS 및 PostgreSQL17 WASM의 위험 default ACL/REVOKE 누락 rollback 검증을 통과했다. 이는 실제 psycopg/PgBouncer/Supabase 운영 적용 검증을 대체하지 않는다.
+
+운영 적용은 여전히 NO-GO다. 백업·maintenance 창·고정 코드 SHA·동일 대상 dry-run의 정확한 9문장과 plan SHA를 검토하고 별도 승인해야 한다. 아래 기존 CREATE4 계획과 미확정 설명은 역사적 근거이며 **실행에 사용하지 않는다**.
 
 ## 후속 접근정책 감사 — role 미확정으로 정책 결정 중단 (2026-09-27)
 

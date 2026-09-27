@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 사용자(David)/운영 담당자가 이어받을 작업 — 비공개 기본 migration 후보 검토·운영 적용 별도 승인 (2026-09-27, Codex)
+
+- **무엇을 했는지**: 운영 read-only 프리플라이트에서 앱 DB 주체 `postgres`, 신규 public relation의 외부 role 기본 GRANT 위험, 기존 Data API 노출을 확인한 결과를 반영했다. PostgreSQL 신규 표 계획을 표1+인덱스3+RLS+`PUBLIC`/`anon`/`authenticated`/`service_role` 각각 `REVOKE ALL`의 9문장으로 바꿨다. 같은 transaction 안에서 구조·ACL·RLS·policy0·`postgres` CRUD를 post-check하며 실패하면 전체 rollback한다.
+- **어디까지 끝났는지**: 제품·테스트 로컬 커밋 `4362e8c`. 전체157 PASS, PostgreSQL17 WASM에서 위험한 default ACL 재현·REVOKE 누락 post-check rollback·정상9DDL·반복 no-op·기존14표 checksum 불변 PASS. 기존 PostgreSQL CRUD/export 회귀 PASS. 운영 DB DDL/DML·`--apply`·main 반영·push·deploy·iCloud 작업은 0건이다.
+- **확인해야 할 것**: 실제 운영 적용 전 코드 검토, 백업/복원 확인, maintenance 창, 동일 앱 주체의 계획 SHA 재확인과 별도 적용 승인이 필요하다. PGlite는 실제 psycopg wire/PgBouncer/Supabase event trigger 환경을 대체하지 않는다. 기존 `books`/`activities`/`profiles`의 넓은 ACL/RLS는 이번 범위 밖으로 그대로다.
+- **다음 작업자**: David가 운영 migration 검토·백업·적용 승인 범위를 결정한 뒤, 읽담 담당자가 운영에서 먼저 dry-run 계획만 재생성·대조한다.
+- **브랜치 / 커밋 / 배포 상태**: `codex/reading-chunks-private-default`, 제품·테스트 `4362e8c`; main/origin=`4d97f4e`, deploy=`51e5b0c` 불변. 미push·미배포.
+- **보류·실패·중단 이유**: 로컬 migration 후보는 준비됐지만 운영 적용·백업·배포 승인은 아직 없다. **1차-A 운영 미완료, 1차-B 금지**. 원본 작업트리의 사용자 기획문서2개는 미변경이다.
+
 ## 사용자(David)/운영 담당자가 이어받을 작업 — 앱 DB role 미확정으로 서버 전용 접근정책 결정 중단 (2026-09-27, Codex)
 
 - **무엇을 했는지**: 사용자 제공 read-only 권한 결과와 읽담 코드의 DB/Auth/Storage/export 경로를 대조했다. chunk CRUD/export는 PostgreSQL 설정 시 Streamlit 서버·CLI의 psycopg 직접 연결을 쓰고 Data API 직접 호출은 필요하지 않다. anon 키는 Auth, service-role 키는 사진 Storage에 쓰인다. [접근정책 감사·조건부 REVOKE 후보](READING_CHUNK_PRODUCTION_MIGRATION_PLAN.md)를 기록했다.
