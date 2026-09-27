@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: Reading Chunk 운영 migration 최종 dry-run
+
+- **목적/범위**: 비공개 기본 migration 후보 `4362e8c`를 실제 운영 설정으로 읽기 전용 계획만 산출한다. `--apply`·DDL·DML·main/push/deploy·화면/iCloud 작업은 금지했다.
+- **대상/연결**: 앱과 같은 `SUPABASE_DB_*` 단일 설정을 사용했다. 문서화된 운영 Supabase 프로젝트 일치, transaction pooler6543, sslmode=require, DB=`postgres`, schema=`public`, current/session user=`postgres`, PostgreSQL17.6, `transaction_read_only=on`을 확인했다. DSN·host·password·key는 출력/복사하지 않았다.
+- **계획**: preflight=`MISSING_TABLE`, applicable=true. CREATE TABLE1, CREATE INDEX3, ENABLE RLS1, `PUBLIC`/`anon`/`authenticated`/`service_role` REVOKE4의 정확한9DDL·예상 밖 SQL0. 실행 순서는 table→book/owner/duplicate index→RLS→4role REVOKE. plan SHA=`166d02b0682da839a0caae3ad096fdf3b854974db3e4075c47fff6be846b5961`.
+- **불변 검증**: 독립 read-only 연결2회와 실제 maintenance CLI 기본모드의 계획/SHA가 동일했다. 전후 chunk 관련 객체0, books705, activities5667, 두 표 owner NULL0, public 전체 relation/column/constraint/index metadata fingerprint `4f6b930680c82b0fc8d8cfd51e457d5dac7c997aa0c0f8be838184e92a1e6189` 동일. 운영 변경0건.
+- **후보 일치/검증**: 현재 migration 파일과 `4362e8c` blob SHA-256이 모두 `5c059a3a…d622c`; 제품·테스트 diff0. 9DDL 순서 테스트 1 PASS. 기존 전체157 PASS는 후보 구현 시 결과이며 이번 dry-run에서 제품 코드는 변경하지 않았다.
+- **커밋/배포/남은 일**: dry-run 결과는 HANDOFF/WORKLOG만 로컬 기록. main 반영·push·deploy 없음. 실제 적용 준비 판단은 YES이나, 백업/복원·maintenance 창·별도 실행 승인이 남았다. 다음은 David의 별도 승인 후 실제 적용 직전 plan SHA 재확인이다.
+
 ## 2026-09-27 — Codex: Reading Chunk 비공개 기본 migration 재설계
 
 - **목적/범위**: 운영 read-only 프리플라이트로 확인한 `postgres` 앱 주체와 default ACL/Data API 노출 위험을 반영해 신규 `reading_chunks`만 생성 즉시 비공개로 만든다. 운영 DB 적용, 기존 표·default ACL·Supabase role 정책·배포·iCloud는 변경하지 않는다.

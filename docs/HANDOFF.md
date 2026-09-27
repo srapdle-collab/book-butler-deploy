@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 사용자(David)/운영 담당자가 이어받을 작업 — 운영 dry-run 9DDL·plan SHA 확정, 실제 적용 별도 승인 대기 (2026-09-27, Codex)
+
+- **무엇을 했는지**: 후보 `4362e8c`의 실제 maintenance CLI를 운영과 동일한 `SUPABASE_DB_*` 설정으로 `--apply` 없이 실행했다. 문서화된 운영 프로젝트, transaction pooler 6543, SSL, DB=`postgres`, schema=`public`, current/session user=`postgres`, PostgreSQL17.6, `transaction_read_only=on`을 비밀값 없이 확인했다.
+- **어디까지 끝났는지**: 계획은 table1→index3→RLS→PUBLIC/anon/authenticated/service_role REVOKE의 정확한9DDL이며 예상 밖 SQL0. plan SHA=`166d02b0682da839a0caae3ad096fdf3b854974db3e4075c47fff6be846b5961`. 두 독립 read-only 연결과 실제 CLI 결과가 동일했다. 전후 reading_chunks/index/ACL/RLS 객체0, books705/activities5667/owner NULL0, public schema fingerprint `4f6b9306…1e6189`가 동일했다. 운영 DDL/DML0.
+- **확인해야 할 것**: 이 SHA는 현재 운영 metadata와 후보 코드에 종속된다. 실제 적용 직전 다시 dry-run하여 동일하지 않으면 STOP한다. 백업/복원, maintenance 창, 실제 migration 실행은 별도 승인이 필요하다.
+- **다음 작업자**: David가 백업과 실제 migration 적용 범위를 별도로 승인한 뒤 운영 담당자. 승인 전 `--apply` 금지.
+- **브랜치 / 커밋 / 배포 상태**: `codex/reading-chunks-private-default`; 제품 `4362e8c`, 기존 문서 `117d8c8`, 이번 dry-run 기록은 후속 로컬 문서 커밋. main/origin=`4d97f4e`, deploy=`51e5b0c` 불변. 미push·미배포.
+- **보류·실패·중단 이유**: dry-run blocker 없음. 다만 실제 migration·backup·배포 승인은 아직 없으므로 **운영 적용은 수행하지 않았고 1차-A 운영 미완료/1차-B 금지**다.
+
 ## 사용자(David)/운영 담당자가 이어받을 작업 — 비공개 기본 migration 후보 검토·운영 적용 별도 승인 (2026-09-27, Codex)
 
 - **무엇을 했는지**: 운영 read-only 프리플라이트에서 앱 DB 주체 `postgres`, 신규 public relation의 외부 role 기본 GRANT 위험, 기존 Data API 노출을 확인한 결과를 반영했다. PostgreSQL 신규 표 계획을 표1+인덱스3+RLS+`PUBLIC`/`anon`/`authenticated`/`service_role` 각각 `REVOKE ALL`의 9문장으로 바꿨다. 같은 transaction 안에서 구조·ACL·RLS·policy0·`postgres` CRUD를 post-check하며 실패하면 전체 rollback한다.
