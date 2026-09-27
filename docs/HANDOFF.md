@@ -21,6 +21,16 @@
 
 ## 항목
 
+## David/읽담 담당 Codex가 이어받을 작업 — Safari 재로그인 후 테스트 Chunk 검증·삭제 필수 (2026-09-27, Codex)
+
+- **무엇을 했는지**: David는 실행 SHA 직접 확인을 미완료 위험으로 남긴 채 CRUD/export 진행을 명시 승인했다. 로그인 후 책장 705권·선택 책의 기존 활동 3개 표시를 확인하고, Safari에서 테스트 Chunk 생성·재조회·수정·태그 일치/불일치 검색을 통과했다.
+- **어디까지 끝났는지**: 읽은 시간 7→11분, 메모 수정 저장을 DB 읽기 전용 조회로도 확인했다. 재접속 검증을 위해 Safari를 새로고침하자 로그인 화면으로 돌아왔다. 재로그인 후 화면 유지 확인·txt export·삭제는 아직 미완료다.
+- **확인해야 할 것**: **활성 테스트 Chunk 1건이 남아 있다.** ID=`48dad8d7-97f7-4ea7-a495-1f9d47ca1c37`, 원문 식별자=`[TEST-RC1A-20260927-M1-7429]`, 태그=`TEST-RC1A-7429`, 책=부자의 그릇(큰글자도서), 1–2쪽. 검증 후 반드시 이 행만 앱의 소프트 삭제로 정리한다. 사용자 Chunk는 건드리지 않는다.
+- **보안/관찰**: 기존 public 14표의 내용 해시·건수는 시작 전과 동일, books705/activities5667/owner NULL0. RLS on/policy0, 외부 4역할 CRUD=false, postgres=true, 실제 anon GET HTTP401/42501. 기존 활동 일부에 nan 표시가 관찰됐고 해당 표시 코드/DB reader는 이전 deploy 51e5b0c와 동일하나, 화면 회귀 전체 PASS로 단정하지 않는다.
+- **다음 작업자/작업**: David가 Safari 읽담에 직접 재로그인 → Codex가 재접속 유지 확인 → 격리 로컬 txt(ISBN/11분/sourceApp) 확인 → 테스트 Chunk 소프트 삭제 및 재조회 → 최종 보안·무결성 점검. 비밀번호는 채팅에 보내지 않는다.
+- **브랜치 / 커밋 / 배포 상태**: main/origin/deploy=`5129d75` 유지. 실행 SHA **직접 확인: 미완료 / 간접 근거: deploy/main 5129d75 + Updated app 로그**. 이번 기록만 제품 브랜치에 로컬 커밋·미push하며 제품 코드/DDL/권한은 수정하지 않았다.
+- **보류·금지**: 재로그인 필요, 1차-A INCOMPLETE. 1차-B·2차 export·실제 iCloud 자동 export 금지 유지. 아래 로그인 전/테스트 행 0 기록은 과거 상태다.
+
 ## David/읽담 담당 Codex가 이어받을 작업 — main·원격 반영, runtime SHA·Safari 로그인 후 실검증 필요 (2026-09-27, Codex)
 
 - **무엇을 했는지/완료 범위**: 승인 기준32cfc48/5129d75/2165808·제품 clean·사용자2문서 해시·운영post-check를 재확인했다. `/private/tmp/readdam-release-main-jyMKCs`의 깨끗한main에서4d97f4e→5129d75를ff-only 반영하고 **157 passed in 12.53s** 후 origin/main·deploy/main을동일SHA로push했다. Streamlit 관리로그06:26:00 UTC의Updated app 및M1 ARM64 Safari로그인화면을확인했다.

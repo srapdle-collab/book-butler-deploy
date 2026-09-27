@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: SHA 미확인 위험 승인 후 Safari CRUD 부분 검증
+
+- David는 runtime SHA 직접 확인을 완료로 간주하지 않고, deploy/main 5129d75 + Updated app 로그 + 로그인/705권 표시를 근거로 실검증 진행을 승인했다.
+- M1 Safari에서 부자의 그릇(큰글자도서)에 테스트 식별자 `[TEST-RC1A-20260927-M1-7429]` 1건을 생성했다. ID `48dad8d7-97f7-4ea7-a495-1f9d47ca1c37`, 페이지1–2, 시간7분→11분, 메모 수정. 저장 후 표시·수정 폼 기존 값·수정 후 표시·태그 일치 결과1/불일치 결과0/일치 복원 모두 확인했다.
+- 독립 READ ONLY 조회로 같은 ID/수정 메모/11분/source_app=readdam/active1 확인. 기존 public14표 데이터 해시는 시작 전과 전부 동일. books705/activities5667/owner NULL0. RLS=true/policies0/외부4역할 CRUD=false/postgres=true. 실제 anon GET HTTP401/code42501 차단.
+- 기존 책 목록과 활동3개는 표시되지만 일부 활동에 nan이 보였다. 관련 기존 렌더링/DB reader는 이전 deploy51e5b0c와 동일; 새 회귀로 확정하지 않았으며 전체 회귀 없음으로도 단정하지 않는다.
+- Safari 새로고침 후 Auth 로그인 화면으로 돌아와 David에게 직접 재로그인을 요청했다. **테스트 행은 아직 활성1건이며 미삭제**. 재접속 유지·로컬 txt export·삭제·최종 post-check 미완료. 준비한 `/private/tmp/readdam_test_chunk_evidence.py`는 테스트 표시로 한 건만 READ ONLY 조회하고, 명시 --export 시 격리 /private/tmp에만 txt를 만드는 검증 보조이며 아직 export는 실행하지 않았다.
+- 제품/main/원격은5129d75 불변. 결과 기록만 codex/reading-chunks-private-default에 로컬 커밋, 추가 push/배포/제품 수정/DDL/권한 변경 없음. 1차-A INCOMPLETE, 1차-B/2차/iCloud 금지. 다음은 재로그인 후 유지→export→정확한 테스트 Chunk 소프트 삭제→최종 무결성 확인.
+
 ## 2026-09-27 — Codex: 제품 main·운영 배포 및 Safari 실검증 관문 보류
 
 - **승인/시작**: 제품5129d75 clean, 공동32cfc48, 오늘의서재2165808, 사용자기획문서2개기존SHA일치. fetch후main/origin4d97f4e·deploy51e5b0c로예상과동일. 운영READ ONLY post-check PASS, current/session postgres, reading_chunks0, schema/권한정상.
