@@ -1,4 +1,5 @@
 from test_activity_inputs_app import isolated_app, open_detail, fetch_one
+from streamlit.testing.v1 import AppTest
 
 
 def test_toolbar_opens_only_chosen_form_and_uses_current_page(isolated_app):
@@ -45,3 +46,81 @@ def test_cards_use_notebook_timeline_page_and_unlabeled_date(isolated_app):
     assert '따옴표 없이 보여 줄 인용문' in markdown
     assert '13쪽을 12분 동안 읽었습니다' in markdown
     assert not any(value.startswith('진도 ·') or value.startswith('인용구 ·') for value in captions)
+
+
+def test_cards_hide_only_missing_quote_text_and_photo():
+    script = """
+import math
+import pandas as pd
+from lib import notebook_ui
+
+rows = pd.DataFrame([
+    {'id': 'none', 'kind': 7, 'page': 0, 'date': 1700000000, 'quote': None, 'text': '메모 A', 'photo': None},
+    {'id': 'nan-quote', 'kind': 7, 'page': 1, 'date': 1700000001, 'quote': math.nan, 'text': '메모 B', 'photo': None},
+    {'id': 'na-quote', 'kind': 7, 'page': 2, 'date': 1700000002, 'quote': pd.NA, 'text': '메모 C', 'photo': None},
+    {'id': 'nan-text', 'kind': 7, 'page': 3, 'date': 1700000003, 'quote': '정상 인용', 'text': math.nan, 'photo': None},
+    {'id': 'nan-photo', 'kind': 7, 'page': 4, 'date': 1700000004, 'quote': None, 'text': None, 'photo': math.nan},
+], dtype=object)
+notebook_ui.cards(None, rows)
+"""
+    at = AppTest.from_string(script).run()
+    assert not at.exception
+    body = [element.value for element in at.markdown]
+    captions = [element.value for element in at.caption]
+    assert all(value in body for value in ('메모 A', '메모 B', '메모 C', '정상 인용', '기록'))
+    assert 'nan' not in body
+    assert '내 생각' not in captions
+    assert not at.warning
+    assert any('record-page' in value and '>0<' in value for value in body)
+
+
+def test_cards_keep_normal_text_and_literal_nan_string():
+    script = """
+import pandas as pd
+from lib import notebook_ui
+
+rows = pd.DataFrame([
+    {'id': 'normal', 'kind': 7, 'page': 1, 'date': 1700000000, 'quote': '정상 인용', 'text': '정상 메모', 'photo': None},
+    {'id': 'literal', 'kind': 7, 'page': 2, 'date': 1700000001, 'quote': 'nan', 'text': '실제 문자열', 'photo': None},
+])
+notebook_ui.cards(None, rows)
+"""
+    at = AppTest.from_string(script).run()
+    assert not at.exception
+    body = [element.value for element in at.markdown]
+    captions = [element.value for element in at.caption]
+    assert all(value in body for value in ('정상 인용', '정상 메모', 'nan', '실제 문자열'))
+    assert captions.count('내 생각') == 2
+
+
+def test_cards_normalize_missing_values_from_new_pandas_string_dtype():
+    script = """
+import pandas as pd
+from lib import database, notebook_ui
+
+class Cursor:
+    def fetchall(self):
+        return [
+            {'id': 'progress', 'kind': 7, 'page': 0, 'date': 1700000000, 'quote': None, 'text': '진도 메모', 'photo': None},
+            {'id': 'quote', 'kind': 7, 'page': 1, 'date': 1700000001, 'quote': '원문', 'text': None, 'photo': None},
+        ]
+
+class PostgresConnection:
+    backend = 'postgres'
+    def execute(self, query, params=()):
+        return Cursor()
+
+with pd.option_context('future.infer_string', True):
+    rows = database.read_frame(PostgresConnection(), 'SELECT * FROM activities')
+    assert str(rows['quote'].dtype) == 'str'
+    assert str(rows['text'].dtype) == 'str'
+    notebook_ui.cards(None, rows)
+"""
+    at = AppTest.from_string(script).run()
+    assert not at.exception
+    body = [element.value for element in at.markdown]
+    captions = [element.value for element in at.caption]
+    assert '진도 메모' in body
+    assert '원문' in body
+    assert 'nan' not in body
+    assert '내 생각' not in captions

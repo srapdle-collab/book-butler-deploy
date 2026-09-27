@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import pandas as pd
 import streamlit as st
 from lib import db
 
@@ -44,7 +45,7 @@ def cards(conn, rows, goto=None, prefix='detail'):
     page=st.number_input('기록 페이지',min_value=1,max_value=pages,step=1,key=key)
     st.caption(f'총 {len(rows):,}개 기록 · 최신순')
     for _, series in rows.iloc[(page-1)*size:page*size].iterrows():
-        row=series.to_dict()
+        row={key: None if pd.isna(value) else value for key,value in series.items()}
         with st.container(key=f"note_card_{row['id']}"):
             page_col, content_col = st.columns([1, 6], vertical_alignment='top')
             page_col.markdown(
