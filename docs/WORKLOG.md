@@ -8,6 +8,14 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: 1차-A 실행 SHA·기존 활동 nan 최종 분류
+
+- **목적/변경**: David가 지정한 두 종료 관문만 조사하고 HANDOFF/PROJECT/공동 인수인계에 판정을 기록했다. 제품 코드·운영 DB·배포 변경 없음.
+- **SHA 검증**: deploy/main=`5129d75`, Streamlit 관리 로그 `Pulling code changes`→`Updated app!`, 실제 운영 Reading Chunk CRUD/export 동작. 관리 일반 설정·로그에는 commit SHA가 없고 GitHub commit status/check-runs/deployments에도 실행 SHA 증거가 없다. **실행 SHA 직접 확인 불가 / 강한 간접 증거 확보**로 남긴다.
+- **nan 검증**: `51e5b0c`의 2026-09-26 커밋 메시지가 동일 `nan`/잘못된 `내 생각` 표시를 Reading Chunk 배포 전 운영 앱에서 사용자가 발견했다고 명시한다. `51e5b0c`→`5129d75`의 `lib/database.py` 및 `requirements.txt`는 동일, 활동 렌더링 본문도 변경되지 않았다. 기존 활동 데이터 해시는 배포 전후 동일했고 DB NULL은 문자 `nan`이 아니다. 현재 환경에서 옛 수정이 왜 충분하지 않은지는 미확정이며 별도 기존 표시 버그로 분리한다.
+- **결론/남은 위험**: Reading Chunk 1차-A **COMPLETE**. 실행 SHA 직접 미확인 위험과 기존 활동 `nan` 잔여/재발 버그를 숨기지 않는다. 다음 작업 1개는 읽담의 기존 활동 `nan` 원인 진단. 1차-B·2차 export·iCloud 자동 export 미진입.
+- **검증/커밋/배포**: Git diff·기존 문서·기존 배포 메타데이터와 읽기 전용 기존 활동 조회만 사용했다. 문서만 현재 브랜치에 로컬 커밋·미push; 새 배포/코드/DB 변경 없음.
+
 ## 2026-09-27 — Codex: Safari 재접속·txt export·테스트 삭제·보안 재확인
 
 - **목적/승인**: David의 로그인 완료 및 진행 승인에 따라 남은 1차-A 운영 실검증을 수행했다. 실행 SHA 직접 확인은 완료로 간주하지 않았다.
