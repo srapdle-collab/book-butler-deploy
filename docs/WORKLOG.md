@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: 기존 활동 nan 표시 재발 원인 진단
+
+- **목적/변경**: 1차-A와 분리된 기존 활동 표시 결함만 진단. 제품 코드·운영 DB·migration·재배포·기존 데이터 변경 없음.
+- **운영 원본**: 앱과 동일한 DB 설정을 안전하게 로딩하고 production target 확인 뒤 READ ONLY/REPEATABLE READ로 activities 전체5,667건을 조회했다. 활성5,667건, 활동 있는 책387권. `quote` NULL2,238, `text` NULL3,767, `photo` NULL5,610; 세 필드의 문자열 `nan`/숫자 NaN은 모두0. 이관 원본 SQLite의5,667 ID와 일치하고 NULL 여부 불일치0. 읽담의 2026-09-20 이관 기록도 5,667건 일치를 보고한다. 현재 운영에 원본에 없는 활동 행은 없다.
+- **단계별 재현**: Safari 선택 책 3건은 `quote` NULL/문자열/NULL, `text` 문자열/NULL/NULL이나 카드에는 `nan`/잘못된 `내 생각`이 표시됐다. 로컬 pandas2.3.3의 `pd.options.future.infer_string=True`(pandas3 새 기본 dtype 호환 모드)를 켜 실제 운영 3건을 `db.list_activities()`로 읽으면 `quote`·`text`가 `str` dtype으로 추론되고 NULL이 float NaN이 된다. 기존 `frame.where(pd.notna(frame),None)`은 이 dtype에서 NaN을 None으로 바꾸지 못한다. `cards()`의 `row.get()`는 NaN을 참으로 취급해 문자 nan과 잘못된 라벨을 출력한다. 호환 모드 off에서는 같은 3건의 NULL이 None으로 남는다. pandas 공식 3.0 migration guide도 새 기본 `str` dtype의 결측값이 NaN이라고 명시한다. 운영의 정확한 pandas 버전은 직접 확인하지 못했다.
+- **영향 추정/분포**: 동일 호환 모드로 운영 전체 행을 책별 DataFrame→iterrows 경로에 통과시키면 화면 quote/text NaN 후보 **5,050건/380권**(quote1,639, text3,743; 중복 가능), 3건 실제 화면 관찰. kind2=2,716, kind4=1,088, kind0=512 등이며 2013~2018년4,722건으로 원본 기록 분포와 함께 몰려 있다. 특정 이관 후 신생 데이터에 한정되지 않는다. 이 수치는 운영 화면 전수 계수가 아닌 재현 추정이다.
+- **과거/판정**: `51e5b0c`는 Reading Chunk 전 동일 nan/라벨 증상을 기록하며 당시 all-NULL float64 추론을 원인으로 보았다. 현재도 NULL→DataFrame NaN→truthy 경로는 같지만 당시 운영 dtype 증거가 없어 세부 원인 동일 여부는 불명. 원본 NULL이 보존된 **표시 버그**이고 데이터 손상/스키마 변경/데이터 migration 근거는 없다. 최소 수정 후보는 두 화면이 공유하는 `lib/notebook_ui.py:cards()`의 row 결측 정규화 1곳이며 실제 수정/테스트는 별도 작업이다.
+- **검증/커밋/배포/남은 일**: Safari 읽기 전용 관찰, Git 기록/코드·기존 테스트, 운영/SQLite read-only 집계 및 합성 dtype 재현. 문서만 이 브랜치에 로컬 커밋·미push. 다음은 승인된 별도 버그 수정/회귀 테스트 1건. 1차-B·2차 export 미착수.
+
 ## 2026-09-28 — Codex: 1차-A 실행 SHA·기존 활동 nan 최종 분류
 
 - **목적/변경**: David가 지정한 두 종료 관문만 조사하고 HANDOFF/PROJECT/공동 인수인계에 판정을 기록했다. 제품 코드·운영 DB·배포 변경 없음.

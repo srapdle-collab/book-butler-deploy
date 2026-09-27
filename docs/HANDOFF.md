@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — 기존 활동 nan 표시 원인 재현, 수정은 별도 (2026-09-28, Codex)
+
+- **무엇을 했는지**: 코드·DB·배포를 바꾸지 않고 운영 activities 5,667건과 이관 원본 SQLite를 읽기 전용 대조하고, Safari의 기존 활동 3건 표시를 pandas 새 문자열 dtype 동작으로 재현했다. 아래 1차-A COMPLETE 판정은 유지한다.
+- **어디까지 끝났는지**: Safari 책 상세 3/3건에서 `quote` 또는 `text`의 `nan`과 잘못된 `내 생각` 표시를 관찰했다. 운영 원본에는 해당 두 필드 및 `photo`의 문자열 `nan`/숫자 NaN 0건, NULL은 각각 2,238/3,767/5,610건. 원본 SQLite 5,667 ID와 모두 일치하며 세 필드의 NULL 여부 차이 0건이다.
+- **확인해야 할 것**: 운영 pandas 버전은 직접 확인하지 못했다. 로컬 pandas 2.3.3의 3.x 문자열 dtype 호환 모드를 켜면 실제 3건과 동일한 NaN 위치가 재현되고 `read_frame().where(pd.notna(frame), None)` 후에도 남는다. 같은 모드로 운영 5,667건을 재현한 **추정 영향은 5,050건/380권**(quote 1,639건, text 3,743건; 중복 포함). 직접 운영 전체 화면 계수로 단정하지 않는다.
+- **다음 작업자/작업**: 읽담 담당자가 별도 수정 승인 후 `lib/notebook_ui.py`의 `cards()`에서 표시용 row의 scalar 결측을 `None`으로 정규화하는 최소 수정과 회귀 테스트를 검토한다. 이번에는 진단만 했고 수정·migration·재배포는 없다.
+- **브랜치 / 커밋 / 배포 상태**: `codex/reading-chunks-private-default` 문서 로컬 커밋·미push. 제품 main/origin/deploy=`5129d75`, 운영 배포 추가 없음.
+- **보류·실패·중단 이유**: 현재 운영 pandas 정확한 버전과 2026-09-26 당시 실제 dtype은 미확인이다. 과거와 같은 NULL→DataFrame NaN→truthy 경로지만 당시와 현재의 세부 dtype 원인 동일 여부는 불명. 데이터 손상/활동 schema 변경/데이터 migration 필요 근거는 없다. 1차-B·2차 export 미진입.
+
 ## 읽담 담당자가 이어받을 작업 — 1차-A 완료, 기존 활동 nan 버그 분리 (2026-09-28, Codex)
 
 - **무엇을 했는지**: 기존 Streamlit/GitHub 배포 기록과 Git·기존 활동 표시 경로를 읽기 전용 대조했다. 아래 2026-09-27의 1차-A INCOMPLETE 상태를 이번 종료 판정으로 대체한다. 제품 코드·DB·배포 변경 없음.
