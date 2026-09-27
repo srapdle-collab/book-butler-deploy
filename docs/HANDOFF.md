@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 사용자(David)/공동 문서 담당자가 이어받을 작업 — 배포 전 기술 검증 PASS, 공동 현재 상태 불일치로 준비 판정 보류 (2026-09-27, Codex)
+
+- **무엇을 했는지**: main/origin `4d97f4e`, deploy `51e5b0c`, 제품 브랜치 `codex/reading-chunks-private-default`의 시작 HEAD `bd04762` 관계를 확인했다. 제품 브랜치는 main보다 13커밋, deploy보다 19커밋 앞선 단일 후손이다. main에는 `cbcf0b4`까지 초기 기능이 있고 `038ab2e`/`5148d6f`/`4362e8c` 수정은 없다. 이번 결과 기록은 후속 문서 커밋으로 추가한다.
+- **어디까지 끝났는지**: 운영 REPEATABLE READ/READ ONLY 연결로 구조계약 OK, RLS on, policy0, 외부4주체 CRUD=false, postgres CRUD=true를 재확인했다. books705/activities5667/owner NULL0/chunk0, 기존 schema fingerprint 불변, maintenance 계획0문장. 전체157 PASS, Python63파일 compile·Node2파일 syntax·diff PASS. 제품 코드 변경 없음.
+- **확인해야 할 것**: 공동 main `b2d9112`의 CROSS_PROJECT_HANDOFF는 운영 미적용/자동 init 잔존 상태이고, 더 최신 공동 브랜치 `codex/reading-chunks-preflight-docs`의 `bf9ca9a`도 운영 접속 전 중단 상태다. 읽담 최신 운영 적용 기록 `bd04762`와 현재 상태가 불일치한다. 사용자 지정 중단 기준에 따라 main 반영/운영 배포 준비 판정은 NO이며, 공동 문서를 임의 갱신하거나 main에 반영하지 않았다.
+- **다음 작업자**: 공동 문서 담당자가 기존 미커밋 작업을 보존하며 최신 운영 적용·이번 검증 근거로 공동 현재 상태를 정합화한다. 이후 별도 승인 시 깨끗한 main worktree에서 제품 브랜치를 `git merge --ff-only codex/reading-chunks-private-default`로 반영하고 origin, deploy 순으로 동기화한다. 원본 사용자 작업트리는 사용하지 않는다.
+- **브랜치 / 커밋 / 배포 상태**: 제품 코드는 `4362e8c`와 동일; 이번 변경은 HANDOFF/WORKLOG 기록만 로컬 커밋. main/origin/deploy 유지, merge/push/deploy·실제 CRUD·iCloud 실행 없음. 사용자 기획문서2개 전후 SHA-256 동일, 두 문서의 미커밋 내용 및 임시 산출물은 merge diff에 없다.
+- **보류·실패·중단 이유**: 기술 검사 실패가 아니라 공동 현재 상태의 Source of Truth 불일치다. 배포 후 smoke는 M1 Streamlit/Safari 책 목록·활동 → TEST chunk 생성/수정/검색 → 재접속 유지 → 선택 txt export(ISBN/읽은 시간/sourceApp) → 소프트 삭제 → 기존 기능 회귀 → Data API anon 차단 순서로 계획한다. txt는 승인된 격리 로컬 경로를 사용하며 iCloud 2차 export는 제외한다. 이번에는 실행하지 않았다.
+
 ## 사용자(David)가 이어받을 작업 — 운영 migration 성공, 앱 코드 main 반영·배포는 별도 승인 (2026-09-27, Codex)
 
 - **무엇을 했는지**: 운영 `public` 전체를 custom-format으로 사전 백업하고 archive list/schema/data 추출을 검증했다. 직전 dry-run의 정확한9DDL·plan SHA `166d02b0…5961`을 재확인한 뒤 후보 `4362e8c`의 승인된 maintenance CLI로 단일 transaction 적용했다.

@@ -8,6 +8,17 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: 제품 main 반영·배포 전 최종 검증
+
+- **목적/범위**: 운영 migration 이후 제품 코드/DB 호환·Git 관계·사용자 파일 보호·배포 절차를 검증한다. merge/push/deploy/실제 CRUD/iCloud는 실행하지 않는다.
+- **Git 실측**: 원격 fetch 후 main=origin/main=`4d97f4ecbaac6a0d95219469b79bde8df82bb9d6`, deploy/main=`51e5b0c72deb0afe69767da05028dea95dd688d1`, 검사 HEAD=`bd04762fd0975e4760e8760f608456a384b3cea5`. main...HEAD=0/13, deploy...HEAD=0/19. main에는 초기 구현 `aeecb7f`·출력 보완 `cbcf0b4`가 있고, 미반영은 `8843b56`, `6cdc7e7`, `038ab2e`, `952c3b3`, `5148d6f`, `22f7b1f`, `a1cac76`, `35bb2d5`, `f131eea`, `4362e8c`, `117d8c8`, `a9a71fa`, `bd04762`다. 이번 문서 기록 커밋은 이 목록 다음에 추가된다.
+- **반영 파일**: main 대비39파일은 제품 안전성 수정·감사/회귀 테스트·운영 문서다. AGENTS 변경은 자동 init 제거 안내이며 migration/load_db·audit_source 변경은 offline initializer의 명시 승인 분리다. 사용자 기획문서 변경, `.env`, worktree/임시/백업 산출물은 main/deploy 대비 변경 목록에 없다. `4362e8c..HEAD`의 제품·테스트 diff는0이다.
+- **운영 읽기 전용 결과**: 기존 안전한 로컬 설정 로딩 경로로 동일 운영 프로젝트·pooler6543·SSL, DB/schema=`postgres/public`, current/session=`postgres`, PostgreSQL17.6, transaction_read_only=on 확인. 구조계약 `reading-chunks-1a.v1` OK/issue0. PK/FK/UNIQUE/CHECK 정상, named index3+자동 index2 valid/ready. RLS=true/policy0, PUBLIC/anon/authenticated/service_role CRUD 각각 false, postgres CRUD 모두 true. books705/activities5667/owner NULL 각각0/chunk0. 기존 schema SHA `4f6b930680c82b0fc8d8cfd51e457d5dac7c997aa0c0f8be838184e92a1e6189` 불변. maintenance 계획0문장. 운영 DDL/DML0, 비밀값 출력0.
+- **코드 연결/검증**: app→db.get_connection→psycopg→동일 conn의 chunk 서비스 SQL을 확인했다. chunk CRUD/export에 Data API 역할은 불필요하며 Auth/사진 Storage의 키 사용과 분리된다. 전체 pytest **157 passed in 13.15s**, 추적 Python63파일 compile PASS, Node audit2파일 syntax PASS, main 대비·작업 diff check PASS. Streamlit 앱으로 별도 Node 제품 build는 없다. 실제 사용자 CRUD는 미실행이다.
+- **사용자 파일 보호**: 원본 `도서비서_기획문서.md` SHA-256=`75fd87c2c10ed9ce9a8dd9627ca2075cc16a5354fb57698b921ea801ca1808e9`, `도서비서_기획문서 2.md`=`515a448b3d245184697c1d69b6edf214757eb55e9d0f34fb7a3e9abaed6086bc`. 전후 동일이며 수정/stage/commit하지 않았다. 공동 기본 작업트리의 기존 변경도 보존한다.
+- **배포 방법/계획**: blocker 해소와 별도 승인 뒤 깨끗한 main worktree에서 ref 재확인→`git merge --ff-only codex/reading-chunks-private-default`→검증→`git push origin main`→`git push deploy main` 순서다. 배포용 공개 미러 main을 Streamlit Cloud가 사용하므로 앱 로그/배포 SHA까지 확인한다. 소스 배포 후 기존 책·활동, TEST chunk 생성/수정/검색, 재접속 유지, 선택 txt export의 ISBN/읽은 시간/sourceApp, 소프트 삭제, 기존 기능 회귀, anon Data API 차단을 M1에서 검사한다. export는 승인된 격리 로컬 경로이며 iCloud 2차 export 제외. 현재는 계획만 확정했다.
+- **판정/남은 일**: 기술 검증 PASS이나 main 반영 준비 NO/운영 배포 준비 NO. 공동 CROSS의 main `b2d9112`와 최신 별도 브랜치 `bf9ca9a` 모두 최신 상태가 운영 미적용/접속 전 중단으로 남아, 읽담 `bd04762` 및 운영 실측과 불일치한다. 사용자 지정 Source of Truth 충돌 기준에 따라 임의 해소하지 않고 기록한다. 다음 작업1개는 공동 현재 상태 정합화다. 이번 변경은 이 기록과 HANDOFF만 로컬 커밋하며 main/push/배포는 하지 않는다.
+
 ## 2026-09-27 — Codex: Reading Chunk 운영 migration 적용·즉시 보안 검증
 
 - **목적/승인 범위**: 검증 후보 `4362e8c`와 승인 plan SHA `166d02b0682da839a0caae3ad096fdf3b854974db3e4075c47fff6be846b5961`의 신규 `reading_chunks` migration만 운영 Supabase에 적용한다. 실제 chunk CRUD·앱 배포·main/push·기존 표 권한·default ACL·iCloud·1차-B는 금지했다.
