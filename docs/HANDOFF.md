@@ -21,6 +21,14 @@
 
 ## 항목
 
+## David/읽담 담당 Codex가 이어받을 작업 — main·원격 반영, runtime SHA·Safari 로그인 후 실검증 필요 (2026-09-27, Codex)
+
+- **무엇을 했는지/완료 범위**: 승인 기준32cfc48/5129d75/2165808·제품 clean·사용자2문서 해시·운영post-check를 재확인했다. `/private/tmp/readdam-release-main-jyMKCs`의 깨끗한main에서4d97f4e→5129d75를ff-only 반영하고 **157 passed in 12.53s** 후 origin/main·deploy/main을동일SHA로push했다. Streamlit 관리로그06:26:00 UTC의Updated app 및M1 ARM64 Safari로그인화면을확인했다.
+- **확인해야 할 것/보류**: 배포 원격SHA는 `5129d75ed69081c51e5ad19ed23e48e5083259bd`이나 runtime SHA를직접확인하지못했다. 로그/일반설정에는SHA가없고GitHub statuses/check-runs/deployments에도증거가없었다. Safari Auth로그인은사용자에게직접요청했으며아직미완료다. 기능검증을우회하지않고 **1차-A INCOMPLETE**로보류한다.
+- **보안/보존**: 배포전후기존14표의행내용집계해시·건수동일, books705/activities5667/ownerNULL0/chunk0, 기존schema SHA4f6b9306…1e6189불변. RLS=true/policy0, PUBLIC/anon/authenticated/service_role CRUD=false, postgres=true. 실제anonGET HTTP401/42501차단. 테스트Chunk생성·CRUD·txt export는0건이라정리할테스트행도없다. 기존책/활동의화면회귀는아직미검증이다.
+- **다음 작업자/작업**: David가Safari읽담계정로그인을완료하고, Codex가runtimeSHA근거확보후기존승인범위의생성→조회→수정→검색→재접속→로컬txt(ISBN/읽은시간/sourceApp)→소프트삭제→보안/무결성검증을재개한다. 비밀번호를채팅에보내지않는다.
+- **브랜치/커밋/배포**: 제품main/origin/deploy는5129d75. 이번결과문서는`codex/reading-chunks-private-default`에만후속로컬커밋하며추가push/배포하지않는다. 공동최신정본은`codex/reading-chunks-current-state`의 **ca81d37**, `/private/tmp/readdam-cross-current-gJs4x6/CROSS_PROJECT_HANDOFF.md`다. 아래배포전기록을현재상태로해석하지않는다. 제품수정·DB DDL/DML·migration재실행없음,1차-B/2차/iCloud자동export금지유지.
+
 ## 사용자(David)/읽담 담당 Codex가 이어받을 작업 — 공동 상태 정합화 완료, 제품 main 반영·배포 승인 대기 (2026-09-27, Codex)
 
 - **무엇을 했는지**: 공동 최신 `bf9ca9a`를 계승한 `codex/reading-chunks-current-state`의 **32cfc48**과 두 앱 문서를 대조·정합화했다. 공동 정본은 `/private/tmp/readdam-cross-current-gJs4x6/CROSS_PROJECT_HANDOFF.md`1.0절이며, 공동 저장소에서 `git show 32cfc48:CROSS_PROJECT_HANDOFF.md`로도 조회한다. 기본 공동 main의 상대경로 사본과 원본 읽담 `codex/reading-chunks-1a` 문서는 과거 스냅샷이다. 아래 `b23e316`의 문서 충돌에 의한 NO 판정을 이 최신 항목으로 대체한다.

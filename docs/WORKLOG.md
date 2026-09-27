@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: 제품 main·운영 배포 및 Safari 실검증 관문 보류
+
+- **승인/시작**: 제품5129d75 clean, 공동32cfc48, 오늘의서재2165808, 사용자기획문서2개기존SHA일치. fetch후main/origin4d97f4e·deploy51e5b0c로예상과동일. 운영READ ONLY post-check PASS, current/session postgres, reading_chunks0, schema/권한정상.
+- **main/원격**: 별도main worktree `/private/tmp/readdam-release-main-jyMKCs`에서5129d75ff-only, 전체157 passed(12.53s)·diff PASS·사용자문서변경없음. 직전원격ref재확인후origin/main→deploy/main순서push, 양쪽실제원격SHA=`5129d75ed69081c51e5ad19ed23e48e5083259bd`확인. 예상밖커밋없음.
+- **운영/Safari**: arm64 Safari로운영URL로그인화면및Manage app로그를확인.06:25:57 UTC Pulling code changes→06:25:58 Processed dependencies→06:26:00 Updated app. 대시보드연결소스book-butler-deploy/main/app.py. 실제runtimeSHA는로그/일반설정에없고GitHub커밋statuses빈목록(state pending), deployments빈목록, check-runs0이라직접확인미완료. 이값들을배포실패증거로단정하지도, 원격SHA를runtime확인으로대체하지도않았다.
+- **보안/무결성**: `/private/tmp/readdam_release_readonly.py`가기존안전설정로딩후REPEATABLE READ/READ ONLY로public14표의전체행md5(to_jsonb)정렬집계해시와건수를배포전후대조, 모두동일. books705(해시c857683b6b4e9defe5c6f0156ba1fe67)/activities5667(507003c6cbdd8c5ad04bf107e111357d)/ownerNULL각각0/chunk0. 독립post-check에서도기존schema SHA4f6b930680c82b0fc8d8cfd51e457d5dac7c997aa0c0f8be838184e92a1e6189동일. RLS on/policy0/PUBLIC·anon·authenticated·service_role CRUD=false/postgres=true. 실제anonGET은배포전후HTTP401/code42501. API쓰기요청과DB DDL/DML은0건.
+- **미실행/중단**: 사용자에게Safari기존계정직접로그인을요청했으나아직로그인화면이다. runtimeSHA확인관문도남아있어실제책/활동화면·Chunk생성/조회/수정/검색/재접속/export/삭제를실행하지않았다. 테스트Chunk0, txt0. 앱업데이트만으로완료하지않으며1차-A INCOMPLETE. 앱재부팅/Secrets변경/임시버전표시코드추가등우회없음.
+- **인계/커밋**: 공동ca81d37과이저장소HANDOFF/PROJECT/WORKLOG에결과기록. 제품main/origin/deploy는5129d75고정, 결과문서만제품브랜치에로컬커밋·미push. 다음은Safari로그인/runtimeSHA근거확보후승인된실검증재개. 사용자문서2개불변,1차-B/2차/실제iCloud자동export금지.
+
 ## 2026-09-27 — Codex: 공동 Source of Truth 최신 운영 상태 정합화
 
 - **목적/근거**: 사용자 승인으로 읽담 `bd04762`의 migration SUCCESS와 `b23e316`의 배포 전 기술검증157PASS를 공동 과거 상태와 대조했다. 제품 브랜치 시작 HEAD는 보고된 `b23e316`과 일치했고 코드/DB 추가 변경은 필요 없었다. 오늘의 서재 `9569cfd`는 2차 설계 보정 기록으로 운영 결과와 충돌하지 않는다.
