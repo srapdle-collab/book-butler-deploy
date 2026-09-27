@@ -9,6 +9,99 @@ from lib.schema_preflight import INDEX_DDL, INDEX_TABLE, TABLE_DDL, inspect_sche
 import hashlib
 import json
 
+EXTERNAL_TABLE_ROLES = ("PUBLIC", "anon", "authenticated", "service_role")
+TABLE_PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE")
+
+
+class SecurityPostcheckFailed(RuntimeError):
+    def __init__(self, report):
+        self.report = report
+        super().__init__("reading_chunks 보안 post-check 실패. 전체 maintenance transaction을 중단합니다.")
+
+
+def _dict_rows(cursor):
+    names = [item[0] for item in cursor.description] if getattr(cursor, "description", None) else None
+    return [dict(row) if hasattr(row, "keys") else dict(zip(names, row)) for row in cursor.fetchall()]
+
+
+def _dict_row(cursor):
+    rows = _dict_rows(cursor)
+    return rows[0] if rows else None
+
+
+def inspect_reading_chunks_security(conn):
+    """Read-only PostgreSQL ACL/RLS post-condition check for the new table."""
+    if not database.is_postgres(conn):
+        return dict(status="NOT_APPLICABLE", ok=True, backend="sqlite")
+    try:
+        table = _dict_row(conn.execute("""SELECT c.relrowsecurity AS rls_enabled,
+                c.relforcerowsecurity AS rls_forced, owner.rolname AS table_owner,
+                current_user AS current_user, session_user AS session_user
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+            JOIN pg_catalog.pg_roles owner ON owner.oid=c.relowner
+            WHERE n.nspname='public' AND c.relname='reading_chunks' AND c.relkind IN ('r','p')"""))
+        if table is None:
+            return dict(status="MISSING_TABLE", ok=False, backend="postgres")
+
+        privileges = {}
+        public = _dict_row(conn.execute("""SELECT
+                COALESCE(bool_or(a.privilege_type='SELECT'), false) AS "SELECT",
+                COALESCE(bool_or(a.privilege_type='INSERT'), false) AS "INSERT",
+                COALESCE(bool_or(a.privilege_type='UPDATE'), false) AS "UPDATE",
+                COALESCE(bool_or(a.privilege_type='DELETE'), false) AS "DELETE"
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+            LEFT JOIN LATERAL pg_catalog.aclexplode(
+                COALESCE(c.relacl, pg_catalog.acldefault('r', c.relowner))) a ON a.grantee=0
+            WHERE n.nspname='public' AND c.relname='reading_chunks'"""))
+        privileges["PUBLIC"] = {name: bool(public[name]) for name in TABLE_PRIVILEGES}
+
+        role_rows = _dict_rows(conn.execute("""SELECT r.rolname AS role_name,
+                pg_catalog.has_table_privilege(r.oid, 'public.reading_chunks', 'SELECT') AS "SELECT",
+                pg_catalog.has_table_privilege(r.oid, 'public.reading_chunks', 'INSERT') AS "INSERT",
+                pg_catalog.has_table_privilege(r.oid, 'public.reading_chunks', 'UPDATE') AS "UPDATE",
+                pg_catalog.has_table_privilege(r.oid, 'public.reading_chunks', 'DELETE') AS "DELETE"
+            FROM pg_catalog.pg_roles r
+            WHERE r.rolname IN ('anon','authenticated','service_role')"""))
+        for row in role_rows:
+            privileges[row["role_name"]] = {name: bool(row[name]) for name in TABLE_PRIVILEGES}
+
+        app = _dict_row(conn.execute("""SELECT r.rolname AS role_name,
+                pg_catalog.has_table_privilege(r.oid, 'public.reading_chunks', 'SELECT') AS "SELECT",
+                pg_catalog.has_table_privilege(r.oid, 'public.reading_chunks', 'INSERT') AS "INSERT",
+                pg_catalog.has_table_privilege(r.oid, 'public.reading_chunks', 'UPDATE') AS "UPDATE",
+                pg_catalog.has_table_privilege(r.oid, 'public.reading_chunks', 'DELETE') AS "DELETE"
+            FROM pg_catalog.pg_roles r WHERE r.rolname='postgres'"""))
+        policies = _dict_rows(conn.execute("""SELECT policyname, cmd
+            FROM pg_catalog.pg_policies
+            WHERE schemaname='public' AND tablename='reading_chunks'
+            ORDER BY policyname"""))
+
+        external_locked = set(privileges) == set(EXTERNAL_TABLE_ROLES) and all(
+            not allowed for role in EXTERNAL_TABLE_ROLES for allowed in privileges[role].values())
+        app_access = app is not None and all(bool(app[name]) for name in TABLE_PRIVILEGES)
+        identity_matches = (table["table_owner"] == "postgres" and table["current_user"] == "postgres"
+                            and table["session_user"] == "postgres")
+        ok = bool(table["rls_enabled"] and not policies and external_locked and app_access and identity_matches)
+        return dict(status="OK" if ok else "SECURITY_POSTCHECK_FAILED", ok=ok, backend="postgres",
+                    rls_enabled=bool(table["rls_enabled"]), rls_forced=bool(table["rls_forced"]),
+                    policies=policies, privileges=privileges,
+                    app_role=dict(role="postgres", owner=table["table_owner"],
+                                  current_user=table["current_user"], session_user=table["session_user"],
+                                  privileges={name: bool(app[name]) for name in TABLE_PRIVILEGES} if app else {}))
+    except Exception as exc:
+        return dict(status="UNKNOWN_ERROR", ok=False, backend="postgres",
+                    detail=f"보안 metadata 검사를 완료하지 못했습니다 ({type(exc).__name__}).")
+
+
+def require_reading_chunks_security(conn):
+    report = inspect_reading_chunks_security(conn)
+    if not report["ok"]:
+        raise SecurityPostcheckFailed(report)
+    return report
+
+
 def initialize_schema(conn, *, approved=False):
     if not approved:
         raise PermissionError("스키마 초기화에는 명시적인 관리 작업 승인이 필요합니다.")
@@ -141,6 +234,12 @@ def plan_reading_chunks(conn):
                 if database.is_postgres(conn):
                     ddl = ddl.replace("ON reading_chunks", "ON public.reading_chunks")
                 statements.append(ddl.replace(" IF NOT EXISTS", ""))
+        if missing_table and database.is_postgres(conn):
+            statements.append("ALTER TABLE public.reading_chunks ENABLE ROW LEVEL SECURITY")
+            statements.extend(
+                f"REVOKE ALL PRIVILEGES ON TABLE public.reading_chunks FROM {role}"
+                for role in EXTERNAL_TABLE_ROLES
+            )
     plan = dict(preflight=report.to_dict(), applicable=allowed, statements=statements,
                 guidance="정확한 계획 승인 후만 적용. 불일치 index/기존 표·컬럼은 별도 검토 필요; 자동 DROP/ALTER/데이터 변환 금지.")
     plan["plan_sha256"] = hashlib.sha256(json.dumps(plan, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
@@ -158,4 +257,6 @@ def apply_reading_chunks(conn, *, approved_plan_sha256):
         for statement in plan["statements"]:
             conn.execute(statement)
         require_schema(conn)
+        if database.is_postgres(conn):
+            require_reading_chunks_security(conn)
     return plan

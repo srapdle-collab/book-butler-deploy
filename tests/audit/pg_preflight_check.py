@@ -41,6 +41,10 @@ def main():
     conn = TransactionBridge(sys.argv[1])
     cases = []
     try:
+        conn.execute("CREATE ROLE anon NOLOGIN")
+        conn.execute("CREATE ROLE authenticated NOLOGIN")
+        conn.execute("CREATE ROLE service_role NOLOGIN BYPASSRLS")
+        conn.execute("ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role")
         conn.execute("INSERT INTO books(id,title,author,isbn,current_page,owner_id) SELECT 'b'||i,'TEST 한글 책 '||i,'TEST 저자','978'||lpad(i::text,10,'0'),i%100,'TEST-owner' FROM generate_series(0,704) i")
         conn.execute("INSERT INTO activities(id,book_id,kind,text,quote,page,date,owner_id,updated_at) SELECT 'a'||i,'b'||(i%705),i%8,E'TEST 원문\\n한글 %_'||i,CASE WHEN i%2=0 THEN 'TEST 인용' END,i%100,1700000000+i,'TEST-owner',1700000000000000000+i FROM generate_series(0,5665) i")
         for statement in [
@@ -95,7 +99,8 @@ def main():
         cases.append("AUDIT-01 wrong same-name index detected without repair: PASS")
         conn.execute("DROP TABLE reading_chunks")
         plan = maintenance.plan_reading_chunks(conn)
-        assert plan["applicable"] and len(plan["statements"]) == 4
+        assert plan["applicable"] and len(plan["statements"]) == 9
+        assert conn.execute("SELECT to_regclass('public.reading_chunks') AS name").fetchone()["name"] is None
         execute = conn.execute
         def fail_midway(statement, params=()):
             if statement.startswith("CREATE INDEX idx_reading_chunks_owner"):
@@ -111,13 +116,37 @@ def main():
         assert conn.execute("SELECT to_regclass('public.reading_chunks') AS name").fetchone()["name"] is None
         assert snapshot(conn) == before
         cases.append("mid-DDL failure rolls back table and all indexes: PASS")
+
+        def skip_service_role_revoke(statement, params=()):
+            if statement == "REVOKE ALL PRIVILEGES ON TABLE public.reading_chunks FROM service_role":
+                return None
+            return execute(statement, params)
+        with patch.object(conn, "execute", skip_service_role_revoke):
+            try:
+                maintenance.apply_reading_chunks(conn, approved_plan_sha256=plan["plan_sha256"])
+            except maintenance.SecurityPostcheckFailed as error:
+                assert error.report["privileges"]["service_role"]["SELECT"] is True
+            else:
+                raise AssertionError("Expected security post-check failure")
+        assert conn.execute("SELECT to_regclass('public.reading_chunks') AS name").fetchone()["name"] is None
+        assert snapshot(conn) == before
+        cases.append("missing REVOKE is caught by post-check and rolls back entire plan: PASS")
+
         maintenance.apply_reading_chunks(conn, approved_plan_sha256=plan["plan_sha256"])
         assert require_schema(conn).ok
+        security = maintenance.inspect_reading_chunks_security(conn)
+        assert security["ok"] and security["rls_enabled"] and not security["policies"]
+        assert all(not allowed for role in maintenance.EXTERNAL_TABLE_ROLES
+                   for allowed in security["privileges"][role].values())
+        assert all(security["app_role"]["privileges"].values())
+        conn.execute("CREATE POLICY unexpected_test_policy ON reading_chunks FOR SELECT USING (true)")
+        assert maintenance.inspect_reading_chunks_security(conn)["ok"] is False
+        conn.execute("DROP POLICY unexpected_test_policy ON reading_chunks")
         for _ in range(3):
             noop = maintenance.plan_reading_chunks(conn)
             assert noop["statements"] == []
             maintenance.apply_reading_chunks(conn, approved_plan_sha256=noop["plan_sha256"])
-        cases.append("approved 4-DDL additive plan + repeated no-op plans: PASS")
+        cases.append("approved 9-DDL atomic private-default plan + repeated secure no-op plans: PASS")
         conn.execute("DROP INDEX idx_reading_chunks_owner")
         plan = maintenance.plan_reading_chunks(conn)
         assert plan["applicable"] and len(plan["statements"]) == 1

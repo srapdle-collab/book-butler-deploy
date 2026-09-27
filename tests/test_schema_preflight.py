@@ -1,8 +1,10 @@
 """Synthetic SQLite only: schema inspection cannot repair or mutate anything."""
+from contextlib import contextmanager
 import json
 import sqlite3
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 from streamlit.testing.v1 import AppTest
@@ -134,6 +136,110 @@ def test_explicit_additive_maintenance_approval_and_replay(tmp_path):
     maintenance.apply_reading_chunks(conn, approved_plan_sha256=plan["plan_sha256"])
     assert require_schema(conn).ok and fingerprint(conn) == before
     conn.close()
+
+
+def test_postgres_missing_table_plan_creates_then_locks_external_roles(monkeypatch):
+    report = SimpleNamespace(
+        issues=(SimpleNamespace(status="MISSING_TABLE", object="reading_chunks"),),
+        to_dict=lambda: {"status": "MISSING_TABLE", "issues": []},
+    )
+    conn = SimpleNamespace(backend="postgres")
+    monkeypatch.setattr(maintenance, "inspect_schema_read_only", lambda _: report)
+
+    plan = maintenance.plan_reading_chunks(conn)
+
+    assert plan["applicable"]
+    assert len(plan["statements"]) == 9
+    assert plan["statements"][0].startswith("CREATE TABLE public.reading_chunks")
+    assert [statement.split()[2] for statement in plan["statements"][1:4]] == [
+        "idx_reading_chunks_book",
+        "idx_reading_chunks_owner",
+        "idx_reading_chunks_duplicate",
+    ]
+    assert plan["statements"][4] == "ALTER TABLE public.reading_chunks ENABLE ROW LEVEL SECURITY"
+    assert plan["statements"][5:] == [
+        "REVOKE ALL PRIVILEGES ON TABLE public.reading_chunks FROM PUBLIC",
+        "REVOKE ALL PRIVILEGES ON TABLE public.reading_chunks FROM anon",
+        "REVOKE ALL PRIVILEGES ON TABLE public.reading_chunks FROM authenticated",
+        "REVOKE ALL PRIVILEGES ON TABLE public.reading_chunks FROM service_role",
+    ]
+
+
+def test_postgres_security_postcheck_runs_inside_same_transaction(monkeypatch):
+    events = []
+
+    class Connection:
+        backend = "postgres"
+
+        @contextmanager
+        def transaction(self):
+            events.append("BEGIN")
+            try:
+                yield
+            except BaseException:
+                events.append("ROLLBACK")
+                raise
+            else:
+                events.append("COMMIT")
+
+        def execute(self, statement, params=()):
+            assert events[0] == "BEGIN" and "COMMIT" not in events and "ROLLBACK" not in events
+            events.append(statement)
+
+    plan = {
+        "applicable": True,
+        "plan_sha256": "approved",
+        "statements": ["CREATE TABLE public.reading_chunks(id text)", "ALTER TABLE public.reading_chunks ENABLE ROW LEVEL SECURITY"],
+    }
+    monkeypatch.setattr(maintenance, "plan_reading_chunks", lambda _: plan)
+    monkeypatch.setattr(maintenance, "require_schema", lambda _: events.append("STRUCTURE_POSTCHECK"))
+    monkeypatch.setattr(maintenance, "require_reading_chunks_security", lambda _: events.append("SECURITY_POSTCHECK"))
+
+    maintenance.apply_reading_chunks(Connection(), approved_plan_sha256="approved")
+
+    assert events == [
+        "BEGIN",
+        "CREATE TABLE public.reading_chunks(id text)",
+        "ALTER TABLE public.reading_chunks ENABLE ROW LEVEL SECURITY",
+        "STRUCTURE_POSTCHECK",
+        "SECURITY_POSTCHECK",
+        "COMMIT",
+    ]
+
+
+def test_postgres_security_postcheck_failure_rolls_back(monkeypatch):
+    events = []
+
+    class Connection:
+        backend = "postgres"
+
+        @contextmanager
+        def transaction(self):
+            events.append("BEGIN")
+            try:
+                yield
+            except BaseException:
+                events.append("ROLLBACK")
+                raise
+            else:
+                events.append("COMMIT")
+
+        def execute(self, statement, params=()):
+            events.append(statement)
+
+    plan = {"applicable": True, "plan_sha256": "approved", "statements": ["CREATE TABLE public.reading_chunks(id text)"]}
+    monkeypatch.setattr(maintenance, "plan_reading_chunks", lambda _: plan)
+    monkeypatch.setattr(maintenance, "require_schema", lambda _: None)
+    monkeypatch.setattr(
+        maintenance,
+        "require_reading_chunks_security",
+        lambda _: (_ for _ in ()).throw(RuntimeError("TEST security post-check failure")),
+    )
+
+    with pytest.raises(RuntimeError, match="security post-check"):
+        maintenance.apply_reading_chunks(Connection(), approved_plan_sha256="approved")
+    assert events[-1] == "ROLLBACK"
+    assert "COMMIT" not in events
 
 
 def test_maintenance_failure_rolls_back_entire_additive_plan(tmp_path, monkeypatch):
