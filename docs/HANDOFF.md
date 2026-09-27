@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 읽담 운영 담당자가 이어받을 작업 — Safari 실검증 완료, 실행 SHA 직접 확인 남음 (2026-09-27, Codex)
+
+- **무엇을 했는지**: David의 승인에 따라 실행 SHA 미확인 위험을 기록한 상태에서 M1 Safari 운영 검증을 마쳤다. 테스트 Chunk 1건의 생성·조회·수정·태그 검색을 이전 턴에, 재로그인 후 유지·txt export·삭제·보안 재확인을 이번 턴에 완료했다. 공동 최신 정본은 `codex/reading-chunks-current-state`의 `1b5ff9a`다.
+- **어디까지 끝났는지**: 읽담 main/origin/main/deploy/main=`5129d75`, Streamlit `Updated app!` 로그 및 로그인·책장705권 확인. 격리 로컬 txt에는 ISBN `9791130634500`·읽은 시간11분·`sourceApp=readdam`이 있었다. 테스트 ID `48dad8d7-97f7-4ea7-a495-1f9d47ca1c37`은 앱에서 소프트 삭제했고 DB에서 deleted_at 존재·활성0을 확인했다. 임시 export 폴더도 제거했다.
+- **확인해야 할 것**: **실행 SHA 직접 확인: 미완료 / 간접 근거: deploy/main 5129d75 + Updated app 로그**. 실행 SHA를 직접 증명할 기존 운영 증거를 확보한다. 테스트 소프트 삭제 이력은 복구 가능한 행1건으로 남는다. 기존 전체 행0을 가정한 이전 post-check의 실패 표시는 이 예상된 이력 때문이며, 기존 스키마 지문·보안은 별도로 정상 확인했다.
+- **검증/관찰**: books705/activities5667/owner NULL0, 기존 public14표 데이터 해시와 기존 schema SHA `4f6b930680c82b0fc8d8cfd51e457d5dac7c997aa0c0f8be838184e92a1e6189` 불변. RLS on/policy0, PUBLIC·anon·authenticated·service_role CRUD=false, postgres CRUD=true, 실제 anon GET HTTP401/42501. 기존 활동3건은 표시됐으나 일부 `nan` 표시가 재관찰되어 전체 화면 회귀 없음으로 단정하지 않는다.
+- **다음 작업자/작업**: 읽담 운영 담당 Codex가 **실행 SHA 직접 확인 근거 1개 확보**. 이를 확인하기 전 1차-A는 INCOMPLETE. 1차-B·2차 export·실제 iCloud 자동 export는 보류한다.
+- **브랜치 / 커밋 / 배포 상태**: 결과는 `codex/reading-chunks-private-default`에서 문서만 로컬 커밋·미push. 제품 코드·DB schema/권한·main·원격·Streamlit 배포·사용자 기획문서 변경 없음. 아래 테스트 활성1건 기록은 과거 상태다.
+
 ## David/읽담 담당 Codex가 이어받을 작업 — Safari 재로그인 후 테스트 Chunk 검증·삭제 필수 (2026-09-27, Codex)
 
 - **무엇을 했는지**: David는 실행 SHA 직접 확인을 미완료 위험으로 남긴 채 CRUD/export 진행을 명시 승인했다. 로그인 후 책장 705권·선택 책의 기존 활동 3개 표시를 확인하고, Safari에서 테스트 Chunk 생성·재조회·수정·태그 일치/불일치 검색을 통과했다.

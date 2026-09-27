@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: Safari 재접속·txt export·테스트 삭제·보안 재확인
+
+- **목적/승인**: David의 로그인 완료 및 진행 승인에 따라 남은 1차-A 운영 실검증을 수행했다. 실행 SHA 직접 확인은 완료로 간주하지 않았다.
+- **Safari**: 재로그인 뒤 책장705권과 선택 책의 기존 활동3건을 확인했다. 동일 테스트 Chunk ID `48dad8d7-97f7-4ea7-a495-1f9d47ca1c37`이 Safari 재접속 후에도 수정된 메모·태그와 함께 유지됐다. 앞선 생성·조회·수정(7→11분)·일치/불일치 태그 검색과 연결해 실제 화면 CRUD 흐름을 검증했다.
+- **Export/정리**: 승인된 기존 CLI로 이 테스트 ID 한 건만 격리 `/private/tmp`에 txt export했다. 출력1개에서 ISBN `9791130634500`, 읽은 시간11분, `출처 앱: 읽담 (readdam)`, 수정된 메모를 검사했다. 앱에서 정확한 테스트 Chunk만 소프트 삭제하고 목록의 빈 상태/삭제 알림 및 READ ONLY DB의 deleted_at 존재·전체1/활성0을 확인했다. 검증용 로컬 export 폴더의 txt·index·state·lock 파일4개를 삭제했다. 복구 가능한 DB 소프트 삭제 이력1건은 남는다.
+- **보안/기존 데이터**: 최종 READ ONLY 비교에서 public 기존14표의 행 건수·내용 해시가 사전 기준과 같고 books705/activities5667/owner NULL0이었다. 기존 schema SHA `4f6b930680c82b0fc8d8cfd51e457d5dac7c997aa0c0f8be838184e92a1e6189` 불변. RLS enabled, policy0, PUBLIC/anon/authenticated/service_role CRUD=false, postgres=true. 실제 anon Data API GET HTTP401/42501 차단. 이전 post-check는 전체 chunk0을 기대하므로 이번 소프트 삭제 이력1건에서 `POSTCHECK_FAILED`로 표시되며, 이를 schema/보안 실패로 해석하지 않는다.
+- **관찰/남은 위험**: 기존 활동 일부의 `nan` 표시가 다시 보였다. 관련 렌더링/DB reader는 이전 배포 코드와 동일하나, 원인은 이번 범위에서 확정하지 않았다. **실행 SHA 직접 확인: 미완료 / 간접 근거: deploy/main 5129d75 + Updated app 로그**. 따라서 Safari 검증은 완료, 1차-A는 INCOMPLETE. 다음 작업1개는 기존 운영 증거로 실행 SHA 직접 확인이다.
+- **변경/검증/커밋/배포**: 제품 코드·DB schema/권한·오늘의 서재 앱·원격·Streamlit 배포 변경 없음. `docs/HANDOFF.md`, `docs/WORKLOG.md`, `docs/PROJECT.md`의 상태 기록만 제품 브랜치에 로컬 커밋·미push. 사용자 기획문서2개 해시 불변. 공동 정본 `1b5ff9a` 갱신. 1차-B/2차/iCloud 자동 export 금지 유지.
+
 ## 2026-09-27 — Codex: SHA 미확인 위험 승인 후 Safari CRUD 부분 검증
 
 - David는 runtime SHA 직접 확인을 완료로 간주하지 않고, deploy/main 5129d75 + Updated app 로그 + 로그인/705권 표시를 근거로 실검증 진행을 승인했다.
