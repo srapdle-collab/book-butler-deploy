@@ -1,8 +1,8 @@
 # 읽담
 
-운영 점검 상태(2026-09-27): 승인된 read-only 프리플라이트에서 앱 DB 주체 `postgres`, books705/activities5,667, 양쪽 NULL-owner0, reading_chunks/index 부재, `books.id text PK`, 신규 public relation의 anon/authenticated/service_role 기본 GRANT 가능성과 Data API 노출을 확인했다. 이에 `4362e8c`는 신규 표1+index3+RLS+`PUBLIC`/`anon`/`authenticated`/`service_role` REVOKE와 보안 post-check를 단일 transaction 후보로 구현했다. 기존 표/default ACL/Data API 설정은 변경하지 않는다. 로컬 후보만 준비됐고 운영 DB 적용·main/push/deploy는 없어 운영 NO-GO/1차-A 미완료/1차-B 금지를 유지한다. [운영 migration 계획](READING_CHUNK_PRODUCTION_MIGRATION_PLAN.md)을 따른다.
+운영 점검 상태(2026-09-27): 사전 custom-format 백업과 승인 plan SHA 재확인 후 `4362e8c`의 신규 표1+index3+RLS+`PUBLIC`/`anon`/`authenticated`/`service_role` REVOKE 9DDL을 단일 transaction으로 적용했다. 운영 `reading_chunks`는 구조계약 OK·행0·RLS on·policy0·외부4role CRUD=false·postgres CRUD=true다. books705/activities5,667/owner NULL0 및 기존 public schema fingerprint는 불변이다. 기존 표/default ACL/Data API 구성은 변경하지 않았다. 앱 코드는 main/push/deploy 전이므로 1차-A 화면 운영 검증과 1차-B는 아직 금지다. [운영 migration 계획](READING_CHUNK_PRODUCTION_MIGRATION_PLAN.md)을 따른다.
 
-최신 Reading Chunk 상태(2026-09-27): `codex/reading-chunks-private-default`의 `4362e8c`는 `5148d6f`의 자동 schema-init 제거/read-only 구조검사와 `038ab2e`의 CRUD/export 안전성 수정을 포함한다. 전체157 PASS, PostgreSQL 위험 default ACL·rollback·ACL/RLS post-check 및 기존14표 불변 검증 PASS. 스키마는 앱이 고치지 않고 명시 승인된 maintenance로만 준비한다. main/push/배포 없음. 실제 운영 apply·화면/iCloud 검증은 남아 **운영 NO-GO/1차-B 금지 유지**. [새 구조/검증 결과](READING_CHUNK_SCHEMA_PREFLIGHT.md)와 HANDOFF/Runbook을 따른다. 아래 날짜별 상태는 해당 시점의 기록이다.
+최신 Reading Chunk 상태(2026-09-27): `codex/reading-chunks-private-default`의 `4362e8c`는 `5148d6f`의 자동 schema-init 제거/read-only 구조검사와 `038ab2e`의 CRUD/export 안전성 수정을 포함한다. 전체157 PASS이며 운영 schema migration/post-check도 성공했다. main/push/deploy와 실제 사용자 CRUD·iCloud 검증은 남아 **앱 운영 미완료/1차-B 금지 유지**. [새 구조/검증 결과](READING_CHUNK_SCHEMA_PREFLIGHT.md)와 HANDOFF/Runbook을 따른다. 아래 날짜별 상태는 해당 시점의 기록이다.
 
 북스윙 개인 독서 기록을 보존하고 책장·독서 노트·타이머·공유·통계와 초대형 소그룹 인증을 제공하는 Streamlit 앱.
 도서비서 폴더는 독립 Git 저장소이며 상위 동하비서에서 제외된다. 서브모듈 관계가 없다.

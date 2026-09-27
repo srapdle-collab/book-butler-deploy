@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 사용자(David)가 이어받을 작업 — 운영 migration 성공, 앱 코드 main 반영·배포는 별도 승인 (2026-09-27, Codex)
+
+- **무엇을 했는지**: 운영 `public` 전체를 custom-format으로 사전 백업하고 archive list/schema/data 추출을 검증했다. 직전 dry-run의 정확한9DDL·plan SHA `166d02b0…5961`을 재확인한 뒤 후보 `4362e8c`의 승인된 maintenance CLI로 단일 transaction 적용했다.
+- **어디까지 끝났는지**: 운영 `reading_chunks` 표와 명명 index3개가 생성됐다. PK/FK/UNIQUE/CHECK 검증, RLS on, policy0, `PUBLIC`/`anon`/`authenticated`/`service_role` CRUD=false, `postgres` CRUD=true. chunk 행0. books705/activities5667/owner NULL0 및 기존 schema fingerprint `4f6b9306…1e6189` 불변. post-check PASS.
+- **확인해야 할 것**: 사전 백업은 `/private/tmp/readdam-prod-backup-dag4jwb6/public-before-reading-chunks.dump`(SHA-256 `1e601cd1…ff0be`, mode0600)에 있다. archive 추출 검증은 했지만 별도 DB restore rehearsal과 장기 보존 위치 이동은 하지 않았다. 기존 public 표 ACL/RLS는 범위 밖으로 불변이다.
+- **다음 작업자**: David가 제품 브랜치의 main 반영·Streamlit 배포를 별도로 승인한 뒤 읽담 담당자. 그 전에는 화면 CRUD/iCloud export를 하지 않는다.
+- **브랜치 / 커밋 / 배포 상태**: 제품 `4362e8c`, 작업 브랜치 `codex/reading-chunks-private-default`; 운영 DB migration만 적용. main/origin=`4d97f4e`, deploy=`51e5b0c` 불변. 미push·앱 미배포.
+- **보류·실패·중단 이유**: migration blocker 없음. 앱 코드는 아직 운영 배포되지 않아 1차-A 화면 운영 검증은 미실행이다. 1차-B·2차 export 금지 유지.
+
 ## 사용자(David)/운영 담당자가 이어받을 작업 — 운영 dry-run 9DDL·plan SHA 확정, 실제 적용 별도 승인 대기 (2026-09-27, Codex)
 
 - **무엇을 했는지**: 후보 `4362e8c`의 실제 maintenance CLI를 운영과 동일한 `SUPABASE_DB_*` 설정으로 `--apply` 없이 실행했다. 문서화된 운영 프로젝트, transaction pooler 6543, SSL, DB=`postgres`, schema=`public`, current/session user=`postgres`, PostgreSQL17.6, `transaction_read_only=on`을 비밀값 없이 확인했다.

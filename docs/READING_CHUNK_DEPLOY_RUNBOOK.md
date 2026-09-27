@@ -2,7 +2,9 @@
 
 2026-09-27 / Codex. 감사: [READING_CHUNK_PREDEPLOY_AUDIT.md](READING_CHUNK_PREDEPLOY_AUDIT.md).
 
-최신 로컬 수정 `4362e8c`: `5148d6f`의 [schema-init 분리/preflight](READING_CHUNK_SCHEMA_PREFLIGHT.md)와 `038ab2e`의 [export 복구 계약](READING_CHUNK_BLOCKER_FIXES.md)을 포함한다. 운영 read-only 프리플라이트에서 앱 주체 `postgres`와 신규 public relation의 외부 role 기본 GRANT 위험을 확인했다. 현 PostgreSQL `schema_maintenance --apply` 후보는 CREATE4 뒤 RLS와 외부4role REVOKE를 더한 9문장 및 구조·보안 post-check를 같은 transaction에서 수행한다. 로컬157 PASS와 PostgreSQL17 WASM 검증은 통과했지만 실제 backup·maintenance 창·동일 대상 계획 SHA·운영 적용 승인은 없으므로 **적용 NO-GO**다. 아래 명령은 운영에서 실행하지 않았다.
+운영 DB migration은 2026-09-27 plan SHA `166d02b0…5961`의 9DDL로 완료됐고 즉시 구조·ACL/RLS post-check가 PASS했다. 이 승인 SHA는 재사용 금지다. 현재 schema maintenance 계획은 변경0의 no-op이어야 한다. 아래 “migration 전/NO-GO” 설명은 당시 절차 기록이며, 남은 단계는 별도 승인된 제품 main 반영·배포와 실제 운영 화면 검증이다.
+
+적용 전 후보 기준 `4362e8c`: `5148d6f`의 [schema-init 분리/preflight](READING_CHUNK_SCHEMA_PREFLIGHT.md)와 `038ab2e`의 [export 복구 계약](READING_CHUNK_BLOCKER_FIXES.md)을 포함한다. 운영 read-only 프리플라이트에서 앱 주체 `postgres`와 신규 public relation의 외부 role 기본 GRANT 위험을 확인했고, PostgreSQL maintenance를 CREATE4+RLS+외부4role REVOKE 9문장과 구조·보안 post-check로 구성했다. 아래의 적용 전 NO-GO 문구와 명령 예시는 당시 승인 관문 기록이며 현재 승인 SHA의 재실행 지시가 아니다.
 
 **현재 NO-GO. 이 문서의 운영 명령은 실행하지 않았다. 사용자 승인과 감사 blocker 해소 전에는 실행 금지다.**
 현재 제품 main/origin=`4d97f4e`, rollback 기준=`51e5b0c72deb0afe69767da05028dea95dd688d1`.

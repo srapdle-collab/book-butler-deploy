@@ -1,6 +1,10 @@
 # Reading Chunk 1차-A — 운영 migration 후보(실행 보류)
 
-2026-09-27 / Codex. 이 문서는 **실행 승인서가 아니다**. 운영 DB DDL·DML·배포는 수행하지 않았다.
+2026-09-27 / Codex. 이 문서는 **재실행 승인서가 아니다**. 초기 계획 작성 당시에는 운영 DDL·DML·배포를 수행하지 않았고, 이후 승인된 적용 결과를 바로 아래에 추가했다.
+
+## 적용 결과 — 운영 migration 완료
+
+2026-09-27 승인된 plan SHA `166d02b0682da839a0caae3ad096fdf3b854974db3e4075c47fff6be846b5961`의 9DDL을 단일 transaction으로 운영 DB에 적용했다. 구조·보안 post-check는 모두 PASS했고 기존 books/activities 및 chunk 제외 schema fingerprint는 불변이다. **이 SHA는 이미 적용된 과거 계획이므로 재사용하거나 다시 `--apply`하지 않는다.** 현재 maintenance dry-run은 변경0의 no-op이어야 한다. 앱 main 반영·push·deploy·사용자 CRUD는 별도 작업이다.
 
 ## 최신 후속 — 비공개 기본 migration 후보 `4362e8c`
 

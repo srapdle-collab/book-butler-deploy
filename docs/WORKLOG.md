@@ -8,6 +8,16 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: Reading Chunk 운영 migration 적용·즉시 보안 검증
+
+- **목적/승인 범위**: 검증 후보 `4362e8c`와 승인 plan SHA `166d02b0682da839a0caae3ad096fdf3b854974db3e4075c47fff6be846b5961`의 신규 `reading_chunks` migration만 운영 Supabase에 적용한다. 실제 chunk CRUD·앱 배포·main/push·기존 표 권한·default ACL·iCloud·1차-B는 금지했다.
+- **백업 관문**: libpq18.6 `pg_dump` custom-format으로 운영 `public` schema/data/ACL을 `/private/tmp/readdam-prod-backup-dag4jwb6/public-before-reading-chunks.dump`에 mode0600으로 저장했다(922,421 bytes, SHA-256 `1e601cd1acd4e6b394766e027cbafeae4f2b6659e8fa9bdf30898381e8dff0be`). `pg_restore --list` 94항목, schema 추출, data payload 전체 해제 및 books/activities/profile·chunk 부재를 확인했다. 별도 DB restore rehearsal은 미실행이다.
+- **실행 직전**: 문서화된 운영 프로젝트·transaction pooler6543·SSL·DB postgres·schema public·current/session postgres·PG17.6 확인. chunk 객체 없음, books705, activities5667, owner NULL0, 기존 schema SHA `4f6b9306…1e6189`; 계획9DDL 및 승인 SHA가 재현됐다.
+- **적용**: `tools/schema_maintenance.py --configured-postgres --apply --approve-plan <승인SHA>`만 사용했다. table1→index3→RLS→PUBLIC/anon/authenticated/service_role REVOKE의 9DDL과 구조·보안 post-check가 하나의 transaction에서 exit0으로 commit됐다.
+- **독립 post-check**: 구조계약 `reading-chunks-1a.v1` OK, 표 owner postgres·행0, 명명 index3+PK/UNIQUE 자동 index2 모두 valid/ready. PK/FK/UNIQUE/CHECK 4제약 validated/nondeferrable. RLS=true, policy0. 외부4주체 SELECT/INSERT/UPDATE/DELETE=false, postgres 4권한=true. 적용 후 maintenance 계획은 statement0 no-op이다.
+- **기존 상태 보존**: books705, activities5667, 양쪽 owner NULL0. chunk 객체를 제외한 기존 public relation/column/constraint/index/ACL fingerprint가 적용 전 `4f6b930680c82b0fc8d8cfd51e457d5dac7c997aa0c0f8be838184e92a1e6189`와 동일하다.
+- **코드/배포/남은 일**: 전체157 PASS 재확인. migration 결과 문서만 작업 브랜치에 로컬 기록하며 main/push/deploy 없음. 다음은 별도 승인된 제품 main 반영·배포 준비이며, 그 전 실제 사용자 CRUD/Safari/iCloud/1차-B는 진행하지 않는다.
+
 ## 2026-09-27 — Codex: Reading Chunk 운영 migration 최종 dry-run
 
 - **목적/범위**: 비공개 기본 migration 후보 `4362e8c`를 실제 운영 설정으로 읽기 전용 계획만 산출한다. `--apply`·DDL·DML·main/push/deploy·화면/iCloud 작업은 금지했다.
