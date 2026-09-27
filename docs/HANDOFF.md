@@ -21,6 +21,15 @@
 
 ## 항목
 
+## David가 이어받을 작업 — 활동 카드 nan 최소 수정 검증 완료, 운영 미배포 (2026-09-28, Codex)
+
+- **무엇을 했는지**: 기존 활동 표시 버그만 `lib/notebook_ui.py:cards()`의 행 표시 경계에서 수정했다. 각 scalar에 `pd.isna`를 적용해 실제 결측만 `None`으로 정규화한다. DB 계층·전체 pandas dtype·Reading Chunk 코드·운영 DB는 그대로다.
+- **어디까지 끝났는지**: 제품/테스트 로컬 커밋 `c6951b4`(`codex/reading-chunks-private-default`). 새 AppTest 3개가 None/NaN/pd.NA, 정상 문자열, 실제 문자열 `"nan"`, 0쪽, 새 pandas 문자열 dtype 경로를 검증한다. 변경 전 RED 2실패/1통과 → 변경 후 카드6통과, 전체160통과, 두 Python 파일 compile·diff check 통과. 운영 배포는 아직 없다.
+- **확인해야 할 것**: 실제 운영 화면의 `nan` 소멸은 미배포라 미검증이다. main/origin/main/deploy/main은 기존 `5129d75` 기준이며 이 수정은 미반영·미push. 기존 사용자 기획문서2개는 불변이다.
+- **다음 작업자/작업**: David가 수정 커밋의 main 반영·배포 및 배포 후 기존 활동 카드 smoke 검증을 별도 승인한다. 승인 전에는 push/배포하지 않는다.
+- **브랜치 / 커밋 / 배포 상태**: `codex/reading-chunks-private-default` 제품 `c6951b4`, 이번 결과 문서는 별도 로컬 커밋. 앱 운영 배포는 이전 상태 유지.
+- **보류·실패·중단 이유**: 로컬 테스트 실패 없음. 운영 화면 확인만 별도 배포 승인 관문이다. 1차-A COMPLETE 판정은 그대로이며 1차-B·2차 export에는 진입하지 않는다.
+
 ## 읽담 담당자가 이어받을 작업 — 기존 활동 nan 표시 원인 재현, 수정은 별도 (2026-09-28, Codex)
 
 - **무엇을 했는지**: 코드·DB·배포를 바꾸지 않고 운영 activities 5,667건과 이관 원본 SQLite를 읽기 전용 대조하고, Safari의 기존 활동 3건 표시를 pandas 새 문자열 dtype 동작으로 재현했다. 아래 1차-A COMPLETE 판정은 유지한다.

@@ -8,6 +8,13 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: 활동 카드 nan 표시 최소 수정
+
+- **목적/변경**: 진단된 기존 활동 `NULL→pandas NaN→truthy` 표시 문제를 Reading Chunk와 분리해 수정. `lib/notebook_ui.py:cards()`에서 DataFrame 행을 표시용 dict로 만들 때 scalar `pd.isna(value)`만 `None`으로 바꾼다. DB reader, dtype 정책, schema/데이터, Reading Chunk 구현, 배포 코드는 변경하지 않았다.
+- **RED/GREEN**: `tests/test_notebook_app.py` AppTest 3개 추가. None/float NaN/pd.NA인 quote, NaN text/photo, 정상 quote/text, 실제 문자열 `"nan"`, 0쪽, `future.infer_string=True`의 PostgreSQL DataFrame 경로를 화면 출력으로 검사한다. 수정 전 2실패(사진 NaN 경로 예외·문자 nan 출력)/1통과를 확인하고 최소 수정 후 카드6통과. 기존 카드 테스트도 유지된다.
+- **검증**: 변경 전 기준157통과, 변경 후 전체 **160 passed in 13.09s**. `lib/notebook_ui.py`·`tests/test_notebook_app.py` Python compile PASS, `git diff --check` PASS. Node 파일 변경이 없어 별도 Node syntax 대상 없음. 테스트는 합성 데이터만 사용했으며 운영 DB 접속/DDL/DML0건. 실제 운영 앱은 미배포라 배포 후 화면 검증이 남는다.
+- **커밋/배포/남은 일**: 제품·테스트 `c6951b4`를 `codex/reading-chunks-private-default`에 로컬 커밋, 결과 문서는 별도 커밋. main/origin/deploy push·Streamlit 재배포 없음, 원본 사용자 기획문서2개 불변. 다음은 David의 별도 승인 후 main 반영·운영 배포·기존 활동 카드 smoke 검증 1건. Reading Chunk 1차-A COMPLETE 유지, 1차-B/2차 export 미진입.
+
 ## 2026-09-28 — Codex: 기존 활동 nan 표시 재발 원인 진단
 
 - **목적/변경**: 1차-A와 분리된 기존 활동 표시 결함만 진단. 제품 코드·운영 DB·migration·재배포·기존 데이터 변경 없음.
