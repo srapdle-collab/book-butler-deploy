@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 사용자(David)/읽담 담당 Codex가 이어받을 작업 — 공동 상태 정합화 완료, 제품 main 반영·배포 승인 대기 (2026-09-27, Codex)
+
+- **무엇을 했는지**: 공동 최신 `bf9ca9a`를 계승한 `codex/reading-chunks-current-state`의 **32cfc48**과 두 앱 문서를 대조·정합화했다. 공동 정본은 `/private/tmp/readdam-cross-current-gJs4x6/CROSS_PROJECT_HANDOFF.md`1.0절이며, 공동 저장소에서 `git show 32cfc48:CROSS_PROJECT_HANDOFF.md`로도 조회한다. 기본 공동 main의 상대경로 사본과 원본 읽담 `codex/reading-chunks-1a` 문서는 과거 스냅샷이다. 아래 `b23e316`의 문서 충돌에 의한 NO 판정을 이 최신 항목으로 대체한다.
+- **어디까지 끝났는지**: **DB migration 완료 / 제품 main 반영·배포 전**. 운영 권한 프리플라이트(postgres/default ACL 위험)·보안설계·dry-run9DDL·백업·migration SUCCESS·후속 post-check 완료는 `bd04762`/`b23e316`의 확인 결과다. 구조·index3·PK/FK/UNIQUE/CHECK 정상, RLS on/policy0, PUBLIC/anon/authenticated/service_role CRUD=false, postgres=true. books705/activities5,667/owner NULL0, 기존 schema 예상 밖 변화 없음. 이번에는 운영 DB/테스트를 재실행하지 않고 문서만 로컬 커밋한다.
+- **확인해야 할 것**: 이전 기술 검증157PASS/compile/syntax/diff PASS와 문서 정합화에 따라 **main 반영 준비 YES / 운영 배포 준비 YES(별도 실행 승인 필요)**. 1차-A는 M1 실검증 전이므로 완전 종료가 아니다. 실행 직전 ref·사용자 파일 해시·운영 상태를 다시 확인하고, 적용 완료된 migration은 재실행하지 않는다.
+- **다음 작업자/순서**: David의 별도 승인 후 Codex가 깨끗한 worktree에서 최신 제품 main 반영 → origin/main 동기화 → deploy/main 반영 → Streamlit 배포 SHA 확인 → M1 Safari Reading Chunk CRUD/재접속/기존 기능 및 Data API anon 차단 재확인. txt는 별도 승인된 격리 로컬 경로 계획만 유지한다.
+- **브랜치 / 커밋 / 배포 상태**: `codex/reading-chunks-private-default`, 시작 `b23e316`; 제품 코드 `4362e8c` 불변, 이번에는 문서3개만 추가 커밋. main/origin=`4d97f4e`, deploy=`51e5b0c` 유지. 오늘의 서재 `9569cfd`의 2차 매핑 추천안은 기존 설계이며 이번에 구현 승인하지 않는다.
+- **보류·금지**: 문서 충돌은 해소됐고 main/push/deploy/실제 CRUD는 별도 승인 대기다. **1차-B·Reading Chunk 2차 export·실제 iCloud export 금지**. 제품 코드·DB·사용자 기획문서 수정 없음, 과거 기록 삭제 없음.
+
 ## 사용자(David)/공동 문서 담당자가 이어받을 작업 — 배포 전 기술 검증 PASS, 공동 현재 상태 불일치로 준비 판정 보류 (2026-09-27, Codex)
 
 - **무엇을 했는지**: main/origin `4d97f4e`, deploy `51e5b0c`, 제품 브랜치 `codex/reading-chunks-private-default`의 시작 HEAD `bd04762` 관계를 확인했다. 제품 브랜치는 main보다 13커밋, deploy보다 19커밋 앞선 단일 후손이다. main에는 `cbcf0b4`까지 초기 기능이 있고 `038ab2e`/`5148d6f`/`4362e8c` 수정은 없다. 이번 결과 기록은 후속 문서 커밋으로 추가한다.

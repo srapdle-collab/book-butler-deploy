@@ -8,6 +8,14 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-27 — Codex: 공동 Source of Truth 최신 운영 상태 정합화
+
+- **목적/근거**: 사용자 승인으로 읽담 `bd04762`의 migration SUCCESS와 `b23e316`의 배포 전 기술검증157PASS를 공동 과거 상태와 대조했다. 제품 브랜치 시작 HEAD는 보고된 `b23e316`과 일치했고 코드/DB 추가 변경은 필요 없었다. 오늘의 서재 `9569cfd`는 2차 설계 보정 기록으로 운영 결과와 충돌하지 않는다.
+- **변경**: 공동 `codex/reading-chunks-current-state`의 `32cfc48`이 프리플라이트·보안설계·dry-run9DDL·백업·migration 완료를 최신1.0절에 추가한다. 이 저장소 HANDOFF/PROJECT/WORKLOG는 해당 정본 위치와 현재 관문을 추가한다. 기존 항목은 삭제하지 않는다. 공동 main의 옛 상대경로 대신 `/private/tmp/readdam-cross-current-gJs4x6/CROSS_PROJECT_HANDOFF.md` 또는 공동 `git show 32cfc48:CROSS_PROJECT_HANDOFF.md`를 사용한다.
+- **현재/판정**: **DB migration 완료 / 제품 main 반영·배포 전**, 1차-A 미완료. `b23e316`의 문서 충돌 blocker 해소. main 반영 준비 YES/운영 배포 준비 YES는 별도 승인 가능한 상태이지 실행 완료가 아니다. 최신157PASS·권한/구조/건수는 직전 검증 결과이며 이번 세션 DB 조회/테스트 실행은 없다.
+- **검증/보호**: 문서 내용/근거 커밋·정본 참조·과거 줄 보존·문서만 변경·diff 검사, 사용자 기획문서2개 해시 불변을 확인한다. 제품/DB/migration 재실행/사용자 파일/공동 기본 dirty 문서 변경0. 커밋은 이 브랜치 문서3개만이며 main/origin/deploy는 기존 ref 그대로다.
+- **다음/금지**: 별도 승인 후 최신 제품 main → origin/main → deploy/main → Streamlit 배포 → M1 Safari CRUD/재접속/기존 기능·Data API anon 차단 재확인. 1차-B·Reading Chunk 2차 export·실제 iCloud export 금지 유지. 이번 main merge/push/deploy/실제CRUD 실행0.
+
 ## 2026-09-27 — Codex: 제품 main 반영·배포 전 최종 검증
 
 - **목적/범위**: 운영 migration 이후 제품 코드/DB 호환·Git 관계·사용자 파일 보호·배포 절차를 검증한다. merge/push/deploy/실제 CRUD/iCloud는 실행하지 않는다.
