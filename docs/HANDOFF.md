@@ -29,7 +29,7 @@
 - **확인해야 할 것**: David가 중복 책 중 어느 행을 보존할지 결정한다. 독서 진행 이력이 붙은 읽는 중 행 보존이 합리적이나 DB 수정·병합·삭제는 별도 결정 전 금지다. 새 예화 태그가 생기면 dry-run을 다시 평가한다.
 - **다음 작업자 / 다음 작업 1개**: 읽담 담당자 — David의 중복 책 보존 결정을 기다리고, 승인 범위가 정해지면 데이터 정리 계획을 제시한다.
 - **검증**: 전체 281 tests PASS, Python 38파일 구문 검사 PASS, launchd plist lint PASS, `git diff --check` PASS. 실제 DB/iCloud write 0.
-- **브랜치 / 커밋 / 배포 상태**: `codex/read-only-audit-20260929` clean worktree에서 기록. 이 기록 커밋 후 local main fast-forward와 origin/main 일반 push를 안전 조건에 따라 확인한다. deploy/main 변경 없음, 앱 재배포 없음.
+- **브랜치 / 커밋 / 배포 상태**: clean worktree `main`, 조사 기록 `6e175a6`을 local main에 fast-forward하고 `origin/main`에 일반 push했다. 이 상태 정리도 문서 커밋으로 origin에 보존한다. `deploy/main=9f7aedf` 유지, 앱 재배포 없음.
 - **보류·실패·중단 이유**: 실제 export와 launchd는 David가 보류했다. 예화 분류 대상 태그는 현재 0건이다.
 
 ## 읽담 담당자가 이어받을 작업 — 원격·운영 DB DNS 차단, 실제 예화창고 무쓰기 사전점검 완료 (2026-09-29, Codex)
