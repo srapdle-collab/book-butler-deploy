@@ -79,6 +79,35 @@ def test_read_frame_turns_all_null_postgres_column_into_none_not_nan():
     assert not quote  # row.get('quote')가 거짓으로 판정돼야 한다
 
 
+def test_shelf_cover_card_does_not_crash_on_new_book_with_null_pages_from_postgres():
+    """pages처럼 일부 행만 NULL인 숫자 컬럼은 Postgres 경로에서 pandas가
+    float64로 승격시켜 NULL이 None이 아니라 NaN이 된다(pandas
+    'future.infer_string' 아래 문자열 컬럼도 read_frame 수준에서는 NaN이
+    나올 수 있어, 이 정규화는 read_frame이 아니라 사용하는 쪽에서 해야
+    notebook_ui.cards()가 이미 쓰는 pd.isna() 패턴과 dtype 보존이 둘 다
+    지켜진다). NaN인 pages는 `book['pages'] or 0`에서 참으로 판정돼
+    total=NaN이 되고, 새 카테고리로 책을 등록한 뒤 책장(이어서 읽기)에서
+    st.progress(nan)이 StreamlitAPIException으로 운영 장애를 일으켰다
+    (2026-09-28 실제 발생). shelf_ui._cover_card가 직접 정규화해서 막는다."""
+    from lib import shelf_ui, database
+
+    class Cursor:
+        def fetchall(self):
+            return [{
+                'id': 'new', 'title': '분별력 테스트 도서', 'category': '분별력',
+                'current_page': 0, 'pages': None, 'cover_photo': None, 'cover_url': None,
+            }]
+
+    class PostgresConnection:
+        backend = 'postgres'
+        def execute(self, query, params=()):
+            return Cursor()
+
+    frame = database.read_frame(PostgresConnection(), 'SELECT * FROM books')
+    book = frame.iloc[0]
+    shelf_ui._cover_card(book, lambda *a, **k: None, prefix='resume', show_progress=True)
+
+
 def test_postgres_transaction_uses_advisory_lock_for_single_reading_timer():
     from lib import database
 

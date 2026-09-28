@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit as st
 from lib import db
 
@@ -7,6 +8,12 @@ PAGE_SIZE = 24
 
 def _cover_card(book, goto, prefix='shelf', show_progress=False):
     """표지 영역 전체를 누르면 책 상세로 이동하는 초밀평 카드."""
+    # Postgres 경로에서 숫자 컬럼에 NULL이 섞이면 pandas가 float64로 승격해
+    # NaN이 되고(예: 쪽수 미입력), NaN은 파이썬에서 참으로 판정돼
+    # `book['pages'] or 0`가 NaN을 그대로 넘겨 st.progress(nan)이
+    # StreamlitAPIException으로 죽는다(새 카테고리로 책 등록 후 책장 진입 시
+    # 2026-09-28 실제 발생). notebook_ui.cards()와 같은 방식으로 정규화한다.
+    book = {key: None if pd.isna(value) else value for key, value in book.items()}
     with st.container(key=f"{prefix}_cover_card_{book['id']}"):
         source = db.cover_source(book)
         if source:
