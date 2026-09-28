@@ -8,6 +8,14 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: 책장 상단 새 책 추가 바로가기
+
+- **작업 목적**: 책장 맨 아래까지 이동하지 않고 새 책 등록을 시작할 수 있도록 `이어서 읽기` 바로 위에 상단 바로가기를 추가한다.
+- **실제 변경 내용**: `lib/shelf_ui.py`에 `＋ 새 책 추가` 버튼과 상단 입력 surface를 추가했다. `app.py`의 기존 `render_add_book_form`은 key prefix를 받을 수 있게 하여 상단과 기존 하단이 같은 검색·입력 검증·`db.insert_book` 처리 함수를 사용한다. 하단 `➕ 새 책 추가` UI는 제거하지 않았다.
+- **테스트 결과**: 먼저 상단 button이 없다는 AppTest RED를 확인했다. 구현 후 신규 AppTest는 상단 버튼 클릭, 상단·하단 입력 surface 동시 접근, 두 경로의 테스트 DB 저장을 검증한다. 관련 책장 테스트 **7 passed**, 전체 **203 passed in 35.11s**, Python compile PASS, `git diff --check` PASS.
+- **커밋/배포 여부**: 기능·테스트 `dcf640c`을 local main에 커밋했다. 원격 push·deploy·운영 DB write·iCloud write·Sites/D1 변경은 없다.
+- **범위/남은 일**: Reading Chunk·예화 추천·exporter·오늘의 서재·DB schema는 변경하지 않았다. 다음은 실제 Streamlit 화면에서 상단 바로가기 사용감을 확인하는 일 1건이다.
+
 ## 2026-09-28 — Claude Code: 추천·승인 기능 origin/deploy 동기화
 
 - **작업 목적**: 검증된 local main `6a66872`를 origin/main·deploy/main에 반영하고 Streamlit 운영 smoke를 준비한다.

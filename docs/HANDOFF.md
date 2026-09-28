@@ -21,6 +21,15 @@
 
 ## 항목
 
+## David가 이어받을 작업 — 책장 상단 새 책 추가 바로가기 검증·배포 판단 (2026-09-28, Codex)
+
+- **무엇을 했는지**: 책장 지표 바로 아래, `이어서 읽기` 바로 위에 `＋ 새 책 추가` 버튼을 추가했다. 버튼을 누르면 상단 입력 surface가 열리며, 기존 하단 `➕ 새 책 추가`도 그대로 남는다. 두 surface는 하나의 `render_add_book_form` 함수와 동일한 검색·검증·`db.insert_book` 저장 경로를 공유하고, widget key scope만 분리한다.
+- **어디까지 끝났는지**: 기능·회귀 테스트 커밋 `dcf640c`을 local main에 만들었다. AppTest에서 상단 버튼 클릭, 상단·하단 입력 surface의 동시 접근, 두 경로의 테스트 DB 책 저장을 확인했다. Reading Chunk·예화 추천·exporter·오늘의 서재·schema는 변경하지 않았다.
+- **확인해야 할 것**: 실제 Streamlit 화면에서 상단 바로가기의 사용감만 확인하면 된다. 이번 작업은 원격 push·배포 요청이 아니므로 origin/main·deploy/main·운영 DB·iCloud는 변경하지 않았다.
+- **다음 작업자**: David 또는 읽담 배포 담당자.
+- **브랜치 / 커밋 / 배포 상태**: `main` / `dcf640c`; local main은 origin/main·deploy/main=`6a66872`보다 2커밋 앞섰다. 운영 배포 없음.
+- **보류·실패·중단 이유**: 없음. 원본 `codex/reading-chunks-1a` 작업트리의 사용자 기획문서 2건은 그대로 보존했다.
+
 ## David가 이어받을 작업 — origin/deploy 6a66872 반영, Streamlit 운영 UI smoke 수동 확인 필요 (2026-09-28, Claude Code)
 
 - **무엇을 했는지**: i9 실제 Terminal에서 `git ls-remote`로 origin/main=`0d1530d`, deploy/main=`74d3c9d`를 확인했다. 깨끗한 main worktree(`/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`)에서 두 원격 모두 fast-forward 관계와 deploy..main 22개 파일 차이(1차-B·2차 exporter·추천/승인, requirements·DDL 변경 없음)를 확인한 뒤 일반 push했다.
