@@ -18,6 +18,7 @@
 - **테스트 결과**: RED(신규 16건 중 11건 실패, AppTest에서 선택 후 칸이 `''`) → GREEN. 신규 `tests/test_add_book_autofill.py`는 실제 upstream 응답 fixture로 선택 자동입력·후보 전환·사용자 입력 보호·저장 보존·category/pages 비추측·저자/역자 분리 14형식을 검증한다. 전체 **229 passed**, compile·`git diff --check` PASS. 원본 `.venv`는 i9에서 numpy/libpq arm64 문제로 쓸 수 없어 scratchpad 임시 venv(Streamlit 1.50)로 실행했다.
 - **실제 upstream 확인**(키 비출력): 「희망을 짓는다는 것」 제목·ISBN 검색 모두 제목 `희망을 짓는다는 것`, 부제 `성경의 언어로 쌓아 올린 51편의 메시지`, 저자 `엘렌 데이비스`, 역자 `윤상필`, 출판사 `한국성서유니온선교회`, ISBN `9788932550817`, 표지 URL 있음, 2026, KDC 235.2였다. 역사란 무엇인가·데미안·사피엔스·순전한 기독교·채식주의자도 저자/역자가 올바르게 나뉘었다. `한상경 글·사진`처럼 모르는 표기는 원문 그대로 둔다.
 - **커밋/배포 여부**: 기능 `b8ec52d`와 이 기록 커밋. 사전 원격 `4dff9fe`를 확인한 뒤 origin/main·deploy/main에 일반 fast-forward push한다. Streamlit 브라우저 smoke는 미확인이다.
+- 보강(2026-09-28, Claude Code): David가 현재 수준으로 충분하다고 결정했다. 쪽수 추가 API와 카테고리 제안은 진행하지 않는다.
 - **발견 문제/남은 작업**: 공저자(upstream 누락)와 쪽수는 추가 source가 필요하다. 출간년도 저장은 schema 변경 승인이 필요하다. 책 카테고리는 개인 분류와 KDC 매핑 방식을 David가 결정해야 한다. 사용자 기획문서 2건은 불변이다.
 
 ## 2026-09-28 — Claude Code: 도서관정보나루 title/isbn13 검색 수정 및 운영 반영
