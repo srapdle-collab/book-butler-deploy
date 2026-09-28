@@ -188,12 +188,24 @@ def _reset_add_book_draft(key) -> None:
         st.session_state.pop(key(name), None)
 
 
+def _save_new_book(conn, payload: dict, candidates_key: str, key) -> None:
+    db.insert_book(conn, payload)
+    st.success(f"'{payload['title']}'을(를) 책장에 추가했습니다.")
+    st.session_state[candidates_key] = []
+    st.session_state.pop(key("pending_duplicate"), None)
+    st.session_state.pop(key("isbn_duplicate"), None)
+    _reset_add_book_draft(key)
+    st.rerun()
+
+
 def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
     """Render one add-book surface while sharing search and save behavior."""
     def key(name: str) -> str:
         return f"{key_prefix}_{name}"
 
     candidates_key = key("candidates")
+    pending_key = key("pending_duplicate")
+    isbn_dup_key = key("isbn_duplicate")
     auth_key = os.environ.get("DATA4LIBRARY_AUTH_KEY", "").strip()
 
     query = st.text_input("제목으로 검색 (도서관정보나루)", key=key("query"))
@@ -217,20 +229,27 @@ def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
                 if not results:
                     st.info("검색 결과가 없습니다. 아래 수동 입력 폼을 사용해주세요.")
 
+    isbn_lookup = db.isbn_lookup_map(conn)
     candidates = st.session_state.get(candidates_key) or []
     selected: dict | None = None
+    existing_match: dict | None = None
     if candidates:
         st.caption(f"검색 결과 {len(candidates)}건 중 하나를 선택하세요")
-        labels = [
-            f"{c['title']} · {c['author'] or '저자 미상'} ({c['publisher'] or '출판사 미상'}, "
-            f"ISBN {c['isbn'] or '-'})"
-            for c in candidates
-        ]
+        labels = []
+        for c in candidates:
+            base = (
+                f"{c['title']} · {c['author'] or '저자 미상'} ({c['publisher'] or '출판사 미상'}, "
+                f"ISBN {c['isbn'] or '-'})"
+            )
+            if db.normalize_isbn(c.get("isbn")) in isbn_lookup:
+                base = f"✓ 이미 내 책장에 있음 — {base}"
+            labels.append(base)
         pick = st.radio(
             "검색 후보", range(len(candidates)), format_func=lambda i: labels[i],
             key=key("pick"),
         )
         selected = candidates[pick]
+        existing_match = isbn_lookup.get(db.normalize_isbn(selected.get("isbn")))
         _autofill_add_book_fields(selected, key)
         cover_col, info_col = st.columns([1, 4])
         with cover_col:
@@ -246,6 +265,17 @@ def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
                 reference.append(f"도서관 분류 {selected['class_nm']} ({selected.get('class_no') or '-'})")
             if reference:
                 st.caption(" · ".join(reference) + " — 참고용, 저장되지 않음")
+        if existing_match:
+            st.success(
+                f"이미 책장에 있는 책입니다 — '{existing_match['title']}' "
+                f"({existing_match['status']}, {existing_match['category'] or '미분류'})"
+            )
+            if st.button(
+                "기존 책으로 이동", key=key("goto_existing_from_search"),
+                type="primary", width="stretch",
+            ):
+                goto("책 상세", existing_match["id"])
+                st.rerun()
 
     st.markdown("**세부 정보를 확인·수정한 뒤 저장하세요.**")
     categories = db.list_categories(conn)
@@ -274,26 +304,64 @@ def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
                 final_category = None
             else:
                 final_category = category_choice
-            db.insert_book(
-                conn,
-                {
-                    "title": title.strip(),
-                    "subtitle": subtitle.strip() or None,
-                    "author": author.strip() or None,
-                    "translator": translator.strip() or None,
-                    "publisher": publisher.strip() or None,
-                    "isbn": isbn.strip() or None,
-                    "category": final_category,
-                    "pages": int(pages) or None,
-                    "status": status,
-                    "cover_url": (selected or {}).get("cover_url"),
-                    "owner_id": authenticated_user.id if authenticated_user else None,
-                },
-            )
-            st.success(f"'{title.strip()}'을(를) 책장에 추가했습니다.")
-            st.session_state[candidates_key] = []
-            _reset_add_book_draft(key)
+            payload = {
+                "title": title.strip(),
+                "subtitle": subtitle.strip() or None,
+                "author": author.strip() or None,
+                "translator": translator.strip() or None,
+                "publisher": publisher.strip() or None,
+                "isbn": isbn.strip() or None,
+                "category": final_category,
+                "pages": int(pages) or None,
+                "status": status,
+                "cover_url": (selected or {}).get("cover_url"),
+                "owner_id": authenticated_user.id if authenticated_user else None,
+            }
+            # UI에서 검색 결과로 걸러졌어도 다시 확인한다. 수동 입력이나
+            # 폼 재제출로 검색 화면을 거치지 않고 같은 ISBN이 저장되는 것을 막는다.
+            isbn_dup = db.find_book_by_isbn(conn, payload["isbn"])
+            if isbn_dup:
+                st.session_state.pop(pending_key, None)
+                st.session_state[isbn_dup_key] = isbn_dup
+            else:
+                # ISBN이 있으면 이 값으로 이미 확실히 구분했으니, 제목만 같은
+                # 동명이서까지 약한 경고로 붙잡지 않는다.
+                title_author_dups = (
+                    db.find_books_by_title_author(conn, payload["title"], payload["author"])
+                    if not payload["isbn"] else []
+                )
+                if title_author_dups:
+                    st.session_state[pending_key] = payload
+                else:
+                    st.session_state.pop(isbn_dup_key, None)
+                    _save_new_book(conn, payload, candidates_key, key)
+
+    isbn_dup = st.session_state.get(isbn_dup_key)
+    if isbn_dup:
+        st.error(
+            f"이미 같은 ISBN으로 등록된 책이 있습니다 — '{isbn_dup['title']}'. "
+            "중복 등록을 막기 위해 저장하지 않았습니다."
+        )
+        if st.button("기존 책으로 이동", key=key("goto_isbn_dup"), type="primary"):
+            st.session_state.pop(isbn_dup_key, None)
+            goto("책 상세", isbn_dup["id"])
             st.rerun()
+
+    pending = st.session_state.get(pending_key)
+    if pending:
+        st.warning(
+            f"제목과 저자가 같은 책이 이미 있습니다 — '{pending['title']}' · "
+            f"{pending['author'] or '저자 미상'}. 다른 판본일 수 있어 막지는 않지만 "
+            "한 번 더 확인해주세요."
+        )
+        confirm_col, cancel_col = st.columns(2)
+        with confirm_col:
+            if st.button("그래도 추가", key=key("save_dup_anyway"), type="primary", width="stretch"):
+                _save_new_book(conn, pending, candidates_key, key)
+        with cancel_col:
+            if st.button("취소", key=key("cancel_dup"), width="stretch"):
+                st.session_state.pop(pending_key, None)
+                st.rerun()
 
 
 # ------------------------------------------------------------ 책 상세 ----

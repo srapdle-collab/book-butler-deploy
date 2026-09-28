@@ -216,6 +216,75 @@ def all_activities(conn: sqlite3.Connection) -> pd.DataFrame:
     return database.read_frame(conn, "SELECT * FROM activities WHERE deleted_at IS NULL ORDER BY date")
 
 
+# 마이그레이션된 운영 데이터 감사(2026-09-28)에서 발견한 잘못된 ISBN 값.
+# 2147483647(2^31-1, int32 오버플로 sentinel로 보임)을 서로 무관한 책
+# 12권이 공유하고 있었다. 실제 ISBN이 아니므로 동일 여부 비교에서 제외한다.
+_KNOWN_INVALID_ISBNS = {"2147483647"}
+
+
+def normalize_isbn(value: Any) -> str | None:
+    """비교용 ISBN 정규화: 하이픈·공백 등을 지우고 대문자로 맞춘다.
+
+    ISBN-10/13 상호 변환은 하지 않는다(체크섬 계산 없이 자릿수만 다른
+    표기를 같다고 단정하면 실제로 다른 책을 같다고 판정할 위험이 있다).
+    같은 책이 ISBN-10과 ISBN-13 두 표기로 각각 등록된 경우는 이 비교로
+    잡지 못한다. 여러 권짜리 세트가 권마다 같은 세트 ISBN을 공유하는
+    경우도 이 비교만으로는 구분하지 못한다(알려진 한계).
+    """
+    if not value:
+        return None
+    import re
+    cleaned = re.sub(r"[^0-9Xx]", "", str(value)).upper()
+    if not cleaned or cleaned in _KNOWN_INVALID_ISBNS:
+        return None
+    return cleaned
+
+
+def isbn_lookup_map(conn: sqlite3.Connection) -> dict[str, dict[str, Any]]:
+    """정규화된 ISBN -> 기존 책 정보. 같은 정규화 ISBN이 여럿이면 가장 먼저(오래된) 등록을 남긴다."""
+    rows = database.read_frame(
+        conn, "SELECT id, title, author, isbn, category, status FROM books WHERE isbn IS NOT NULL"
+    )
+    lookup: dict[str, dict[str, Any]] = {}
+    for _, row in rows.iterrows():
+        normalized = normalize_isbn(row["isbn"])
+        if normalized and normalized not in lookup:
+            lookup[normalized] = row.to_dict()
+    return lookup
+
+
+def find_book_by_isbn(conn: sqlite3.Connection, isbn: Any) -> dict[str, Any] | None:
+    """정규화된 ISBN이 같은 기존 책 1건(있으면)을 반환한다."""
+    normalized = normalize_isbn(isbn)
+    if not normalized:
+        return None
+    return isbn_lookup_map(conn).get(normalized)
+
+
+def find_books_by_title_author(
+    conn: sqlite3.Connection, title: Any, author: Any
+) -> list[dict[str, Any]]:
+    """ISBN이 없을 때만 쓰는 약한 중복 후보 탐지: 제목과 저자가 모두 같은 기존 책.
+
+    제목만 같다고 후보로 잡지 않는다(동명이서가 흔하다). 다른 판본(부제·역자·
+    출판사가 다른 경우)도 걸러지지 않으므로 호출부는 이 결과를 경고에만 쓰고
+    저장을 막지는 않는다.
+    """
+    title_norm = str(title or "").strip()
+    if not title_norm:
+        return []
+    author_norm = str(author or "").strip()
+    rows = database.read_frame(
+        conn, "SELECT id, title, author, isbn, category, status FROM books WHERE TRIM(title) = ?",
+        params=[title_norm],
+    )
+    matches = []
+    for _, row in rows.iterrows():
+        if str(row["author"] or "").strip() == author_norm:
+            matches.append(row.to_dict())
+    return matches
+
+
 def insert_book(conn: sqlite3.Connection, book: dict[str, Any]) -> str:
     """3.1(Book) 구조에 맞춰 새 책을 저장하고 id를 반환한다."""
     book_id = book.get("id") or str(uuid.uuid4())
