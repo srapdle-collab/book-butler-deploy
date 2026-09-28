@@ -21,6 +21,17 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — Safari 쿠키 지속 PASS, 서버 복원 경계 미확인 (2026-09-29, Codex)
+
+- **무엇을 했는지**: David가 실제 Safari Console에서 `document.cookie.includes("__Host-readdam-refresh=")`를 정상 로그인 직후와 탭을 닫고 운영 URL을 다시 연 로그인 화면에서 모두 `true`로 확인했다. 따라서 **브라우저 cookie write·탭 종료 후 persistence는 PASS, 자동 로그인 복원은 FAIL**이다. refresh token 값은 보거나 기록하지 않았다.
+- **코드 대조**: 새 Streamlit 세션에서 `require_authenticated_user`는 `st.context.cookies`를 한 번 읽고 값이 있으면 `auth.refresh_session(cookie)`를 호출한 뒤 `auth_user`·access/refresh token·만료시각을 session_state에 넣는다. 쿠키 읽기 오류는 `read_refresh_cookie`에서 None으로 숨겨지고 refresh 오류는 `AuthError`로 처리·쿠키 삭제 뒤 로그인 화면으로 돌아가므로 현재 화면만으로 cookie 미전달·read 실패·refresh 실패를 구분할 수 없다. 설치된 Streamlit 1.50 소스에서 `st.context.cookies`는 **WebSocket 최초 요청**의 쿠키를 읽는다. David의 `document.cookie=true`는 이 요청에 실제 쿠키가 실렸는지까지 입증하지 않는다. 기존 테스트는 쿠키 read/write와 Supabase refresh를 mock으로 대체했다.
+- **404 대조**: David가 같은 재접속 상태에서 Safari 404 경로 `/api/v2/user/details`를 확인했다. 읽담 앱 코드·설치된 Streamlit 오픈소스 패키지에 해당 경로 호출은 없고, 읽담의 Supabase refresh는 서버에서 `POST token?grant_type=refresh_token`으로 실행된다. 따라서 이 404는 **읽담의 직접 refresh 요청이 아니다**. 호스트·Initiator 미확인이라 Streamlit Cloud/브라우저 확장 등 실제 호출 주체와 간접 영향은 미확정이며 root cause 또는 무관한 노이즈로 단정하지 않는다.
+- **어디까지 끝났는지**: 코드·테스트·운영 DB·iCloud 변경 0. 이 HANDOFF·WORKLOG·PROJECT만 기록 커밋으로 갱신한다. 시작 local main=`a40368c`; 로컬 추적 origin/main=deploy/main=`06bc5e1`(David의 직접 push 근거), 실제 원격/Streamlit 실행 SHA는 이 세션에서 독립 확인하지 않았다. 앞선 책장 수정 `6064b1b`과 기록 `a40368c`는 여전히 local-only다. 기존 사용자 문서 2건 및 오늘의 서재·통합 계약은 불변이다.
+- **확인해야 할 것**: Safari 재접속의 `/_stcore/stream` WebSocket 요청 Cookie 헤더에 **쿠키 이름만** 존재하는지, 404의 호스트·Initiator만 확인한다(값/쿼리/헤더 전문 공유 금지). WebSocket에 실렸는데 복원이 실패하면 token 비노출 상태로 서버의 `st.context.cookies` 존재 여부→refresh 호출/예외 종류→session_state 복원·rerun 유지 순서로 진단해야 한다. 토큰 값은 로그·문서·보고에 남기지 않는다.
+- **다음 작업자 / 다음 작업 1개**: 운영 증거를 확인할 수 있는 읽담 담당자 — **새 WebSocket 요청의 쿠키 이름 전달 여부와 404 호출 주체를 확인해 서버 복원 실패 경계를 좁힌다**.
+- **브랜치 / 커밋 / 배포 상태**: `main` / 기존 배포 `06bc5e1`, 로컬 `a40368c` + 이 기록 커밋 / 신규 push·배포 없음. Safari 로그인 지속성 FAIL 유지.
+- **보류·실패·중단 이유**: 운영 브라우저 자동 접근 거부와 Codex 환경의 원격/DB DNS 제약으로 서버-side 쿠키·Supabase refresh 결과의 실제 값은 미확인이다. 추측에 따른 인증 코드 변경은 하지 않았다.
+
 ## 읽담 담당자가 이어받을 작업 — Safari 로그인 실패·읽는 중 누락 운영 증거 확보 (2026-09-28, Codex)
 
 - **무엇을 했는지**: 아래의 “배포 대기” 기록은 David가 실제 Mac Terminal에서 origin/main과 deploy/main에 `06bc5e1`을 각각 정상 push한 사실로 대체한다. 이 세션의 local main·origin/main·deploy/main 추적 ref도 시작 시 모두 `06bc5e1`이었다. 다만 Codex 환경의 GitHub DNS 실패로 원격 현재 SHA를 독립 재조회하지 못했고 Streamlit 실행 SHA도 직접 확인하지 못했다. David의 실제 Safari 결과는 **로그인할 때마다 다시 로그인 화면: LOCAL TEST PASS / 사용자 push 후 REAL SAFARI FAIL**이다.

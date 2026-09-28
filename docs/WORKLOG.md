@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-29 — Codex: Safari persistent cookie 확인과 서버 복원 경계 대조
+
+- **작업 목적·환경**: P0-A 로그인 지속성 실제 Safari 실패를 cookie write 이후 단계로 좁힌다. Intel i9의 clean worktree `/private/tmp/readdam-login-persist`, 시작 local main=`a40368c`, 로컬 추적 origin/main=deploy/main=`06bc5e1`. GitHub 실제 원격과 Streamlit 실행 SHA는 이번에 조회·확인하지 않았다. 읽담 최신 HANDOFF/WORKLOG와 공동 계약을 확인했고 오늘의 서재·통합 변경은 없다.
+- **새 운영 증거(David Safari 직접 확인)**: 정상 로그인 직후와 탭을 완전히 닫고 운영 URL을 다시 연 로그인 화면에서 `document.cookie.includes("__Host-readdam-refresh=")`가 모두 `true`. cookie write와 브라우저 측 persistence **PASS**, 재접속 자동 로그인 **FAIL**. cookie 값/refresh token은 출력·공유·기록하지 않았다.
+- **서버 경로 코드 감사**: 새 session에서 `require_authenticated_user`는 처음 한 번 `auth_cookie.read_refresh_cookie`를 호출한다. 값이 있으면 `auth.refresh_session`, 성공 시 `accept_session`으로 user/access/refresh/만료를 session_state에 넣고 회전 token cookie를 쓰며 반환한다. 읽기 오류는 helper가 None으로 숨겨 쿠키 부재와 구별되지 않는다. refresh 오류는 `AuthError`로 일괄 래핑되고 `forget_session`이 cookie 삭제 flag를 세운다. 설치된 Streamlit 1.50 `context.py`는 `st.context.cookies`를 BrowserWebSocketHandler의 **초기 WebSocket request.cookies**에서 얻는다. Safari `document.cookie` 존재만으로 WebSocket Cookie 헤더·`st.context.cookies` 노출·refresh 호출/성공·session_state 복원을 입증하지 못한다. 기존 인증 21 PASS는 해당 쿠키 함수와 Supabase 응답을 monkeypatch한 AppTest이므로 실제 브라우저 경계 시험이 아니다.
+- **404 대조**: Safari Console의 404 path는 `/api/v2/user/details`. 읽담 소스와 설치된 Streamlit 오픈소스 패키지 전체에서 이 경로 문자열이 없다. 설치된 `supabase_auth` SDK의 refresh는 서버 측 `POST token?grant_type=refresh_token`으로 나간다. 즉 Safari의 404는 읽담 코드가 직접 호출한 refresh URL이 아니다. 요청 호스트·Initiator가 없어 실제 호출 주체(Cloud 플랫폼/브라우저 확장/기타)와 간접 관련성은 **미확정**이다. 404를 root cause로도 노이즈로도 확정하지 않았다.
+- **변경·검증**: 제품 코드·테스트 변경 없음, 기존 전체 270 PASS/compile PASS는 직전 작업 결과이며 이번에 재실행하지 않았다. HANDOFF·WORKLOG·PROJECT만 기록 갱신, `git diff --check` PASS. DB 운영 write·iCloud write·push·deploy 0, 원본 사용자 기획문서 2건 보존.
+- **blocker·다음 작업 1개**: 운영 브라우저 자동 접근은 이전 사용자 권한 거부에 따라 우회하지 않았다. David에게 재접속 시 `/_stcore/stream` WebSocket Request Headers의 **쿠키 이름 존재 여부만**과 404의 **호스트·Initiator만** 요청했다. 이를 먼저 확인한 뒤 서버 read→refresh→복원 단계의 비밀 비노출 진단을 진행한다.
+
 ## 2026-09-28 — Codex: P0 Safari 로그인 실패·읽는 중 책 누락 감사
 
 - **작업 목적·정본**: David의 실제 Safari 로그인 지속성 FAIL과 「희망을 짓는다는 것」 읽는 중 목록 누락을 분리 진단한다. Intel i9, clean `/private/tmp/readdam-login-persist`의 `main`=`06bc5e1`에서 시작. David가 이전 DNS 실패 뒤 실제 Terminal에서 origin/main `93479a5..06bc5e1`, deploy/main `3f42a52..06bc5e1` 일반 push 성공을 전달했다. 시작 시 로컬 두 추적 ref 모두 `06bc5e1`이었으나 이번 세션의 두 `git ls-remote`는 github.com DNS 실패라 원격 현재 SHA를 독립 확인하지 못했다. 운영 실행 SHA도 미확인이다. 읽담·통합 기록을 대조했고 프로젝트 간 계약 변경은 없다.
