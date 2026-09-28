@@ -21,6 +21,31 @@
 
 ## 항목
 
+## M1 읽담 담당자가 이어받을 작업 — i9→M1 이관 Checkpoint (2026-09-28, Claude Code)
+
+이 항목은 이관 시점의 **전체 상태 요약**이다. 아래 이전 항목들의 "다음 작업"은 이 항목으로 대체한다.
+
+- **실행환경**: i9의 읽담전문(Intel i9 Mac 실제 Terminal / Claude Code). 작업 worktree는 `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`(`main`)이다.
+- **정본 SHA(이 기록 직전, 실제 ls-remote)**: local main = origin/main = deploy/main = `00f495c`. 이 기록 커밋도 main→origin→deploy에 일반 fast-forward로 올린다. M1에서는 `git fetch` 후 origin/main을 기준으로 삼는다.
+- **완료(원격 보존)**
+  1. Reading Chunk 1차-A: COMPLETE.
+  2. 1차-B(오늘의 서재 pull/ingest/receipt/책 snapshot): 코드는 main·운영 배포에 있다. Secrets가 없어 5분 자동 sync는 `not_configured`로 끝나는 휴면 상태다. **운영 연결은 BLOCKED**: Sites 관리형 D1 `0004` 공식 migration lifecycle이 미확인이다.
+  3. 2차 예화창고 exporter: 코드 COMPLETE(명시 CLI 전용). 실제 iCloud dry-run 2회 PASS. eligible illustration Chunk 0건이라 **실제 export 미실행**, iCloud write 0.
+  4. 예화 카테고리 추천·승인(63개 snapshot, 승인 keyword 반영): main·운영 배포.
+  5. 책장 상단 `＋ 새 책 추가` 바로가기: main·운영 배포.
+  6. 도서 검색 title/isbn13 수정(`a5a7a51`): 운영 배포.
+  7. 책 서지정보 자동입력(`b8ec52d`): 제목·부제·저자·역자(명시 표기만)·출판사·ISBN·표지. 출간년도·KDC는 참고 표시만 한다. 쪽수·카테고리 자동화는 David 결정으로 하지 않는다.
+  8. 새 책 등록 state 유지 버그(`84b1604`): 화면 왕복·재검색·저장 뒤 오염·Enter 제출 수정, 운영 배포.
+- **아직 local에만 있는 작업**: 없음. i9에만 있던 이력 브랜치 `codex/reading-chunks-1a`(`1f2d367`)·`codex/reading-chunks-1b`(`90fe1c2`)·`codex/reading-chunks-private-default`(`09c1603`)를 origin에 같은 이름으로 **보존용 push**했다. 이 브랜치들의 제품 내용은 main에 선별 반영돼 있고, 남은 차이는 과거 문서 기록뿐이다. **merge·rebase하지 말고 참고용으로만 쓴다.** 나머지 로컬 codex 브랜치는 모두 main에 포함돼 있다.
+- **진행 중/미완료**: 진행 중인 코드 작업은 없다. 남은 것: David의 운영 화면 확인(새 책 등록 유지·자동입력·이전 Enter 시도로 생겼을 수 있는 중복 책), 1차-B 운영 연결(D1 blocker), 2차 실제 export(대상 0건). Streamlit 운영 UI는 i9에 브라우저 도구가 없어 에이전트가 확인하지 못했다(`_stcore/health`만 확인한 이력 있음).
+- **blocker**: ① Sites D1 `0004` migration lifecycle 미확인(1차-B 운영 연결). ② i9에서는 원본 `.venv`가 arm64 전용이라 numpy/psycopg가 import되지 않는다. 테스트는 세션 임시 venv로 돌렸다. M1에서는 원본 `.venv`가 정상일 것으로 예상하지만, 첫 작업에서 확인한다.
+- **사용자 기존 변경(건드리지 않음)**: 원본 작업트리 `/Users/donghakim/Documents/workspace/동하비서/도서비서`(브랜치 `codex/reading-chunks-1a`, HEAD `1f2d367`)에 `도서비서_기획문서.md` 수정(M)과 `도서비서_기획문서 2.md` 미추적(??)이 있다. commit·stash·reset·삭제 금지. 이 작업트리는 main이 아니므로, 여기서 main 작업을 하지 않는다.
+- **임시 worktree(정본 아님, 재부팅 시 사라질 수 있음)**: `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`(main, clean), `/private/tmp/reading-chunk-1b-qfdk556c/readdam`(`codex/reading-chunks-1b`, clean), `/private/tmp/readdam-category-approval-jQMw6o/readdam`(`codex/reading-chunk-category-approval`, clean, main에 포함). 모두 커밋·원격에 보존됐다. M1에서는 이 경로를 쓰지 말고 origin에서 새로 받는다.
+- **읽담 범위 밖 참고**: 상위 공동 저장소(동하비서)는 remote가 없고, `codex/reading-chunk-category-contract`의 1커밋(`188ac7b`, 카테고리 공동 계약)이 공동 main에 미반영이다. 이번 작업에서는 건드리지 않았다.
+- **다음 작업(1개)**: M1 읽담 담당자가 `git fetch`로 origin/main=deploy/main을 확인하고 M1 `.venv`에서 전체 pytest(현재 기준 237 passed)를 돌려 환경을 검증한다. 그 뒤 David의 운영 새 책 등록 재검증 결과를 받는다.
+- **브랜치 / 커밋 / 배포 상태**: `main`, 이 기록 커밋. 제품 코드 변경은 없다.
+- **보류·실패·중단 이유**: 없음.
+
 ## David가 이어받을 작업 — 새 책 등록 draft 유실 수정, 운영 재검증 (2026-09-28, Claude Code)
 
 - **무엇을 했는지**: 실행환경은 i9의 읽담전문(Intel i9 Mac 실제 Terminal / Claude Code)이다. worktree는 `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`, 브랜치는 `main`, 시작 HEAD는 `d0a6c54`다. 운영 증상은 "카테고리 조작 뒤 자동입력 정보가 사라지고, 같은 책을 다시 검색해도 복원되지 않음"이었고, AppTest로 원인을 재현했다. ① 폼이 한 run이라도 그려지지 않으면(다른 화면에 다녀오기) Streamlit이 폼 칸 상태를 지운다. 하지만 `autofill_source` 표시는 남아 있어서, 같은 책을 다시 골라도 "이미 채움"으로 보고 건너뛰었다. ② 폼 안의 '카테고리 직접 입력'에서 Enter를 누르면 폼이 제출되어 책이 저장되고 폼이 비었다. ③ 저장 뒤 폼 칸에 이전 값이 남은 채 자동입력 기록만 지워져, 다음 검색 때 그 값을 사용자 입력으로 보고 교체하지 않았다. ④ 새 카테고리를 적어도 선택 상자가 '직접 입력'이 아니면 무시됐다.

@@ -8,6 +8,16 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Claude Code: i9→M1 이관 Checkpoint
+
+- **작업 목적**: 새 기능 없이, M1 작업자가 HANDOFF·WORKLOG만 보고 이어받을 수 있게 전체 상태를 확정한다.
+- **실행환경**: i9의 읽담전문, `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`, `main`, 시작 HEAD `00f495c`.
+- **실제 확인**: `git ls-remote`로 origin/main = deploy/main = local main = `00f495c`를 확인했다. worktree 4개 중 3개(/private/tmp)는 clean이다. 원본 작업트리는 사용자 기획문서 2건만 변경돼 있다. stash는 없다. 로컬 브랜치 9개 중 main에 없는 커밋(patch 기준)을 가진 것은 `codex/reading-chunks-1a`(1, 문서)·`codex/reading-chunks-1b`(23, main에 선별 재적용됨, 남은 차이는 문서 이력)·`codex/reading-chunks-private-default`(5, 문서)였고, origin에는 없었다.
+- **실제 변경 내용**: 위 3개 브랜치를 origin에 같은 이름으로 새로 push했다(보존용, force 없음). HANDOFF에 이관 Checkpoint 항목을, WORKLOG에 이 항목을 추가했다. 코드·schema·Secrets·운영 DB·iCloud·오늘의 서재·공동 저장소 변경은 0이다.
+- **테스트 결과**: 코드 변경이 없어 새 테스트는 없다. 직전 기능 커밋 기준 전체 237 passed(세션 임시 x86 venv).
+- **커밋/배포 여부**: 이 기록 커밋을 main→origin/main→deploy/main에 일반 fast-forward로 올린다(문서만).
+- **발견 문제/남은 작업**: i9 원본 `.venv`는 arm64 전용이라 i9에서 쓸 수 없다. Sites D1 `0004` blocker 유지, 2차 실제 export 대상 0건, 운영 UI는 David 확인이 필요하다. 다음 작업은 M1 환경 검증(fetch 후 전체 pytest)이다.
+
 ## 2026-09-28 — Claude Code: 새 책 등록 draft 유실(카테고리 조작·재검색) 수정
 
 - **작업 목적**: 검색 결과를 선택한 뒤 카테고리 조작이나 화면 이동으로 자동입력 서지정보가 사라지고, 같은 책을 다시 검색해도 복원되지 않던 운영 버그를 고친다.
