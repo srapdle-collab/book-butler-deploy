@@ -8,6 +8,16 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-29 — Codex: Reading Chunk → 예화창고 단일 파이프라인 격리 구현
+
+- **목적·환경**: David 승인으로 인증은 수동 로그인·진단 UI 유지/OIDC BACKLOG로 기록하고, P0-B 운영 DB READ ONLY 연결 실패를 주차한 뒤 Reading Chunk 자동 export 본선의 안전한 로컬 구현을 진행했다. clean `main` worktree `/private/tmp/readdam-login-persist` 사용, 원본 사용자 기획문서 2건은 변경하지 않았다.
+- **변경**: `tools/export_pipeline.py`가 `READDAM_OWNER_EMAIL`과 정확히 일치하는 profile 한 건으로 owner를 확인하고 owner의 전체 Chunk(soft delete 포함)를 읽기 전용으로 조회한다. 1차-A와 2차 계획을 파일 쓰기 전 함께 검토해 `CONFLICT`/`UNMAPPED`를 차단한다. 1차-A preview를 2차에 전달해 새/수정된 txt의 실제 파생 경로를 dry-run에서 계산한다. 정상 실행은 1차-A→DB 변동 재확인→2차이며 기존 pending selection을 먼저 복구한다. receipt·manifest로 실제 변경을 찾아 재실행하며 1차-A 동일 상태의 index/state 불필요한 재쓰기를 제거했다. CLI 기본 dry-run, 실제 파일 쓰기는 `--apply` 명시가 필요하다. 로컬 전체 파이프라인 잠금은 한 Mac에서만 유효하며 다른 장치 간 잠금은 아니다.
+- **문서/설치 상태**: [자동 export 준비 문서](READING_CHUNK_AUTO_EXPORT.md)와 **미설치** `config/launchd/readdam-export.plist.template` 추가. 자동 실행은 5분 간격 polling 구조만 준비했고 launchd 설치/활성화 0. 실제 iCloud와 운영 DB에는 쓰지 않았다. 새 카테고리·schema·오늘의 서재 코드·통합 계약 변경 없음.
+- **검증**: 신규 synthetic E2E 6 tests(첫 실행·dry-run 무쓰기·중복 실행 무쓰기·수정/태그 이동·soft delete·사람 파일 보호·충돌 선차단·owner profile·pending 후 새 Chunk 재실행) PASS. 관련 43 PASS, 전체 **279 PASS**, Python compile PASS, `git diff --check`/staged diff check PASS, launchd plist lint PASS. 임시 SQLite/카테고리만 사용했고 실제 iCloud write 0, 운영 DB write 0.
+- **커밋/정본**: 기능 `3fe5d02` local `main`; 이 기록은 별도 커밋. origin/main·deploy/main 로컬 tracking ref `9f7aedf`, 실제 원격 확인은 기존 DNS 실패로 보류; push·deploy 0. 특정 /private/tmp에만 남지 않도록 원본 저장소의 `main` Git ref에 커밋했다.
+- **남은 일/위험**: P0-B의 두 책 실제 행·상단 순위 미확정(운영 DB READ ONLY 연결 실패). 실제 사용자 승인 태그 기반 운영 dry-run과 기존 iCloud 폴더 preflight, iCloud write 및 launchd 설치는 미실시. 두 단계는 원자적 단일 트랜잭션이 아니므로 pending 복구와 재실행이 필요하다.
+- **다음 작업 1개**: 운영 DB READ ONLY가 가능한 환경에서 「희망을 짓는다는 것」 두 행과 이어서 읽기 정렬 순위를 대조한다.
+
 ## 2026-09-29 — Codex: 희망 책 운영 DB 읽기 전용 재조회 실패
 
 - **목적·실행**: P0-B 두 중복 책의 id·ISBN·status·category·pages·start_date·current_page·reading session·Reading Chunk·읽는 중 정렬 순위를 운영 DB READ ONLY로 대조하려 했다. `db.get_readonly_connection()`이 `OperationalError`로 실패해 SQL 실행 전 중단됐다. 연결 오류 상세·비밀값을 출력하지 않았고 반복 재시도하지 않는다.

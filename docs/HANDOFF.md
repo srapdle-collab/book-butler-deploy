@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — 자동 export 격리 구현 완료, 운영 DB 감사 대기 (2026-09-29, Codex)
+
+- **무엇을 했는지**: `tools/export_pipeline.py`로 해당 owner의 전체 Reading Chunk를 READ ONLY 조회해 1차-A txt와 예화 카테고리 `읽담/` 분류를 잇는 단일 명령을 만들었다. CLI는 기본 dry-run, 실제 파일 반영은 별도 승인 후 `--apply`다. 바뀐 Chunk 탐지, 수정·태그 이동·soft delete, pending 복구, 충돌/미매핑 선차단, 사람 파일 보호, 로컬 중복 실행 잠금을 임시 SQLite/폴더에서 검증했다. 설치되지 않은 launchd 템플릿과 [운영 준비 문서](READING_CHUNK_AUTO_EXPORT.md)를 추가했다.
+- **어디까지 끝났는지**: clean `main` 기능 커밋 `3fe5d02`; 279 tests PASS, Python compile PASS, diff check PASS, plist lint PASS. 실제 iCloud write/export 0, launchd 설치 0, 운영 DB write 0. 운영 DB READ ONLY 접속은 이번 환경에서 앞 단계 `OperationalError`로 막혔으므로 실제 Chunk에 대한 dry-run과 두 중복 책 조사는 미실시다. 인증은 승인된 수동 로그인 유지·OIDC BACKLOG, 오늘의 서재/통합 계약 변경 없음.
+- **확인해야 할 것**: 운영 DB 연결 가능한 Mac에서 먼저 「희망을 짓는다는 것」 두 행과 `start_date`/이어 읽기 정렬을 READ ONLY로 대조한다. 이후 별도 단계에서 실제 승인된 Chunk로 예화 파이프라인의 운영 dry-run 및 실제 기존 폴더/사람 파일 preflight를 검증하고, David 승인 전 iCloud `--apply`·launchd 설치는 하지 않는다.
+- **다음 작업자 / 다음 작업 1개**: 읽담 담당자 — 운영 DB READ ONLY가 가능한 환경에서 「희망을 짓는다는 것」 두 중복 행과 이어서 읽기 순위를 대조해 누락 직접 원인을 확정한다.
+- **브랜치 / 커밋 / 배포 상태**: `/private/tmp/readdam-login-persist` clean `main`, 기능 `3fe5d02`; 이 기록은 별도 로컬 커밋. 원격 tracking origin/main=deploy/main=`9f7aedf`, 실제 원격 재조회는 기존 GitHub DNS 제약으로 미확인. push·deploy 없음. 원본 `codex/reading-chunks-1a`의 David 기획문서 수정/미추적 2건 보존.
+- **보류·실패·중단 이유**: 운영 DB 연결 실패로 P0-B 실제 원인 미확정; 실제 iCloud export 및 launchd 활성화는 David가 없는 동안 금지. 현재 파이프라인은 격리 검증 완료·운영 활성화 전이다.
+
 ## 읽담 담당자가 이어받을 작업 — 희망 책 운영 DB READ ONLY 연결 실패, 자동화 본선 진행 (2026-09-29, Codex)
 
 - **무엇을 했는지**: P0-B의 두 중복 책을 운영 DB `get_readonly_connection()`으로 조회하려 했으나 연결 단계에서 `OperationalError`로 실패해 SQL은 실행되지 않았다. 비밀값과 오류 상세는 출력하지 않았다. 재시도나 우회 설치 없이 이 작업은 주차하고 Reading Chunk → 예화창고 격리 자동화로 이동한다.
