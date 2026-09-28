@@ -1,5 +1,11 @@
 # 읽담 작업 기록
 
+## 2026-09-29 — Codex: 양경로 통합 fixture에서 읽담 정본·export 접속 확인
+
+- 공동 통합팀이 제품 코드를 수정하지 않고 지정 `main 85c1e22`를 별도 worktree로 검증했다. 직접 save·예화 태그 승인과 서재 pull/ingest가 같은 `reading_chunks` 표에 저장됐고, 두 Chunk 모두 단일 export pipeline의 임시 `용서/읽담/` CREATE 계획에 포함됐다. 실제 export write 0.
+- receipt 유실 후 같은 ID 재전송은 already_stored/읽담 행 1건, invalid payload·오래된 snapshot 태그는 rejected, 같은 ID의 다른 유효 태그는 기존 저장값 불변, 설정 누락은 not_configured였다. 통합 3 PASS, 읽담 전체 281 PASS, Python 구문/diff PASS. 상세 명령과 한계는 공동 `tests/README.md` 및 `CROSS_PROJECT_HANDOFF.md` 최신 절.
+- 검증 중 전담팀이 `main ef5742c`에 별도 read-only 운영 감사 기록을 추가했으므로 이 브랜치는 해당 문서 이력을 fast-forward로 계승했다. 이번 작업은 운영 DB/iCloud/Sites/Secrets·원본 사용자 파일 변경 0. 1차-B 운영 blocker는 Sites D1 `0004` 공식 적용 경로 미확인이다.
+
 이 파일은 **역사 기록**이다. 현재 상태와 다음 행동은 `docs/HANDOFF.md`, 프로젝트 간 공통 결정은 `../CROSS_PROJECT_HANDOFF.md`에 둔다.
 
 기록 규칙 (2026-09-26부터):

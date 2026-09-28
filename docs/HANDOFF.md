@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 최신 — 통합 fixture의 읽담 경로 검증 (2026-09-29, Codex)
+
+- **무엇을 했는지**: 공동 통합팀이 읽담 local `main 85c1e22`와 오늘의 서재 `main 28cfe37`을 격리해 두 입력 경로를 실제 읽담 계약 함수·합성 SQLite·임시 예화 폴더로 연결했다. 공동 `tests/test_reading_chunk_fixture_e2e.py` 3건 PASS. 제품 코드 변경 없음.
+- **어디까지 끝났는지**: 직접 `save → 예화 태그 승인`, 서재 `pending → pull/ingest → ISBN 책 매칭 → receipt → synced`가 모두 읽담 `reading_chunks`에 도달하고 같은 `export_pipeline.run(dry_run=True)`에서 카테고리별 CREATE 대상으로 잡혔다. receipt 유실·재전송 멱등성·invalid payload·오래된 태그·설정 누락 검증. 읽담 기존 281 tests PASS. 브라우저·운영 E2E는 미실행.
+- **확인해야 할 것**: 후속 읽담 전담팀의 운영 DB/예화창고 read-only dry-run은 아래 별도 항목이 최신이다. 1차-B 운영 연결은 Sites D1 `0004` 공식 적용 경로 확인 전 BLOCKED.
+- **다음 작업자 / 다음 작업 1개**: 읽담 담당자 — 아래 운영 책 중복 건의 David 결정 대기 상태를 유지한다. 통합팀의 Sites D1 관문은 공동 계약서에서 별도로 관리한다.
+- **브랜치 / 커밋 / 배포 상태**: `codex/integration-fixture-20260929`, 검증 기준 `85c1e22`; 이 문서는 읽담 전담팀의 `ef5742c` 문서 이력을 fast-forward로 계승한 별도 문서 커밋. 원본 사용자 변경, 운영 DB/iCloud/Sites/Secrets, 읽담 배포 변경 0.
+- **보류·실패·중단 이유**: 운영 D1 관문 미확인. 이번 fixture에서 제품 실패 없음.
+
 ## 읽담 담당자가 이어받을 작업 — 운영 책 원인 확인·실제 예화창고 dry-run 완료 (2026-09-29, Codex)
 
 - **무엇을 했는지**: M1 영구 저장소의 David 기획문서 미커밋 2건을 보존하고 clean 분리 worktree에서 local `main` `85c1e22`를 계승했다. 실제 `origin/main`·`deploy/main`은 모두 `9f7aedf`로 조회했다. 운영 DB 읽기 전용 연결로 「희망을 짓는다는 것」 두 행과 전체 Chunk를 조사하고 실제 예화창고에서 단일 파이프라인 dry-run을 두 번 실행했다.
