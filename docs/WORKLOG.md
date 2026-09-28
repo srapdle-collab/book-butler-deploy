@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: 로그인 지속성 배포 재개 시도, 실제 원격 DNS 실패
+
+- **작업 목적**: 검증된 로그인 지속성 local main(`9b22c5d`)을 실제 GitHub origin/main·deploy/main에 안전한 fast-forward로 반영하고 Streamlit 갱신 상태를 확인한다. 새 개발은 없다.
+- **환경·정본 확인**: Intel i9 실행환경, clean `/private/tmp/readdam-login-persist`의 `main`=`9b22c5d`에서 시작했다. 읽담 HANDOFF/WORKLOG와 통합 계약을 읽었고 인증 작업에 프로젝트 간 계약 변경이 없음을 확인했다. 원본 `codex/reading-chunks-1a`의 사용자 기획문서 수정·미추적 각 1건과 상위 공동 저장소의 기존 미추적 파일은 건드리지 않았다.
+- **실제 원격 조회**: `git ls-remote origin refs/heads/main`, `git ls-remote deploy refs/heads/main` 모두 `Could not resolve host: github.com`으로 실패했다. 따라서 실제 원격 SHA는 미확인이다. 로컬 추적 origin/main=`93479a5`, deploy/main=`3f42a52`를 원격 현재 상태로 간주하지 않았고 push를 시도하지 않았다.
+- **변경·검증**: 제품 코드·테스트 변경은 없다. 직전 구현의 인증 21 PASS, 전체 269 PASS, compile·diff PASS 근거를 재사용했다(이번 작업에서 테스트 재실행 없음). 이번 변경은 HANDOFF·WORKLOG의 중단 상태 기록뿐이며 diff check PASS다.
+- **커밋·운영**: 기능 `70810d0`, 선행 기록 `9b22c5d`는 local main에 남아 있다. 이 항목은 후속 기록 커밋. origin/main·deploy/main·Streamlit·Safari 운영 상태는 변경하거나 확인하지 못했다. 운영 DB write·iCloud write·오늘의 서재/통합 계약 변경은 0건이다.
+- **blocker·다음 작업 1개**: GitHub DNS가 되는 환경에서 양 원격 실제 SHA 조회와 fast-forward 가능성을 먼저 검증한 뒤 일반 push·배포한다. 이후 David Safari 로그인 지속성 검증을 받는다.
+
 ## 2026-09-28 — Codex: 안전한 로그인 지속성 로컬 구현
 
 - **작업 목적**: 새 Streamlit 세션·탭 재접속에서 Supabase 로그인이 사라지는 문제를 해결하고 명시적 로그아웃을 제공한다. David가 승인한 최소 XSS escape를 포함한다.

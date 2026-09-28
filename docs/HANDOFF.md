@@ -21,6 +21,15 @@
 
 ## 항목
 
+## GitHub 연결 가능한 읽담 담당자가 이어받을 작업 — 로그인 지속성 배포 재개, 원격 DNS 재차 실패 (2026-09-28, Codex)
+
+- **무엇을 했는지**: David의 배포 재개 요청에 따라 읽담 최신 HANDOFF/WORKLOG, 통합 Reading Chunk 계약, clean main과 원본 사용자 작업트리를 대조했다. 이번 인증 배포는 오늘의 서재·통합 계약 변경이 아니다. 실제 GitHub `git ls-remote`로 origin/main과 deploy/main을 각각 조회했으나 둘 다 `Could not resolve host: github.com`으로 실패했다.
+- **어디까지 끝났는지**: 기존 기능 `70810d0`과 기록 `9b22c5d`가 local main에 있고 작업트리는 clean이다. 직전 21개 인증 테스트·전체 269개·compile·diff PASS 근거는 유지한다. 원격 SHA 확인·origin push·deploy push·Streamlit 갱신·Safari 실제 확인은 **이번 작업에서 진행되지 않았다**. 로컬 추적 ref origin/main=`93479a5`, deploy/main=`3f42a52`는 실제 원격 현재값으로 단정하지 않는다. 이 항목과 WORKLOG만 후속 기록 커밋으로 남긴다.
+- **확인해야 할 것**: GitHub에 접속되는 환경에서 실제 origin/main·deploy/main SHA를 각각 조회한다. 예상 계보와 양쪽 fast-forward 가능 여부가 확인될 때만 local main을 일반 push하고 실제 원격을 재조회한다. 배포 후 Streamlit 갱신 확인 및 David Safari 로그인 지속성·로그아웃 검증이 남는다.
+- **다음 작업자**: GitHub 연결 가능한 읽담 담당자. 다음 작업 1개는 **두 원격의 실제 SHA 조회 후 안전한 fast-forward 배포**다.
+- **브랜치 / 커밋 / 배포 상태**: `main` / 기능 `70810d0`, 기존 기록 `9b22c5d` + 이 기록 커밋 / 원격·운영 미반영.
+- **보류·실패·중단 이유**: 현재 Codex 실행환경의 GitHub DNS 해석 실패. 원본 `codex/reading-chunks-1a`의 David 소유 기획문서 수정 1건·미추적 1건과 상위 공동 저장소의 기존 미추적 항목은 그대로 보존했다. 제품 코드·오늘의 서재·통합 계약·운영 DB·iCloud 변경은 없다.
+
 ## GitHub 연결이 정상인 읽담 담당자가 이어받을 작업 — 로그인 지속성 로컬 구현 완료, 원격 반영 대기 (2026-09-28, Codex)
 
 - **무엇을 했는지**: Intel i9 Mac의 clean main worktree `/private/tmp/readdam-login-persist`에서 David가 승인한 Supabase 로그인 지속성·사이드바 로그아웃·책장 HTML 제목 escape를 구현했다. 로그인 성공 또는 새 세션 복구 시 refresh token을 `__Host-readdam-refresh` 쿠키로 쓰고, 활성 세션의 토큰 만료 전에도 refresh/rotation을 처리한다. 실패하면 쿠키·로컬 인증 상태를 지우고 로그인 화면으로 돌아간다. 비밀번호는 지속 저장하지 않는다.
