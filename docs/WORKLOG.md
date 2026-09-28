@@ -8,6 +8,17 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Claude Code: 도서관정보나루 신간 검색 누락 진단
+
+- **작업 목적**: `희망을 짓는다는 것`(성서유니온, 2026-06-22, ISBN `9788932550817`)이 읽담 검색에서 나오지 않는 원인을 upstream과 읽담 처리 단계로 나눠 확인한다.
+- **실행환경**: Intel i9 Mac 실제 Terminal / Claude Code, `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main` `main` `f836a89`. 스크립트는 세션 scratchpad에서만 실행했다. `.env`의 `DATA4LIBRARY_AUTH_KEY`만 읽었고 값은 출력하지 않았다.
+- **현재 검색**: `lib/library_api.py` `http://data4library.kr/api/srchBooks`, `keyword=<입력>`, `pageNo=1`, `pageSize=10`, 페이지 이동 없음, cache 없음. 제목이 없는 항목만 제외하고 제목(` :` 부제 분리)·저자/역자(`;`·`역할:` 파싱)·출판사·isbn13·표지를 담는다. UI 문구는 “제목으로 검색”이다.
+- **upstream 재현**: 제목을 `keyword`로 보내면 numFound 1이지만 다른 책(`대한민국에서 봉급쟁이로 산다는 것`)이 나오고 대상은 없다. 제목+저자를 `keyword`로 보내면 152건 중 상위 100건에 대상이 없다. 저자를 `keyword`로 보내면 151건 전체에 대상이 없다. ISBN을 `keyword`로 보내면 0건이다. 반면 `title=`·`title+author`·`author=엘렌 데이비스`(4건)·`author=오스틴 매키버 데니스`·`isbn13=`는 모두 **1위**, `srchDtlList`(isbn13)에서도 상세·표지 URL이 조회된다. 읽담 `search_books` 최종 결과는 네 입력 모두 대상 0건이다.
+- **원인 근거**: 같은 출판사 최근 도서 12건을 제목으로 비교하니 `keyword` 결과에는 12/12 모두 대상이 없었고, `title`에서는 모두 1건 이상 나왔다. `keyword`는 제목 검색 파라미터가 아니다. 판정 **B**(query 파라미터). pagination(C)·후처리 filter(D)는 원인이 아니다. 부수로 E 성격의 이슈도 있다: upstream authors가 `엘렌 데이비스,윤상필 옮김`이라 현재 파서가 역자를 저자 칸에 넣고, 공저자 `오스틴 매키버 데니스`는 upstream authors에 없다(author 검색으로는 1위). upstream 출판사명은 `한국성서유니온선교회`.
+- **fallback 평가**: 원인이 A가 아니므로 이번 건에는 필요 없다. 국립중앙도서관 ISBN 서지정보 API는 공개 문서 기준으로 제목·저자·출판사·ISBN·출판예정일/실제 출판일·쪽수(`PAGE`)·표지(`TITLE_URL`, 비어 있는 경우가 많음)를 준다. 별도 인증키(cert_key)가 필요하다. 실제 호출은 키가 없어 검증하지 않았다.
+- **커밋/배포 여부**: 코드·설정·API key·배포 변경 0. 이 기록만 local main 문서 커밋·미push.
+- **다음 작업**: David가 `keyword`→`title`(ISBN 입력 시 `isbn13`) 최소 수정 승인 여부를 결정한다.
+
 ## 2026-09-28 — Claude Code: 책장 상단 새 책 추가 origin/deploy 동기화
 
 - **작업 목적**: local main `542dbc8`(새 책 추가 `dcf640c` 포함)을 origin/main·deploy/main에 반영하고 Streamlit 운영 갱신을 확인한다.

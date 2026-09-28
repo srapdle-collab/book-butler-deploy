@@ -21,6 +21,15 @@
 
 ## 항목
 
+## David가 이어받을 작업 — 신간 검색 누락 원인은 query 파라미터(B), 수정 승인 판단 (2026-09-28, Claude Code)
+
+- **무엇을 했는지**: Intel i9 Mac 실제 Terminal / Claude Code에서 `희망을 짓는다는 것`(ISBN `9788932550817`) 검색 누락을 진단했다. worktree `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`, `main`, 시작 HEAD `f836a89`. 읽담과 같은 `srchBooks` endpoint와 같은 인증키로 upstream을 재현했다(키 비출력).
+- **어디까지 끝났는지**: 원인 판정 **B**(upstream에는 있으나 읽담 query 방식 때문에 못 찾음). 읽담은 입력 문자열을 `keyword=`로만 보낸다. 이 파라미터로는 대상 책이 나오지 않지만 `title=`·`author=`·`isbn13=`·`srchDtlList`에서는 1위로 나온다. 코드·배포·API key 변경은 0이다.
+- **확인해야 할 것**: 최소 수정 방향(`keyword` 대신 `title`, ISBN 형태 입력이면 `isbn13` 사용)을 David가 승인할지 결정한다. 부수 문제로, upstream `authors`가 `엘렌 데이비스,윤상필 옮김` 형식이라 현재 파서가 역자까지 저자 칸에 넣는다. upstream에는 공저자 `오스틴 매키버 데니스`도 없다. 쪽수는 data4library가 제공하지 않아 현재도 수동 입력이다.
+- **다음 작업자**: David(검색 파라미터 최소 수정 승인 여부 결정).
+- **브랜치 / 커밋 / 배포 상태**: `main`, 이번 기록은 local main 후속 문서 커밋·미push. origin/main=deploy/main=`542dbc8` 그대로.
+- **보류·실패·중단 이유**: 진단 작업이라 수정하지 않았다. 원인이 A가 아니므로 국립중앙도서관 fallback은 이번 누락을 해결하는 데 필요하지 않다. 사용자 기획문서 2건은 불변.
+
 ## David가 이어받을 작업 — 542dbc8 origin/deploy 반영, 운영 화면 smoke 수동 확인 필요 (2026-09-28, Claude Code)
 
 - **무엇을 했는지**: 실행환경은 Intel i9 Mac 실제 Terminal / Claude Code. worktree `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`, branch `main`, 시작 HEAD `542dbc8`. 실제 원격 재조회 origin/main=deploy/main=`6a66872`(예상 일치)와 fast-forward 관계, 차이 5개 파일(`app.py`·`lib/shelf_ui.py`·책장 테스트·문서)을 확인하고 일반 push했다.
