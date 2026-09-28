@@ -308,6 +308,9 @@ def find_books_by_title_author(
 def insert_book(conn: sqlite3.Connection, book: dict[str, Any]) -> str:
     """3.1(Book) 구조에 맞춰 새 책을 저장하고 id를 반환한다."""
     book_id = book.get("id") or str(uuid.uuid4())
+    start_date = book.get("start_date")
+    if book.get("status") == "읽는 중" and start_date is None:
+        start_date = int(time.time())
     conn.execute(
         """
         INSERT INTO books (
@@ -330,7 +333,7 @@ def insert_book(conn: sqlite3.Connection, book: dict[str, Any]) -> str:
             book.get("rating", 0),
             book.get("status", "위시리스트"),
             book.get("read_count", 0),
-            book.get("start_date"),
+            start_date,
             book.get("finish_date"),
             None,
             book.get("cover_url"),

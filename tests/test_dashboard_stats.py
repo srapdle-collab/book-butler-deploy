@@ -48,6 +48,27 @@ def test_shelf_counts_are_dynamic_and_reading_all_links(isolated_app):
     assert at.session_state['selected_book_id']=='book-1'
 
 
+def test_new_reading_book_enters_recent_preview_without_activity(isolated_app):
+    """A newly registered reading book must not sort behind every dated book."""
+    conn = db.get_connection()
+    try:
+        for number in range(2, 9):
+            db.insert_book(conn, {
+                'id': f'older-{number}', 'title': f'기존 독서 {number}',
+                'status': '읽는 중', 'start_date': 1_000_000_000 + number,
+            })
+        db.insert_book(conn, {
+            'id': 'new-reading', 'title': '희망을 짓는다는 것',
+            'status': '읽는 중', 'category': '분별력',
+        })
+        new_book = db.get_book(conn, 'new-reading')
+        preview_ids = db.list_books(conn, status='읽는 중').head(6)['id'].tolist()
+        assert new_book['start_date'] is not None
+        assert 'new-reading' in preview_ids
+    finally:
+        conn.close()
+
+
 def test_shelf_top_add_book_uses_the_existing_add_book_flow(isolated_app):
     """상단 바로가기는 별도 로직 없이 같은 책 추가 함수를 연다."""
     at = AppTest.from_file(APP_PATH).run()
