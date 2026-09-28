@@ -8,6 +8,17 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Claude Code: i9 복귀 3층 정본 대조, 로그인 지속성 계획
+
+- **작업 목적**: M1→i9 이동 뒤 읽담·오늘의 서재·통합 계약의 최신 기록을 실제 Git과 대조해 정본을 복원하고, 로그인 지속성 작업 계획을 세운다.
+- **실행환경**: Intel i9 Mac / Claude Code, worktree `/private/tmp/readdam-login-persist`(`main` `3f42a52`).
+- **실제 확인**: 읽담 origin/main = deploy/main = `3f42a52`(ls-remote), local main은 `0cbe841`→`3f42a52` ff다. 오늘의 서재 main은 `28cfe37`(remote 없음), 공동 main은 `4a610de`(remote 없음)이고, 공동 `188ac7b`는 미반영이다. D1 `0004` blocker는 세 층 기록이 일치한다.
+- **로그인 조사**: `app.py:require_authenticated_user`는 `auth.sign_in`의 user·access token만 `st.session_state`에 저장한다. refresh token은 저장하지 않고 로그아웃 기능도 없다. Streamlit 1.50 `st.context.cookies`와 supabase-py 2.31 `refresh_session(refresh_token)`은 사용 가능함을 확인했다.
+- **실제 변경 내용**: 문서만 바뀌었다(HANDOFF·WORKLOG). 코드 변경은 없다.
+- **테스트 결과**: 해당 없음.
+- **커밋/배포 여부**: 이 기록 커밋은 origin/main에만 push한다. deploy는 그대로다.
+- **남은 작업**: 로그인 지속성 구현은 David 승인 뒤 진행한다.
+
 ## 2026-09-28 — Claude Code(Orca): 실사용 성능 감사 및 최소 고속화
 
 - **작업 목적**: David가 실제 읽담 사용 중 "느려서 이렇게 쓰다가는 그냥 안 쓸 것 같다"고 판단. 기능 추가보다 우선하는 P0로 받아, 추측 없이 실측 기반으로 병목을 찾고 안전한 것만 고쳤다. 로그인 지속성·중복 방지 확장·새 API·새 Reading Chunk 기능·오늘의 서재·예화창고 자동화·UI 개편은 이번에 하지 않았다(요청대로 금지).

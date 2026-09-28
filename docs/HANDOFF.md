@@ -21,6 +21,21 @@
 
 ## 항목
 
+## David가 이어받을 작업 — i9 복귀 정본 대조 완료, 로그인 지속성 계획 승인 대기 (2026-09-28, Claude Code)
+
+- **무엇을 했는지**: 실행환경은 Intel i9 Mac 실제 Terminal / Claude Code다. David가 M1에서 i9로 옮겨온 뒤 3층(읽담·오늘의 서재·통합 계약) 기록을 실제 Git과 대조했다. 코드 변경은 없다.
+- **정본 대조 결과(일치)**
+  - **읽담**: 실제 `git ls-remote` 결과 origin/main = deploy/main = `3f42a52`로, David 전달값과 같다. 성능 개선 `679cb6a`(사이드바 이중 rerun 제거·category 캐시·Chunk 중복 조회 제거, 256 tests)와 그 앞의 중복 책 방지 `0fc97e2`, 책장 NaN 핫픽스 `f4f3179`를 포함한다. i9 local main은 `0cbe841`에서 `3f42a52`로 fast-forward만 했다. 남은 dispatch/`st.rerun` 구조개편은 David 체감상 충분해 **보류**다.
+  - **오늘의 서재**: 독립 저장소이고 remote가 없다. local `main` = `28cfe37`(v33 + Reading Chunk RC-only 통합, 141 tests). 운영 Sites는 v33 그대로다. 원본 작업트리는 `codex/apple-reminder-roundtrip`(`9430ce6`, 과거 상태)에 있고, 미추적 `.claude/`와 `.command` 2개가 있다.
+  - **통합(동하비서 `CROSS_PROJECT_HANDOFF.md`)**: 공동 main은 `4a610de`(remote 없음)다. 최신 절은 "1차-B 운영 대기·2차 실제 dry-run PASS"다. `codex/reading-chunk-category-contract`의 `188ac7b`(카테고리 계약 +7줄)는 공동 main에 미반영이다.
+  - **공통 blocker**: Sites 관리형 D1 `0004` 공식 migration lifecycle 미확인 → 1차-B 운영 연결 BLOCKED(두 저장소 기록 일치). 2차 실제 export는 대상 0건이라 미실행이다.
+- **환경 주의**: 읽담 `.git`의 worktree 목록에 M1 경로(`/private/tmp/readdam-*`, 오늘의 서재의 `/Users/srapdlem1/...`)가 prunable로 보인다. 두 Mac이 같은 `.git`을 동기화(iCloud Documents 추정)해 공유하는 것으로 보인다. 두 Mac에서 동시에 git 작업을 하면 index/ref가 깨질 위험이 있으니 한 번에 한 Mac에서만 작업한다. prunable 항목은 정리하지 않았다. i9 원본 `.venv`는 arm64 전용이라 테스트는 세션 임시 venv로 돌린다.
+- **다음 작업(승인 대기): 로그인 지속성**
+  - **원인**: 로그인 결과를 `st.session_state`(브라우저 연결 1개 수명)에만 두고 Supabase refresh token은 버린다. 앱을 다시 열면 새 세션이 되어 로그인 화면이 다시 나온다. 로그아웃 기능도 없다.
+  - **계획**: 로그인 성공 시 Supabase refresh token을 앱 도메인 1st-party cookie(Secure·SameSite=Strict·약 30일)로 저장한다(기존 `components.html` 부모 창 스크립트 방식 재사용, 새 의존성 없음). 새 세션에서는 `st.context.cookies`로 읽어 `auth.refresh_session`으로 복원하고, 회전된 새 refresh token으로 cookie를 갱신한다. 실패·만료 시 cookie를 지우고 기존 로그인 화면으로 돌아간다. 사이드바에 로그아웃(cookie 삭제 + Supabase sign_out)을 추가한다. schema·Secrets·오늘의 서재 변경은 없다.
+- **브랜치 / 커밋 / 배포 상태**: `main`, 이 기록 커밋은 origin/main에만 push한다. deploy/main은 문서만 바뀌는 재배포로 운영 세션이 끊기지 않게 `3f42a52`로 둔다. worktree는 `/private/tmp/readdam-login-persist`다.
+- **보류·실패·중단 이유**: 구현은 David 승인 대기다. 원본 작업트리(`codex/reading-chunks-1a`)의 사용자 기획문서 2건(`도서비서_기획문서.md` M, `도서비서_기획문서 2.md` ??)은 불변이다.
+
 ## 최신 — 실사용 성능 감사 및 최소 고속화 완료, 남은 병목 보고 (2026-09-28, Claude Code/Orca)
 
 - **무엇을 했는지**: David가 "느려서 이렇게 쓰다가는 안 쓸 것 같다"고 한 것을 P0로 받아 실제 병목을 계측했다(추측 아님). 운영과 같은 규모(705권/5,666건)의 로컬 SQLite에서 `sqlite3.set_trace_callback`으로 SQL 실행 횟수를, 운영 Postgres에는 읽기 전용으로 접속해 실제 왕복 지연시간을 실측했다. 가장 큰 병목은 **버튼 클릭마다 `db.get_connection()`(스키마 검사 포함)이 정확히 2번씩 실행**되는 것이었다(직접 계측으로 확인: 클릭 1회당 connect 호출이 1→2로 늘어남). 원인은 이미 클릭이 스크립트를 한 번 재실행시켰는데 핸들러 안에서 다시 `st.rerun()`을 불러 그 실행을 버리고 통째로 한 번 더 도는 패턴. 사이드바 네비게이션처럼 최종 view 분기보다 먼저 실행되는 버튼은 `st.rerun()` 없이도 같은 실행 안에서 분기가 갱신된 `session_state.view`를 그대로 읽으므로 안전하게 제거했다. 제거 과정에서 버튼에 명시적 `key`가 없어 `type`(active 여부로 매번 바뀜)만으로 위젯을 식별하다 연속 두 번째 클릭이 반영 안 되는 문제를 발견해 `key=f"nav_{label}"`로 같이 고쳤다(AppTest로 재현·수정 확인). 추가로 책장의 `list_categories` 중복 호출(화면당 2~3회, DB 식별자 포함 `st.cache_data(ttl=10)`로 캐싱, DB 섞임 없음을 직접 검증)과 Reading Chunk의 `list_for_book` 중복 호출(태그 있는/없는 버전 각각 쿼리 → 한 번만 조회 후 파이썬에서 필터)도 고쳤다.
