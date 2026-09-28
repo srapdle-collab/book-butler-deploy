@@ -21,6 +21,16 @@
 
 ## 항목
 
+## David가 이어받을 작업 — 읽담 Reading Chunk main을 origin에 보존 (2026-09-28, Codex)
+
+- **무엇을 했는지**: 읽담 local main `8e15c1f`와 실제 원격 origin/main `74d3c9d`를 대조해 fast-forward 관계와 깨끗한 main worktree를 확인한 뒤 일반 push로 동기화했다. `deploy/main`은 건드리지 않았다.
+- **어디까지 끝났는지**: 읽담 측 1차-B·2차는 local/origin 코드·문서 보존 완료. 1차-A COMPLETE. 1차-B 운영 연결은 Sites 관리형 D1 `0004` 공식 migration lifecycle 미확인으로 BLOCKED. 2차 실제 export는 eligible illustration Chunk 0건으로 미실행이다. 오늘의 서재와 공동 저장소에는 현재 `origin` remote가 없어 이번에 push하지 않았다.
+- **확인해야 할 것**: 오늘의 서재 원격 Source of Truth를 동기화하려면 David가 기존 공식 원격 경로를 확인해야 한다. 임의로 remote를 추가하지 않는다. 1차-B 운영 blocker와 2차 export 별도 관문은 그대로다.
+- **다음 작업자/작업**: David가 오늘의 서재의 승인된 원격 저장소/동기화 경로를 확인한다.
+- **브랜치 / 커밋 / 배포 상태**: `main`·`origin/main`은 제품·문서 `8e15c1f`까지 동기화했고 이번 push 상태 기록은 후속 문서 커밋이다. deploy/main·Streamlit 운영 배포·Secrets·운영 DB·iCloud 변경 없음.
+- **보류·실패·중단 이유**: 오늘의 서재/공동은 origin remote 미설정. 1차-B 운영 D1 blocker 유지. 원본 읽담 작업트리의 사용자 문서 변경은 보존했다.
+
+
 ## David가 이어받을 작업 — Reading Chunk 1차-B·2차 local main 정본화 완료 (2026-09-28, Codex)
 
 - **무엇을 했는지**: 읽담 main `74d3c9d` 위에 Reading Chunk 1차-B ingest·pull·receipt·책 snapshot과 2차 예화창고 exporter·테스트·설계/운영 문서만 선별 반영했다. 후보 브랜치의 Reading Chunk 외 nan 버그 문서 커밋은 포함하지 않았다. 공동 정본은 공동 main `4a610de`의 `CROSS_PROJECT_HANDOFF.md`다.

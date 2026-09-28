@@ -8,6 +8,13 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: 읽담 Reading Chunk local main을 origin/main에 동기화
+
+- **목적/변경**: local main `8e15c1f`와 실제 원격 origin/main `74d3c9d`가 fast-forward 관계이고 별도 main worktree가 clean임을 확인했다. `git push origin main:main`으로 읽담의 Reading Chunk 1차-B·2차 코드/문서를 원격에 보존했다. 상태 인계를 HANDOFF/WORKLOG에 추가했다.
+- **검증/보호**: push 뒤 main과 origin/main의 SHA 일치 및 작업트리 상태를 확인한다. 기존 원본 작업트리의 사용자 기획문서 2건과 deploy/main은 불변이다. 오늘의 서재·공동 저장소는 origin remote가 없어서 push하지 않았고 remote를 임의 설정하지 않았다.
+- **상태/남은 일**: 읽담 측 1차-B·2차는 local/origin 보존 완료. 전체 1차-B origin 동기화는 오늘의 서재 원격 미설정으로 미완료이며 운영 연결도 Sites 관리형 D1 `0004` 공식 lifecycle 미확인으로 BLOCKED다. 2차 실제 export는 eligible illustration Chunk 0건으로 미실행이다. Streamlit/Sites 배포·Secrets·DB/iCloud write 0건. 다음은 오늘의 서재의 승인된 원격 동기화 경로 확인이다.
+
+
 ## 2026-09-28 — Codex: Reading Chunk 1차-B·2차 local main 정본화
 
 - **목적/범위**: 기존 main `74d3c9d`와 깨끗한 후보 `90fe1c2`를 대조하고 Reading Chunk 변경만 별도 main worktree에서 반영했다. 후보의 기존 활동 nan 관련 문서 커밋 및 다른 작업은 가져오지 않았다. 원본 작업트리의 수정된 사용자 기획문서와 미추적 문서는 건드리지 않았다.
