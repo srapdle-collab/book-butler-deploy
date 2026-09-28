@@ -78,4 +78,7 @@ def test_parsing_and_titleless_filter_are_unchanged(monkeypatch):
         "publisher": "한국성서유니온선교회",
         "isbn": "9788932550817",
         "cover_url": "https://example.test/cover.jpg",
+        "publication_year": None,
+        "class_no": None,
+        "class_nm": None,
     }]

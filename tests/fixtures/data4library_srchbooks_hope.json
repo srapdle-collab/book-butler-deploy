@@ -1,0 +1,34 @@
+{
+  "response": {
+    "docs": [
+      {
+        "doc": {
+          "bookname": "희망을 짓는다는 것 :성경의 언어로 쌓아 올린 51편의 메시지 ",
+          "authors": "엘렌 데이비스,윤상필 옮김",
+          "publisher": "한국성서유니온선교회",
+          "publication_year": "2026",
+          "isbn13": "9788932550817",
+          "addition_symbol": "03230",
+          "vol": "",
+          "class_no": "235.2",
+          "class_nm": "종교 > 기독교 > 포교, 교육, 교화활동, 목회학",
+          "bookImageURL": "https://shopping-phinf.pstatic.net/main_6051723/60517234802.20260620071201.jpg",
+          "bookDtlUrl": "https://data4library.kr/bookV?seq=7288812",
+          "loan_count": "22"
+        }
+      },
+      {
+        "doc": {
+          "bookname": "두 번째 후보 책",
+          "authors": "지은이: 홍길동 ;옮긴이: 김역자, 이역자",
+          "publisher": "두번째출판사",
+          "publication_year": "2020",
+          "isbn13": "9791100000002",
+          "class_no": "",
+          "class_nm": "",
+          "bookImageURL": ""
+        }
+      }
+    ]
+  }
+}

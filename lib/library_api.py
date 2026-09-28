@@ -21,28 +21,53 @@ def _parse_title(raw: str | None) -> tuple[str | None, str | None]:
     return raw.strip(), None
 
 
+_AUTHOR_ROLES = ("지은이", "엮은이", "저자")
+_TRANSLATOR_ROLES = ("옮긴이", "역자")
+# 이름 뒤에 공백으로 붙는 명시적 역할 표기만 인정한다. 그 밖의 표기는 추측하지 않는다.
+_AUTHOR_SUFFIXES = ("지음", "저", "공저", "엮음", "글")
+_TRANSLATOR_SUFFIXES = ("옮김", "역", "번역", "공역", "공옮김")
+
+
 def _parse_authors(raw: str | None) -> tuple[str | None, str | None]:
-    """'지은이: A ;옮긴이: B' 형태에서 저자/역자를 분리한다."""
+    """저자 문자열에서 저자/역자를 분리한다.
+
+    지원 형식: '지은이: A ;옮긴이: B', 'A 지음 ;B 옮김', 'A,B 옮김'.
+    역할 표기가 없는 이름은 저자로 두고, 역자는 명시적 표기가 있을 때만 분리한다.
+    """
     if not raw:
         return None, None
-    author = None
-    translator = None
-    for part in raw.split(";"):
-        part = part.strip()
-        if not part:
+    authors: list[str] = []
+    translators: list[str] = []
+
+    def add(target: list[str], name: str) -> None:
+        name = name.strip()
+        if name and name not in target:
+            target.append(name)
+
+    for segment in raw.split(";"):
+        segment = segment.strip()
+        if not segment:
             continue
-        if ":" in part:
-            role, name = part.split(":", 1)
-            role, name = role.strip(), name.strip()
-        else:
-            role, name = "", part
-        if role in ("지은이", "엮은이", "저자"):
-            author = f"{author}, {name}" if author else name
-        elif role in ("옮긴이", "역자"):
-            translator = f"{translator}, {name}" if translator else name
-        elif author is None:
-            author = name
-    return author, translator
+        if ":" in segment:
+            role, names = (x.strip() for x in segment.split(":", 1))
+            if role in _TRANSLATOR_ROLES:
+                for name in names.split(","):
+                    add(translators, name)
+            elif role in _AUTHOR_ROLES or not authors:
+                for name in names.split(","):
+                    add(authors, name)
+            continue
+        for token in segment.split(","):
+            token = token.strip()
+            name, _, marker = token.rpartition(" ")
+            marker = marker.replace("[", "").replace("]", "")  # '[지음]', '[공]옮김'
+            if name and marker in _TRANSLATOR_SUFFIXES:
+                add(translators, name)
+            elif name and marker in _AUTHOR_SUFFIXES:
+                add(authors, name)
+            else:
+                add(authors, token)
+    return ", ".join(authors) or None, ", ".join(translators) or None
 
 
 def _normalize_isbn13(raw: str) -> str | None:
@@ -109,6 +134,10 @@ def search_books(keyword: str, auth_key: str, page_size: int = 10) -> list[dict]
                 "publisher": doc.get("publisher") or None,
                 "isbn": doc.get("isbn13") or None,
                 "cover_url": doc.get("bookImageURL") or None,
+                # 아래 값은 DB에 칸이 없거나 개인 카테고리 체계와 달라 참고로만 보여준다.
+                "publication_year": (doc.get("publication_year") or "").strip() or None,
+                "class_no": (doc.get("class_no") or "").strip() or None,
+                "class_nm": (doc.get("class_nm") or "").strip() or None,
             }
         )
     return candidates

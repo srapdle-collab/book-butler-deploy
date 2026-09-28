@@ -149,6 +149,31 @@ def render_shelf(conn):
     render(conn, goto, render_add_book_form)
 
 
+AUTOFILL_FIELDS = ("title", "subtitle", "author", "translator", "publisher", "isbn")
+
+
+def _autofill_add_book_fields(selected: dict, key) -> None:
+    """선택한 검색 결과로 빈 칸(또는 직전에 자동입력한 그대로인 칸)을 채운다.
+
+    폼 위젯은 key로 상태를 유지하므로 value= 인자로는 선택 변경이 반영되지 않는다.
+    사용자가 직접 입력·수정한 값은 덮어쓰지 않는다.
+    """
+    marker_key, filled_key = key("autofill_source"), key("autofill_values")
+    source = (selected.get("isbn"), selected.get("title"))
+    if st.session_state.get(marker_key) == source:
+        return
+    previous = st.session_state.get(filled_key) or {}
+    filled = {}
+    for field in AUTOFILL_FIELDS:
+        widget_key = key(field)
+        current = st.session_state.get(widget_key) or ""
+        if current.strip() and current != previous.get(field):
+            continue
+        st.session_state[widget_key] = filled[field] = selected.get(field) or ""
+    st.session_state[marker_key] = source
+    st.session_state[filled_key] = filled
+
+
 def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
     """Render one add-book surface while sharing search and save behavior."""
     def key(name: str) -> str:
@@ -190,22 +215,31 @@ def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
             key=key("pick"),
         )
         selected = candidates[pick]
-        cover_col, _ = st.columns([1, 4])
+        _autofill_add_book_fields(selected, key)
+        cover_col, info_col = st.columns([1, 4])
         with cover_col:
             if selected.get("cover_url"):
                 st.image(selected["cover_url"], width="stretch")
             else:
                 st.markdown("*(표지 없음 - 플레이스홀더)*")
+        with info_col:
+            reference = []
+            if selected.get("publication_year"):
+                reference.append(f"출간 {selected['publication_year']}년")
+            if selected.get("class_nm"):
+                reference.append(f"도서관 분류 {selected['class_nm']} ({selected.get('class_no') or '-'})")
+            if reference:
+                st.caption(" · ".join(reference) + " — 참고용, 저장되지 않음")
 
     st.markdown("**세부 정보를 확인·수정한 뒤 저장하세요.**")
     categories = db.list_categories(conn)
     with st.form(key("form"), clear_on_submit=True):
-        title = st.text_input("제목", value=(selected or {}).get("title") or "", key=key("title"))
-        subtitle = st.text_input("부제", value=(selected or {}).get("subtitle") or "", key=key("subtitle"))
-        author = st.text_input("저자", value=(selected or {}).get("author") or "", key=key("author"))
-        translator = st.text_input("역자", value=(selected or {}).get("translator") or "", key=key("translator"))
-        publisher = st.text_input("출판사", value=(selected or {}).get("publisher") or "", key=key("publisher"))
-        isbn = st.text_input("ISBN", value=(selected or {}).get("isbn") or "", key=key("isbn"))
+        title = st.text_input("제목", key=key("title"))
+        subtitle = st.text_input("부제", key=key("subtitle"))
+        author = st.text_input("저자", key=key("author"))
+        translator = st.text_input("역자", key=key("translator"))
+        publisher = st.text_input("출판사", key=key("publisher"))
+        isbn = st.text_input("ISBN", key=key("isbn"))
         category_options = ["(미지정)"] + categories + ["직접 입력"]
         category_choice = st.selectbox("카테고리", category_options, key=key("category"))
         custom_category = st.text_input("카테고리 직접 입력", key=key("custom_category"))
@@ -241,6 +275,8 @@ def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
             )
             st.success(f"'{title.strip()}'을(를) 책장에 추가했습니다.")
             st.session_state[candidates_key] = []
+            st.session_state.pop(key("autofill_source"), None)
+            st.session_state.pop(key("autofill_values"), None)
             st.rerun()
 
 
