@@ -21,6 +21,17 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — Safari 로그인 실패·읽는 중 누락 운영 증거 확보 (2026-09-28, Codex)
+
+- **무엇을 했는지**: 아래의 “배포 대기” 기록은 David가 실제 Mac Terminal에서 origin/main과 deploy/main에 `06bc5e1`을 각각 정상 push한 사실로 대체한다. 이 세션의 local main·origin/main·deploy/main 추적 ref도 시작 시 모두 `06bc5e1`이었다. 다만 Codex 환경의 GitHub DNS 실패로 원격 현재 SHA를 독립 재조회하지 못했고 Streamlit 실행 SHA도 직접 확인하지 못했다. David의 실제 Safari 결과는 **로그인할 때마다 다시 로그인 화면: LOCAL TEST PASS / 사용자 push 후 REAL SAFARI FAIL**이다.
+- **로그인 감사**: 로그인→refresh token 획득·session_state 저장→rerun 뒤 `components.html`에서 부모창 쿠키 write→새 Streamlit 세션의 `st.context.cookies` read→Supabase refresh→session_state 복원 경로를 추적했다. 기존 21개 테스트는 쿠키 read/write와 Supabase 호출을 mock으로 대체했으므로 Safari에서 쿠키가 실제 설정·전달되는지를 검증하지 않는다. 현재 cookie write/read/refresh 중 어느 단계가 실패했는지 **미확정**이다. 운영 브라우저 탭 자동 접근은 사용자가 거부했으며 우회하지 않는다. David에게 쿠키 **이름의 존재 여부만**(값 제외) 로그인 직후·재접속 뒤 확인해 달라고 요청했다. 인증 코드 변경은 없다.
+- **책장 감사·수정**: 이전 읽기 전용 운영 감사에는 「희망을 짓는다는 것」 2권이 위시리스트/읽는 중으로 기록돼 있다(현재 각 행의 id·상태·카테고리는 재확인 불가). 이번 운영 DB read-only 연결은 Supabase pooler 호스트 DNS 실패로 SQL 실행 전 중단됐다. 코드에서 새 책을 `읽는 중`으로 저장해도 `start_date`가 NULL이고, ‘이어서 읽기’는 최근순 `head(6)`만 보이는 결함을 합성 DB RED로 재현했다. 기능 `6064b1b`은 **앞으로 새로 저장할 읽는 중 책의 시작일만 기록**한다(기존 운영 책 데이터·두 중복 행은 불변). 이 결함이 현재 2권 중 읽는 중 행의 실제 누락 원인인지는 start_date·정렬 순위 확인 전까지 미확정이다. 전체 읽는 중 목록은 별도 버튼으로 접근 가능하며, 중복 자체를 숨기는 쿼리는 없다.
+- **어디까지 끝났는지**: 기능 `6064b1b` local main 반영, 신규 RED→GREEN, 전체 **270 PASS**, Python compile·diff check PASS. HANDOFF·WORKLOG·PROJECT는 후속 기록 커밋. 이번 작업의 origin push·deploy push·Streamlit 갱신·운영 DB/iCloud write는 0이다. 원본 사용자 기획문서 2건과 상위 공동 저장소는 보존했고 오늘의 서재·통합 계약은 변경하지 않았다.
+- **확인해야 할 것**: Safari에서 쿠키 이름이 로그인 직후와 재접속 뒤 존재하는지(값은 절대 공유하지 않음) 확인한다. GitHub/DB DNS가 정상인 환경에서 두 원격 실제 SHA와 운영 책 2행의 상태·시작일·최근활동·상단 6위 내 순위를 읽기 전용으로 확인한다. 해당 책의 삭제·병합·상태·시작일 수정은 David 결정 전 금지한다.
+- **다음 작업자 / 다음 작업 1개**: 운영 증거 확보 가능한 읽담 담당자 — **Safari 쿠키 존재 여부와 두 책의 read-only 상태·정렬 순위를 확보해 두 원인을 확정**한다.
+- **브랜치 / 커밋 / 배포 상태**: clean `main` / 기존 배포 `06bc5e1`, 로컬 기능 `6064b1b` + 이 기록 커밋 / 신규 수정은 origin·deploy 미반영. 운영 로그인 지속성은 실패, 새 책 정렬 수정은 운영 미확인.
+- **보류·실패·중단 이유**: 운영 브라우저 접근 거부 및 GitHub·Supabase DB 호스트 DNS 실패로 실제 cookie/DB 값 증거가 없다. 대규모 인증 변경·운영 데이터 정리는 착수하지 않았다.
+
 ## GitHub 연결 가능한 읽담 담당자가 이어받을 작업 — 로그인 지속성 배포 재개, 원격 DNS 재차 실패 (2026-09-28, Codex)
 
 - **무엇을 했는지**: David의 배포 재개 요청에 따라 읽담 최신 HANDOFF/WORKLOG, 통합 Reading Chunk 계약, clean main과 원본 사용자 작업트리를 대조했다. 이번 인증 배포는 오늘의 서재·통합 계약 변경이 아니다. 실제 GitHub `git ls-remote`로 origin/main과 deploy/main을 각각 조회했으나 둘 다 `Could not resolve host: github.com`으로 실패했다.

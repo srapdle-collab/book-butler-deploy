@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: P0 Safari 로그인 실패·읽는 중 책 누락 감사
+
+- **작업 목적·정본**: David의 실제 Safari 로그인 지속성 FAIL과 「희망을 짓는다는 것」 읽는 중 목록 누락을 분리 진단한다. Intel i9, clean `/private/tmp/readdam-login-persist`의 `main`=`06bc5e1`에서 시작. David가 이전 DNS 실패 뒤 실제 Terminal에서 origin/main `93479a5..06bc5e1`, deploy/main `3f42a52..06bc5e1` 일반 push 성공을 전달했다. 시작 시 로컬 두 추적 ref 모두 `06bc5e1`이었으나 이번 세션의 두 `git ls-remote`는 github.com DNS 실패라 원격 현재 SHA를 독립 확인하지 못했다. 운영 실행 SHA도 미확인이다. 읽담·통합 기록을 대조했고 프로젝트 간 계약 변경은 없다.
+- **로그인 경로 감사**: `auth.sign_in`은 Supabase refresh token을 반환하고, `app.py`는 session_state에 넣은 뒤 rerun하여 `auth_cookie.write_refresh_cookie`로 `components.html` 부모창 script를 보낸다. 새 세션은 `st.context.cookies`에서 읽어 `auth.refresh_session` 후 session_state를 복구한다. 설치된 Streamlit 1.50 소스의 iframe 정책에는 `allow-same-origin`·`allow-scripts`가 있으나 Safari 운영에서 실제 cookie 설정/전달 여부는 알 수 없다. 기존 21개 인증 테스트는 browser cookie read/write와 Supabase를 monkeypatch해 통과했으므로 실제 브라우저 경계를 검증한 것이 아니다. `auth_cookie.read_refresh_cookie`는 예외를 삼키고 None을 반환하므로 cookie 미존재와 읽기 오류도 운영 화면에서 구별되지 않는다. David의 운영 결과는 재접속 시 로그인 화면 반복. write/read/refresh/복원 중 실패 단계와 root cause는 미확정이며 인증 코드 수정은 0이다. Chrome 운영 탭 자동 접근은 사용자 거부로 중단하고 우회하지 않았다. Safari 쿠키 **이름만** 로그인 직후·재접속 뒤 확인해 달라고 요청했다(값·token 공유 금지).
+- **책장 경로 감사**: `shelf_ui.render`의 ‘이어서 읽기’는 `db.list_books(status='읽는 중').head(6)`이고 전체보기 버튼은 상태 `읽는 중`, 카테고리 `전체`, 검색 빈값으로 이동한다. `db.list_books`는 상태 정확 일치로 가져와 최근 활동 날짜→`start_date`→0 내림차순 정렬하며 중복 id/ISBN을 숨기지 않는다. 이전 운영 read-only 감사에 제목/저자 동일 2권의 상태가 위시리스트/읽는 중이라고 기록됐지만 현재 각 행의 id·ISBN·category·pages·progress·reading session·Chunk·정렬 순위는 모른다. 이번 `get_readonly_connection`은 Supabase pooler 호스트 DNS 실패로 SQL 실행 전에 중단됐다. 책의 `created_at`/`updated_at`은 현재 books 구조에 없다. 새 카테고리 ‘분별력’은 query에서 제외 조건이 아니며 누락과의 실제 관계는 미확정이다. 중복 삭제·병합으로 해결된다고 단정할 근거도 없다.
+- **확인·수정한 코드 결함**: 새 책 폼에서 상태를 `읽는 중`으로 골라도 `start_date`를 주지 않고 `db.insert_book`도 채우지 않아, 활동 없는 새 책은 정렬 키 0으로 상단 6권 미리보기 뒤에 밀린다. 합성 DB에서 이미 날짜가 있는 읽는 중 책 7권 뒤에 새 책을 등록하는 RED 테스트로 재현했다. `lib/db.py`의 `insert_book`에서 새 읽는 중 책에만 `start_date=int(time.time())` 기본값을 설정하고 명시 날짜·다른 상태는 유지했다. 신규 `tests/test_dashboard_stats.py` 테스트 GREEN. **기존 운영 레코드의 NULL 시작일은 이 수정으로 바뀌지 않는다**. 따라서 David의 현재 책 누락에 대한 직접 원인 판정은 DB 재확인 전까지 미완료다.
+- **검증·커밋**: 관련 2 PASS, 전체 **270 PASS**, Python `compileall -q app.py lib tests`와 `git diff --check` PASS. 기능 `6064b1b`은 clean local main에 커밋했다. HANDOFF·WORKLOG·PROJECT는 후속 기록 커밋. 원본 `codex/reading-chunks-1a`의 David 소유 문서 수정·미추적 각 1건, 상위 공동 저장소, 오늘의 서재는 불변. 이번 작업의 운영 DB write·iCloud write·origin push·deploy push·Streamlit 갱신은 0이다.
+- **blocker·다음 작업 1개**: 운영 브라우저 접근 거부 및 GitHub/DB DNS 실패. Safari 쿠키 이름 존재 여부와 운영 두 책의 read-only 상태·시작일·정렬 순위를 확보해 로그인/누락 root cause를 확정한다. 승인 전 두 책 데이터 정리나 인증 구조 변경은 하지 않는다.
+
 ## 2026-09-28 — Codex: 로그인 지속성 배포 재개 시도, 실제 원격 DNS 실패
 
 - **작업 목적**: 검증된 로그인 지속성 local main(`9b22c5d`)을 실제 GitHub origin/main·deploy/main에 안전한 fast-forward로 반영하고 Streamlit 갱신 상태를 확인한다. 새 개발은 없다.
