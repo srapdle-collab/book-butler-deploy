@@ -48,6 +48,12 @@ def render(conn,goto,add_book):
     total=sum(counts.values()); wishes=counts.get('위시리스트',0)
     for col,label,value in zip(st.columns(3),['책장','위시리스트','읽고 있는 책'],[total-wishes,wishes,counts.get('읽는 중',0)]):
         col.metric(label,f'{value:,}')
+    if st.button('＋ 새 책 추가', key='shelf_add_book_top', type='primary'):
+        st.session_state.shelf_top_add_book_open = True
+        st.rerun()
+    if st.session_state.get('shelf_top_add_book_open'):
+        with st.expander('➕ 새 책 추가', expanded=True):
+            add_book(conn, key_prefix='shelf_top_add_book')
     reading=db.list_books(conn,status='읽는 중')
     if not reading.empty:
         st.subheader('이어서 읽기')

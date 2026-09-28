@@ -48,6 +48,29 @@ def test_shelf_counts_are_dynamic_and_reading_all_links(isolated_app):
     assert at.session_state['selected_book_id']=='book-1'
 
 
+def test_shelf_top_add_book_uses_the_existing_add_book_flow(isolated_app):
+    """상단 바로가기는 별도 로직 없이 같은 책 추가 함수를 연다."""
+    at = AppTest.from_file(APP_PATH).run()
+    assert at.text_input(key='add_book_query')  # 기존 하단 입력은 계속 제공한다.
+
+    at.button(key='shelf_add_book_top').click().run()
+
+    assert at.text_input(key='shelf_top_add_book_query')
+    assert at.text_input(key='add_book_query')
+
+    at.text_input(key='shelf_top_add_book_title').set_value('상단에서 추가한 책').run()
+    at.button(key='shelf_top_add_book_submit').click().run()
+    at.text_input(key='add_book_title').set_value('하단에서 추가한 책').run()
+    at.button(key='add_book_submit').click().run()
+
+    conn = db.get_connection()
+    try:
+        titles = {row['title'] for row in conn.execute('SELECT title FROM books').fetchall()}
+    finally:
+        conn.close()
+    assert {'상단에서 추가한 책', '하단에서 추가한 책'} <= titles
+
+
 def test_shelf_shows_all_categories_in_one_scrolling_grid(isolated_app):
     """전체보기는 페이지로 자르지 않고 카테고리별 표지를 연속해서 보여야 한다."""
     conn=db.get_connection()

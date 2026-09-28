@@ -149,13 +149,18 @@ def render_shelf(conn):
     render(conn, goto, render_add_book_form)
 
 
-def render_add_book_form(conn) -> None:
+def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
+    """Render one add-book surface while sharing search and save behavior."""
+    def key(name: str) -> str:
+        return f"{key_prefix}_{name}"
+
+    candidates_key = key("candidates")
     auth_key = os.environ.get("DATA4LIBRARY_AUTH_KEY", "").strip()
 
-    query = st.text_input("제목으로 검색 (도서관정보나루)", key="add_book_query")
-    if st.button("검색", key="add_book_search_btn"):
+    query = st.text_input("제목으로 검색 (도서관정보나루)", key=key("query"))
+    if st.button("검색", key=key("search_btn")):
         if not auth_key:
-            st.session_state.add_book_candidates = []
+            st.session_state[candidates_key] = []
             st.warning(
                 "DATA4LIBRARY_AUTH_KEY가 설정되지 않았습니다 (.env 확인). "
                 "아래 수동 입력 폼을 사용해주세요."
@@ -164,14 +169,14 @@ def render_add_book_form(conn) -> None:
             try:
                 results = library_api.search_books(query, auth_key)
             except library_api.LibraryAPIError as exc:
-                st.session_state.add_book_candidates = []
+                st.session_state[candidates_key] = []
                 st.warning(f"검색 실패: {exc}\n아래 수동 입력 폼을 사용해주세요.")
             else:
-                st.session_state.add_book_candidates = results
+                st.session_state[candidates_key] = results
                 if not results:
                     st.info("검색 결과가 없습니다. 아래 수동 입력 폼을 사용해주세요.")
 
-    candidates = st.session_state.get("add_book_candidates") or []
+    candidates = st.session_state.get(candidates_key) or []
     selected: dict | None = None
     if candidates:
         st.caption(f"검색 결과 {len(candidates)}건 중 하나를 선택하세요")
@@ -182,7 +187,7 @@ def render_add_book_form(conn) -> None:
         ]
         pick = st.radio(
             "검색 후보", range(len(candidates)), format_func=lambda i: labels[i],
-            key="add_book_pick",
+            key=key("pick"),
         )
         selected = candidates[pick]
         cover_col, _ = st.columns([1, 4])
@@ -194,19 +199,19 @@ def render_add_book_form(conn) -> None:
 
     st.markdown("**세부 정보를 확인·수정한 뒤 저장하세요.**")
     categories = db.list_categories(conn)
-    with st.form("add_book_form", clear_on_submit=True):
-        title = st.text_input("제목", value=(selected or {}).get("title") or "")
-        subtitle = st.text_input("부제", value=(selected or {}).get("subtitle") or "")
-        author = st.text_input("저자", value=(selected or {}).get("author") or "")
-        translator = st.text_input("역자", value=(selected or {}).get("translator") or "")
-        publisher = st.text_input("출판사", value=(selected or {}).get("publisher") or "")
-        isbn = st.text_input("ISBN", value=(selected or {}).get("isbn") or "")
+    with st.form(key("form"), clear_on_submit=True):
+        title = st.text_input("제목", value=(selected or {}).get("title") or "", key=key("title"))
+        subtitle = st.text_input("부제", value=(selected or {}).get("subtitle") or "", key=key("subtitle"))
+        author = st.text_input("저자", value=(selected or {}).get("author") or "", key=key("author"))
+        translator = st.text_input("역자", value=(selected or {}).get("translator") or "", key=key("translator"))
+        publisher = st.text_input("출판사", value=(selected or {}).get("publisher") or "", key=key("publisher"))
+        isbn = st.text_input("ISBN", value=(selected or {}).get("isbn") or "", key=key("isbn"))
         category_options = ["(미지정)"] + categories + ["직접 입력"]
-        category_choice = st.selectbox("카테고리", category_options)
-        custom_category = st.text_input("카테고리 직접 입력", key="add_book_custom_category")
-        pages = st.number_input("전체 쪽수", min_value=0, value=0, step=1)
-        status = st.selectbox("상태", ["위시리스트", "읽는 중", "완독"])
-        submitted = st.form_submit_button("책장에 추가")
+        category_choice = st.selectbox("카테고리", category_options, key=key("category"))
+        custom_category = st.text_input("카테고리 직접 입력", key=key("custom_category"))
+        pages = st.number_input("전체 쪽수", min_value=0, value=0, step=1, key=key("pages"))
+        status = st.selectbox("상태", ["위시리스트", "읽는 중", "완독"], key=key("status"))
+        submitted = st.form_submit_button("책장에 추가", key=key("submit"))
 
     if submitted:
         if not title.strip():
@@ -235,7 +240,7 @@ def render_add_book_form(conn) -> None:
                 },
             )
             st.success(f"'{title.strip()}'을(를) 책장에 추가했습니다.")
-            st.session_state.add_book_candidates = []
+            st.session_state[candidates_key] = []
             st.rerun()
 
 
