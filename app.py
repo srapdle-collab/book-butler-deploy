@@ -506,9 +506,17 @@ try:
             active = st.session_state.view == label or (
                 label == "책장" and st.session_state.view == "책 상세"
             )
-            if st.button(label, width="stretch", type="primary" if active else "secondary"):
+            # key를 명시한다: type이 active에 따라 매 실행 바뀌는데, key가 없으면
+            # 위젯 식별자가 label+type 조합으로 정해져 클릭 처리 중간에 흔들릴
+            # 여지가 있다(연속 두 번째 클릭이 반영 안 되는 문제를 직접 재현·수정).
+            if st.button(label, key=f"nav_{label}", width="stretch", type="primary" if active else "secondary"):
+                # st.rerun()을 부르지 않는다: 클릭 자체가 이미 이 스크립트를
+                # 한 번 다시 실행시켰고, 아래 view 분기가 이 실행 안에서
+                # goto()가 바꾼 session_state.view를 그대로 읽는다. 여기서
+                # st.rerun()을 부르면 이번 실행을 버리고 통째로 한 번 더
+                # 돌려서(연결·스키마 검사·책장 조회 전부 포함) 클릭 1번의
+                # DB 왕복이 사실상 2배가 된다(2026-09-28 계측으로 확인).
                 goto(label)
-                st.rerun()
         if authenticated_user:
             st.caption(authenticated_user.display_name or authenticated_user.email)
 
@@ -520,8 +528,7 @@ try:
                 active_book = db.get_book(conn, active_timer['book_id'])
                 st.info(f"독서 타이머: {active_book['title']}")
                 if st.button('타이머 이어보기', key='resume_timer'):
-                    goto('책 상세', active_timer['book_id'])
-                    st.rerun()
+                    goto('책 상세', active_timer['book_id'])  # 이유는 위 사이드바 버튼과 동일
     if st.session_state.get("notice"):
         st.toast(st.session_state.pop("notice"))
 

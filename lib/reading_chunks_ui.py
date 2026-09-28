@@ -239,9 +239,15 @@ def render(conn, book, *, owner_id):
     st.button("✦ 읽은 조각 남기기", key="open_reading_chunk", width="stretch", on_click=_open_new)
 
     tag = st.text_input("조각 태그 필터", key="chunk_tag_filter", placeholder="태그 하나를 입력하세요")
-    rows = chunks.list_for_book(conn, book["id"], owner_id=owner_id, tag=tag or None)
+    # 태그 필터는 SQL이 아니라 파이썬에서 거른다(list_for_book 내부와 동일 방식).
+    # 예전엔 필터 있는/없는 두 버전을 각각 쿼리해서 같은 조각 목록을 두 번
+    # 읽었다(book_snapshot 소유권 검사까지 포함해 왕복 2배). 한 번만 읽고
+    # 중복 집계는 그 결과에서 계산한다.
+    all_rows = chunks.list_for_book(conn, book["id"], owner_id=owner_id)
+    needle = (tag or "").strip()
+    rows = [r for r in all_rows if not needle or needle in r["tags"] or needle in r["illustration_tags"]]
     duplicate_counts = Counter((item["read_date"], item["page_start"], item["page_end"], item["content_hash"])
-                               for item in chunks.list_for_book(conn, book["id"], owner_id=owner_id))
+                               for item in all_rows)
     if not rows:
         st.caption("아직 저장한 읽은 조각이 없습니다.")
         return

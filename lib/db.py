@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import streamlit as st
 from lib.schema_preflight import require_schema
 from lib import database
 
@@ -131,11 +132,30 @@ def activity_photo_source(filename: str | None) -> str | None:
     return storage_photo_source(filename, kind="photo")
 
 
-def list_categories(conn: sqlite3.Connection) -> list[str]:
-    rows = conn.execute(
+@st.cache_data(ttl=10)
+def _list_categories_cached(_conn: sqlite3.Connection, db_identity: str) -> list[str]:
+    rows = _conn.execute(
         "SELECT DISTINCT category FROM books WHERE category IS NOT NULL ORDER BY category"
     ).fetchall()
     return [r["category"] for r in rows]
+
+
+def list_categories(conn: sqlite3.Connection) -> list[str]:
+    """카테고리 선택 목록. 책장 화면 한 번을 그릴 때 필터·새 책 추가(위/아래
+    두 자리)에서 각각 이 함수를 불러 같은 쿼리를 화면당 2~3번 반복 실행하고
+    있었다(2026-09-28 계측). 10초 캐시로 같은 렌더·짧은 연속 재실행에서
+    중복 조회를 없앤다. 방금 만든 새 카테고리가 드롭다운에 나타나는 데
+    최대 10초 걸릴 수 있는 게 유일한 대가다.
+
+    db_identity를 별도 인자로 넘기는 이유: st.cache_data는 밑줄로 시작하는
+    인자(_conn, 커넥션 객체)를 캐시 키에서 제외한다. DB 구분값이 하나도
+    안 남으면 테스트마다 다른 임시 SQLite로 붙어도 캐시가 이전 DB의
+    카테고리 목록을 그대로 돌려주는 오염이 생길 수 있다. db_identity를 넣은
+    현재 구현으로 서로 다른 두 SQLite DB를 번갈아 조회해도 각자 맞는
+    카테고리만 돌려주는 것을 직접 확인했다.
+    """
+    db_identity = os.environ.get("BOOK_BUTLER_DB_PATH") or os.environ.get("SUPABASE_DB_HOST") or "default"
+    return _list_categories_cached(conn, db_identity)
 
 
 def list_books(
