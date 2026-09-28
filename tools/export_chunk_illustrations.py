@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import fcntl
 import json
@@ -180,7 +181,7 @@ def _read_rows(owner_id, chunk_ids):
         conn.close()
 
 
-def _plan(root, rows, owner_id):
+def _plan(root, rows, owner_id, *, base_preview=None):
     archive = root / "독서조각"
     if archive.is_symlink():
         raise RuntimeError("독서조각 경로가 심볼릭 링크입니다.")
@@ -190,7 +191,7 @@ def _plan(root, rows, owner_id):
     pending_path = base._safe_path(archive, PENDING)
     if pending_path.exists():
         raise RuntimeError("미완료 분류 export가 있습니다. 같은 선택으로 복구해야 합니다.")
-    index = base.read_index(index_path)
+    index = copy.deepcopy(base_preview["index"]) if base_preview is not None else base.read_index(index_path)
     manifest = _read_manifest(manifest_path, root, owner_id)
     aliases = _aliases(archive)
     for chunk_id, entries in manifest["entries"].items():
@@ -229,16 +230,27 @@ def _plan(root, rows, owner_id):
             if mapped:
                 indexed = index.get(chunk_id)
                 state_path = base._safe_path(archive, ".export-state.json")
-                try:
-                    state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
-                except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-                    raise RuntimeError("1차-A export 상태가 손상되었습니다.") from exc
+                if base_preview is not None:
+                    state = base_preview["state"]
+                else:
+                    try:
+                        state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+                    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                        raise RuntimeError("1차-A export 상태가 손상되었습니다.") from exc
                 rendered = base.render_txt(row).encode("utf-8")
                 receipt = state.get(chunk_id)
+                base_path = indexed["상대경로"] if indexed else None
+                if base_preview is not None and base_path is not None:
+                    projected = next((op for op in base_preview["operations"] if op["path"] == base_path), None)
+                    removed = any(old["path"] == base_path for old in base_preview["cleanup"])
+                    base_hash = (base._digest(projected["text"].encode("utf-8")) if projected else
+                                 None if removed else base._file_hash(base._safe_path(archive, base_path)))
+                else:
+                    base_hash = base._file_hash(base._safe_path(archive, base_path)) if base_path else None
                 if (not indexed or indexed["updatedAt"] != row["updated_at"] or not receipt
                         or receipt.get("owner_id") != owner_id or receipt.get("path") != indexed["상대경로"]
                         or receipt.get("sha256") != base._digest(rendered)
-                        or base._file_hash(base._safe_path(archive, indexed["상대경로"])) != base._digest(rendered)):
+                        or base_hash != base._digest(rendered)):
                     actions.append(dict(action="CONFLICT", chunkId=chunk_id, category=None,
                                         relativePath=None, reason="1차-A txt export 선행 필요"))
                     continue

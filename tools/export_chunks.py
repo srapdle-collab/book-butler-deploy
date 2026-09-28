@@ -329,6 +329,10 @@ def export(output_root: Path, *, owner_id: str, chunk_ids: list[str]) -> dict[st
                 raise RuntimeError("미완료 내보내기는 같은 사용자/조각 선택으로 먼저 복구해야 합니다.")
             _complete(archive, previous)
         plan = _plan(archive, rows, owner_id)
+        if (not plan["operations"] and not plan["cleanup"]
+                and _file_hash(_safe_path(archive, "_index.csv")) == _digest(_index_bytes(plan["index"]))
+                and _file_hash(_safe_path(archive, ".export-state.json")) == _digest(_json_bytes(plan["state"]))):
+            return plan["result"]
         _atomic_write(pending, _json_bytes(plan), replace=False)
         _complete(archive, plan)
         return plan["result"]
