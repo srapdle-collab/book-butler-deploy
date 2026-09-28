@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — 희망 책 운영 DB READ ONLY 연결 실패, 자동화 본선 진행 (2026-09-29, Codex)
+
+- **무엇을 했는지**: P0-B의 두 중복 책을 운영 DB `get_readonly_connection()`으로 조회하려 했으나 연결 단계에서 `OperationalError`로 실패해 SQL은 실행되지 않았다. 비밀값과 오류 상세는 출력하지 않았다. 재시도나 우회 설치 없이 이 작업은 주차하고 Reading Chunk → 예화창고 격리 자동화로 이동한다.
+- **어디까지 끝났는지**: 운영 DB 조회·write 모두 0, 두 책 삭제·병합·상태 변경 0. 이전 감사상 같은 제목/저자 2건의 상태는 위시리스트/읽는 중이지만 이번에 id·ISBN·start_date·현재 페이지·세션·Chunk·상단 6위 순위를 재확인하지 못했다. books schema에는 created_at/updated_at 컬럼이 없다. 기존 코드 수정 `6064b1b`은 새로 등록할 읽는 중 책에만 start_date를 채우므로 두 운영 행의 직접 원인이라고 확정할 수 없다.
+- **확인해야 할 것**: READ ONLY 연결 가능한 환경에서 두 행과 책장 정렬 순위를 비교한다. David가 어느 중복을 보존할지 결정하기 전 데이터 변경 금지.
+- **다음 작업자 / 다음 작업 1개**: 읽담 Codex — 격리 환경에서 Reading Chunk 변경분 자동 탐지와 안전한 export 단일 파이프라인을 구현한다.
+- **브랜치 / 커밋 / 배포 상태**: clean local `main` `/private/tmp/readdam-login-persist`, 시작 `704cb16`; 문서 기록만 커밋, push·deploy 없음. 원격 tracking origin/main=deploy/main=`9f7aedf`, 실제 원격 조회는 GitHub DNS 제약으로 불가.
+- **보류·실패·중단 이유**: 운영 DB 연결 실패로 실제 누락 원인 미확정. P0-A 인증은 수동 로그인 유지·OIDC BACKLOG.
+
 ## 읽담 담당자가 이어받을 작업 — 인증 수동 운영 유지, 자동 예화 export 본선 (2026-09-29, Codex)
 
 - **무엇을 했는지**: David가 로그인 지속성 설계 감사의 판정을 승인했다. 운영에서 실패한 JS cookie → `st.context.cookies` 경로의 추가 패치는 **중단**한다. Streamlit + Supabase OIDC는 Beta·별도 승인 화면·서명 키·Secrets·user ID/RLS·철회 검증이 필요한 **BACKLOG**다. 오늘 밤 인증 코드·설정·배포 작업은 없다. 현재 수동 로그인과 비밀값 없는 진단 UI를 유지한다.

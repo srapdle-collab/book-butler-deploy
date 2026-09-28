@@ -8,6 +8,13 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-29 — Codex: 희망 책 운영 DB 읽기 전용 재조회 실패
+
+- **목적·실행**: P0-B 두 중복 책의 id·ISBN·status·category·pages·start_date·current_page·reading session·Reading Chunk·읽는 중 정렬 순위를 운영 DB READ ONLY로 대조하려 했다. `db.get_readonly_connection()`이 `OperationalError`로 실패해 SQL 실행 전 중단됐다. 연결 오류 상세·비밀값을 출력하지 않았고 반복 재시도하지 않는다.
+- **판정·남은 일**: 기존 감사의 위시리스트/읽는 중 2건 이상은 확인하지 못했다. books schema에는 created_at/updated_at가 없다. `6064b1b`의 신규 책 start_date 보정은 기존 행을 소급 수정하지 않아 현재 누락의 직접 원인 미확정. 데이터 삭제·병합·수정 및 운영 DB write 0. READ ONLY 연결 가능한 환경에서 두 행과 상단 6위 정렬을 다시 확인해야 한다.
+- **변경·검증·반영**: HANDOFF/WORKLOG만 기록; 코드·테스트 변경 0, tests/compile 해당 없음, diff check PASS. local main 시작 `704cb16`에서 기록 커밋, 원격 push·deploy·iCloud write 0. 원본 사용자 파일·오늘의 서재·통합 계약 불변.
+- **다음 작업 1개**: 이 blocker를 주차하고 Reading Chunk → 예화창고 자동 파이프라인을 격리 환경에서 구현·검증한다.
+
 ## 2026-09-29 — Codex: David 인증 판정 승인 및 야간 우선순위 변경
 
 - **목적·결정**: David 승인으로 JS cookie → `st.context.cookies` 추가 패치를 중단하고 Streamlit + Supabase OIDC를 BACKLOG로 보냈다. 수동 로그인·현재 진단 UI 유지. 오늘 밤 인증 관련 구현·Secrets·OAuth 설정·배포는 하지 않는다.
