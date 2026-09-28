@@ -21,6 +21,15 @@
 
 ## 항목
 
+## David가 이어받을 작업 — Reading Chunk 1차-B·2차 local main 정본화 완료 (2026-09-28, Codex)
+
+- **무엇을 했는지**: 읽담 main `74d3c9d` 위에 Reading Chunk 1차-B ingest·pull·receipt·책 snapshot과 2차 예화창고 exporter·테스트·설계/운영 문서만 선별 반영했다. 후보 브랜치의 Reading Chunk 외 nan 버그 문서 커밋은 포함하지 않았다. 공동 정본은 공동 main `4a610de`의 `CROSS_PROJECT_HANDOFF.md`다.
+- **어디까지 끝났는지**: 1차-A **COMPLETE**. 1차-B는 **LOCAL COMPLETE / 운영 연결 BLOCKED**(ChatGPT Sites 관리형 D1 `0004` 공식 migration lifecycle 미확인). 2차는 **LOCAL COMPLETE**. 실제 운영 DB READ ONLY와 실제 iCloud dry-run 2회 PASS, 현재 export 대상 illustration Chunk 0건, 실제 export 미실행, DB/iCloud write 0건. 기존 활동 nan 버그는 앞선 운영 수정·확인으로 CLOSED다. 이번 작업은 local main만 반영했고 push·배포는 하지 않았다.
+- **확인해야 할 것**: 1차-B 운영 연결 전 Sites D1 `0004`의 공식 적용 경로를 외부에서 확인한다. 2차 실제 export는 대상 데이터가 생긴 뒤 다시 dry-run하고 별도 승인을 받는다. 과거 NO-GO와 미완료 항목은 당시 기록이며 이 최신 판정으로 대체한다.
+- **다음 작업자/작업**: David가 Sites 관리형 D1 migration 공식 lifecycle 확인 경로를 결정한다.
+- **브랜치 / 커밋 / 배포 상태**: `main` 제품 `a0006a4`·`bf972a0`, 2차 문서 `b6a7c23`, 이번 최신 상태 문서 후속 커밋. origin/main·deploy/main·Streamlit 운영은 변경하지 않았다.
+- **보류·실패·중단 이유**: 로컬 검증 186 tests PASS, Python compile·diff check PASS. 운영 연결 blocker는 제품 코드 실패가 아니라 Sites D1 적용 절차 미확인이다. 원본 작업트리의 사용자 기획문서 변경은 보존했다.
+
 ## David가 이어받을 작업 — 활동 카드 nan 최소 수정 검증 완료, 운영 미배포 (2026-09-28, Codex)
 
 - **무엇을 했는지**: 기존 활동 표시 버그만 `lib/notebook_ui.py:cards()`의 행 표시 경계에서 수정했다. 각 scalar에 `pd.isna`를 적용해 실제 결측만 `None`으로 정규화한다. DB 계층·전체 pandas dtype·Reading Chunk 코드·운영 DB는 그대로다.

@@ -8,6 +8,14 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: Reading Chunk 1차-B·2차 local main 정본화
+
+- **목적/범위**: 기존 main `74d3c9d`와 깨끗한 후보 `90fe1c2`를 대조하고 Reading Chunk 변경만 별도 main worktree에서 반영했다. 후보의 기존 활동 nan 관련 문서 커밋 및 다른 작업은 가져오지 않았다. 원본 작업트리의 수정된 사용자 기획문서와 미추적 문서는 건드리지 않았다.
+- **변경/커밋**: 1차-B ingest·payload 검증·책 매칭·chunkId 멱등성·pull/receipt/book snapshot·관련 테스트 `a0006a4`; 2차 manifest 소유권·태그 매핑·dry-run exporter·관련 테스트 `bf972a0`; 2차 로컬 계획·실제 iCloud 프리플라이트 기록 `b6a7c23`; HANDOFF/PROJECT/WORKLOG 최신 판정은 후속 문서 커밋. 기존 과거 NO-GO 기록은 보존했다.
+- **검증**: 반영된 main 제품 기준 전체 **186 passed**, Python `compileall` PASS, `git diff --check` PASS. 2차 exporter는 명시적 CLI로만 실행되고 앱 시작 경로에서 import/호출하지 않는다. 1차-B는 URL/전용 토큰/Sites 게이트 설정이 없으면 HTTP 요청 없이 `not_configured`로 끝나는 것을 코드·테스트로 확인했다. 이번 작업에서는 실제 DB/iCloud를 조회하거나 변경하지 않았다.
+- **현재 판정**: 1차-A COMPLETE. 1차-B LOCAL COMPLETE / 운영 연결 BLOCKED — Sites 관리형 D1 `0004` 공식 migration lifecycle 미확인. 2차 LOCAL COMPLETE, 앞선 운영 DB READ ONLY·실제 iCloud dry-run 2회 PASS, 현재 eligible illustration Chunk 0건으로 실제 export 미실행. 이번 작업의 운영 변경·DB write·iCloud write 0건. 기존 활동 nan 버그는 이전 운영 수정·확인으로 CLOSED.
+- **남은 일/위험**: 1차-B는 공식 D1 적용 경로 확인 전 push·배포·운영 연결 금지. 2차 실제 export는 대상이 생긴 뒤 dry-run 재검증과 별도 승인 필요. 이번 세션 origin push·Streamlit 배포·Secrets 변경 없음.
+
 ## 2026-09-28 — Codex: 활동 카드 nan 표시 최소 수정
 
 - **목적/변경**: 진단된 기존 활동 `NULL→pandas NaN→truthy` 표시 문제를 Reading Chunk와 분리해 수정. `lib/notebook_ui.py:cards()`에서 DataFrame 행을 표시용 dict로 만들 때 scalar `pd.isna(value)`만 `None`으로 바꾼다. DB reader, dtype 정책, schema/데이터, Reading Chunk 구현, 배포 코드는 변경하지 않았다.
