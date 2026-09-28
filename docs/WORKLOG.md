@@ -8,6 +8,17 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Claude Code: 새 책 등록 draft 유실(카테고리 조작·재검색) 수정
+
+- **작업 목적**: 검색 결과를 선택한 뒤 카테고리 조작이나 화면 이동으로 자동입력 서지정보가 사라지고, 같은 책을 다시 검색해도 복원되지 않던 운영 버그를 고친다.
+- **실행환경**: i9의 읽담전문, `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`, `main`, 시작 HEAD `d0a6c54`. 시작 시 origin/main=deploy/main=`d0a6c54`(ls-remote)였다.
+- **상태 흐름**: 검색어·폼 칸(제목·부제·저자·역자·출판사·ISBN·카테고리·직접입력·쪽수·상태)은 폼 위젯 key의 session state에 있고, Streamlit이 관리해 폼이 안 그려지면 사라진다. 검색 결과(`*_candidates`)·선택 표시(`*_autofill_source`)·draft(`*_autofill_values`)는 일반 session state라 계속 남는다. 선택한 후보는 radio 위젯 key다. 표지는 후보 dict에서 바로 그린다. 출간일은 DB에 칸이 없다. DB에는 저장 때만 쓴다.
+- **재현(AppTest)**: 폼 안 카테고리 선택·직접 입력, 폼 밖 책장 필터 rerun에서는 유지됐다. 다른 메뉴에 다녀오면 폼 칸 key가 session state에서 사라졌지만 표지·후보·선택 표시는 남았고, 같은 책 재검색 뒤에도 전부 `''`였다(표시 일치로 조기 return). 저장 뒤에는 폼 칸에 이전 책 값이 남아 다음 선택에서 교체되지 않았다. `enter_to_submit` 기본값 True 때문에 '카테고리 직접 입력'에서 Enter를 누르면 저장이 제출된다.
+- **실제 변경 내용**: `app.py`에서 같은 선택이면 지워진 칸만 draft에서 복원한다. 검색 버튼 성공 시 선택 표시를 지워 재선택하면 다시 적용한다. `_reset_add_book_draft`는 저장 뒤 draft와 폼 key 전체를 지운다. 폼은 `enter_to_submit=False`이고, 적은 새 카테고리를 우선 사용한다. 저장 로직·schema는 불변이다.
+- **테스트 결과**: 신규 8건 중 6건 RED(화면 왕복 유지, 재검색 전체 복원, 상단 패널 왕복, 저장 뒤 오염, 새 카테고리 저장, Enter 제출) → GREEN. 유지 확인 2건(폼 안 카테고리 조작, rerun 중 사용자 수정값)은 수정 전에도 PASS였다. `tests/test_add_book_autofill.py` 28 passed, Reading Chunk 등 62 passed, 전체 **237 passed**, compile·diff PASS.
+- **커밋/배포 여부**: 기능 `84b1604`와 이 기록 커밋. origin/main·deploy/main에 일반 fast-forward push한다. Streamlit 브라우저 smoke는 미확인이다.
+- **발견 문제/남은 작업**: 이전 운영 시도에서 Enter로 책이 이미 저장됐을 수 있어 중복 여부를 David가 확인한다. 저장 성공 메시지가 곧바로 `st.rerun()` 때문에 보이지 않는 기존 동작은 범위 밖이라 두었다. 다른 화면에 다녀오기 전에 사용자가 직접 고친 미제출 값은 Streamlit 구조상 보존되지 않고 draft 값으로 돌아간다.
+
 ## 2026-09-28 — Claude Code: 새 책 검색 선택 시 서지정보 자동입력
 
 - **작업 목적**: 검색 결과를 선택하면 도서관정보나루에서 알 수 있는 서지정보가 빈 칸에 자동으로 들어가게 한다. David는 없거나 잘못된 값만 고친다.
