@@ -8,6 +8,18 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Claude Code: 새 책 검색 선택 시 서지정보 자동입력
+
+- **작업 목적**: 검색 결과를 선택하면 도서관정보나루에서 알 수 있는 서지정보가 빈 칸에 자동으로 들어가게 한다. David는 없거나 잘못된 값만 고친다.
+- **실행환경**: i9의 읽담전문(Intel i9 Mac 실제 Terminal / Claude Code), `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`, `main`, 시작 HEAD `4dff9fe`. 실제 `git ls-remote` 결과 origin/main=deploy/main=`4dff9fe`였다. HANDOFF의 `5129d75`는 main 계보 안의 과거 커밋이다(불일치 아님).
+- **감사 결과**: books에 있는 서지 칸은 title·subtitle·author·translator·publisher·isbn·category·pages·cover_url이다. 출간일 칸은 없고, 공저자는 author 문자열 안에서만 표현할 수 있다. upstream `srchBooks`/`srchDtlList`는 bookname(제목 :부제)·authors·publisher·publication_year·isbn13·class_no·class_nm·bookImageURL을 주고, 쪽수는 주지 않는다.
+- **원인**: `render_add_book_form`의 text_input이 `key`를 쓰기 때문에, 첫 렌더 뒤에는 `value=`로 넘긴 후보 값이 무시됐다. 표지는 위젯이 아니어서 보였다. 또 `_parse_authors`는 `;`와 `:` 형식만 알아서 `엘렌 데이비스,윤상필 옮김`을 통째로 저자에 넣었다.
+- **실제 변경 내용**: `app.py`에 `_autofill_add_book_fields`를 추가했다. 선택이 바뀌면 빈 칸이나 직전 자동입력 그대로인 칸만 session state로 채우고, 사용자가 입력·수정한 칸은 보존한다. 후보에 없는 값은 빈 칸으로 둔다. 출간년도·KDC 분류는 "참고용, 저장되지 않음" caption으로만 보인다. `lib/library_api.py`의 저자 파서는 명시 역할 표기가 있을 때만 저자/역자를 나눈다. 후보 dict에는 `publication_year`·`class_no`·`class_nm`을 추가했다. schema·insert_book·Reading Chunk 경로는 바꾸지 않았다.
+- **테스트 결과**: RED(신규 16건 중 11건 실패, AppTest에서 선택 후 칸이 `''`) → GREEN. 신규 `tests/test_add_book_autofill.py`는 실제 upstream 응답 fixture로 선택 자동입력·후보 전환·사용자 입력 보호·저장 보존·category/pages 비추측·저자/역자 분리 14형식을 검증한다. 전체 **229 passed**, compile·`git diff --check` PASS. 원본 `.venv`는 i9에서 numpy/libpq arm64 문제로 쓸 수 없어 scratchpad 임시 venv(Streamlit 1.50)로 실행했다.
+- **실제 upstream 확인**(키 비출력): 「희망을 짓는다는 것」 제목·ISBN 검색 모두 제목 `희망을 짓는다는 것`, 부제 `성경의 언어로 쌓아 올린 51편의 메시지`, 저자 `엘렌 데이비스`, 역자 `윤상필`, 출판사 `한국성서유니온선교회`, ISBN `9788932550817`, 표지 URL 있음, 2026, KDC 235.2였다. 역사란 무엇인가·데미안·사피엔스·순전한 기독교·채식주의자도 저자/역자가 올바르게 나뉘었다. `한상경 글·사진`처럼 모르는 표기는 원문 그대로 둔다.
+- **커밋/배포 여부**: 기능 `b8ec52d`와 이 기록 커밋. 사전 원격 `4dff9fe`를 확인한 뒤 origin/main·deploy/main에 일반 fast-forward push한다. Streamlit 브라우저 smoke는 미확인이다.
+- **발견 문제/남은 작업**: 공저자(upstream 누락)와 쪽수는 추가 source가 필요하다. 출간년도 저장은 schema 변경 승인이 필요하다. 책 카테고리는 개인 분류와 KDC 매핑 방식을 David가 결정해야 한다. 사용자 기획문서 2건은 불변이다.
+
 ## 2026-09-28 — Claude Code: 도서관정보나루 title/isbn13 검색 수정 및 운영 반영
 
 - **작업 목적**: 진단 판정 B에 따라 `srchBooks` 검색 파라미터를 최소 수정해 신간 제목·ISBN 검색 누락을 해소하고 운영에 반영한다.

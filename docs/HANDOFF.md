@@ -21,6 +21,16 @@
 
 ## 항목
 
+## David가 이어받을 작업 — 새 책 검색 선택 시 서지정보 자동입력, 운영 실제 등록 확인 (2026-09-28, Claude Code)
+
+- **무엇을 했는지**: 실행환경은 i9의 읽담전문(Intel i9 Mac 실제 Terminal / Claude Code)이다. worktree는 `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`, 브랜치는 `main`, 시작 HEAD는 `4dff9fe`다. 검색 결과를 골라도 표지만 나오고 칸이 비던 원인은 폼 위젯이 `key`로 상태를 유지해 `value=`가 무시된 것이었다. 이제 선택하면 제목·부제·저자·역자·출판사·ISBN의 **빈 칸(또는 직전 자동입력 그대로인 칸)**을 채우고, David가 직접 입력·수정한 값은 덮어쓰지 않는다. 저자 문자열은 명시 표기(`옮김`·`역`·`번역`·`공역`·`[공]옮김` / `지음`·`저`·`[지음]`·`엮음`·`글`)가 있을 때만 저자/역자로 나눈다. 출간년도와 도서관 분류(KDC)는 후보 옆에 **참고용 표시만** 하고 저장하지 않는다.
+- **어디까지 끝났는지**: 기능 `b8ec52d`와 이 기록 커밋을 local main에 두었고, 사전 원격 `4dff9fe` 확인 뒤 origin/main·deploy/main에 fast-forward push한다(결과는 git 기록으로 확인). schema·외부 API·예화 카테고리·오늘의 서재 변경은 0이다.
+- **확인해야 할 것**: David가 운영 읽담에서 「희망을 짓는다는 것」을 검색해 고르고, 제목·부제·저자 `엘렌 데이비스`·역자 `윤상필`·출판사·ISBN이 채워지는지, 저장 후 책 정보가 보존되는지 확인한다. Streamlit 브라우저 smoke는 브라우저 도구가 없어 **미확인**이다(AppTest로만 검증).
+- **보류(추가 source 또는 결정 필요)**: ① 공저자 `오스틴 매키버 데니스`는 upstream에 없어 넣지 않았다(다른 source 필요). ② 전체 쪽수는 data4library가 주지 않아 수동 입력을 유지한다(국립중앙도서관 등 필요). ③ 출간년도는 books에 칸이 없어 저장하려면 schema 변경이 필요하다(승인 대기). ④ 책 카테고리는 David의 개인 분류(강해·신앙·설교학 등)와 KDC(`종교 > 기독교 > 포교, 교육, 교화활동, 목회학`)가 의미적으로 달라 자동입력하지 않았다. 매핑표를 만들지, 분류 칸을 따로 둘지 David가 결정해야 한다.
+- **다음 작업자**: David(운영 실제 등록 확인 1건).
+- **브랜치 / 커밋 / 배포 상태**: `main`, 기능 `b8ec52d`와 이 기록 커밋. origin/main·deploy/main fast-forward 대상이며, Streamlit 화면은 미확인이다.
+- **보류·실패·중단 이유**: 없음. 원본 작업트리(`codex/reading-chunks-1a`)의 사용자 기획문서 2건은 건드리지 않았다.
+
 ## David가 이어받을 작업 — 도서 검색 title/isbn13 수정 운영 반영, 실제 검색 확인 (2026-09-28, Claude Code)
 
 - **무엇을 했는지**: Intel i9 Mac 실제 Terminal / Claude Code, worktree `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`, `main`, 시작 HEAD `7f6bc6f`. David가 승인한 범위만 수정했다. `lib/library_api.py:search_books`가 `keyword=` 대신 `title=`을 보낸다. 공백·하이픈을 뺀 입력이 978/979로 시작하는 13자리 숫자면 `isbn13=`을 보낸다. 기존 ISBN 유틸이 없어 이 최소 정규화만 추가했다. pageSize·pagination·파싱·UI·schema는 불변이다.
