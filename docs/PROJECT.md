@@ -30,6 +30,7 @@
 - 실제 DB/사진/백업은 Git에서 제외한다. 테스트는 별도 임시 DB만 쓴다.
 - DB 일반 연결은 `connect → read-only preflight → OK/안전중단`이다.15필수표/13named index/reading_chunks22컬럼·제약·구조계약v1을 검사하며 drift자동수정과 SQLite kind자동변환은 없다. `tools/schema_preflight.py`는read-only다. PostgreSQL의 `tools/schema_maintenance.py` 신규표 계획은 명시승인hash·단일transaction 안에서 표/index/RLS/외부4role REVOKE/구조·보안 post-check를 수행하며, 실패 시 rollback한다. 기존 full initializer는 offline bootstrap에만 남고 운영1A용이 아니다.
 - Supabase Auth 계정이 개인 서재와 소그룹을 분리한다. 기존 705권 서재는 Cloud Secret `READDAM_OWNER_EMAIL`과 일치하는 계정만 소유자로 연결하며, 소그룹에는 사용자가 선택한 인용구·사진 스냅샷과 일일 인증·반응·댓글만 공유한다. 전체공개 피드·뱃지는 구현하지 않는다.
+- 로그인 지속성은 Supabase refresh token을 브라우저의 `__Host-readdam-refresh` 쿠키에 보관하고 새 Streamlit 세션에서 refresh해 복구한다(로컬 구현 `70810d0`; 원격·운영 반영은 HANDOFF 확인). 쿠키는 Secure·SameSite=Strict·Path=/·최대 약 30일이며, JavaScript로 설정하므로 HttpOnly는 불가능하다. 비밀번호는 지속 저장하지 않는다. 실제 Safari 지속 기간은 운영 검증 대상이다.
 - `migration/load_db.py`는 초기 적재 전용이며 기존 DB를 재생성하므로 사용 중인 DB에 실행하지 않는다.
 - 영속 데이터는 Supabase Postgres(`bookbutler-prod`, 서울 리전)에 저장한다. 로컬 개발/테스트는 SQLite를 유지하며, `BOOK_BUTLER_DATABASE_URL` 또는 Supabase DB 환경변수가 있으면 Postgres로 연결한다.
 - 사진은 비공개 Supabase Storage `book-photos` 버킷에 저장하고 서버가 짧은 만료의 서명 URL을 발급한다. 서비스 키는 `.env` 또는 Streamlit secrets에만 둔다.

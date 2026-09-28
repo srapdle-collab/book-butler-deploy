@@ -21,6 +21,16 @@
 
 ## 항목
 
+## GitHub 연결이 정상인 읽담 담당자가 이어받을 작업 — 로그인 지속성 로컬 구현 완료, 원격 반영 대기 (2026-09-28, Codex)
+
+- **무엇을 했는지**: Intel i9 Mac의 clean main worktree `/private/tmp/readdam-login-persist`에서 David가 승인한 Supabase 로그인 지속성·사이드바 로그아웃·책장 HTML 제목 escape를 구현했다. 로그인 성공 또는 새 세션 복구 시 refresh token을 `__Host-readdam-refresh` 쿠키로 쓰고, 활성 세션의 토큰 만료 전에도 refresh/rotation을 처리한다. 실패하면 쿠키·로컬 인증 상태를 지우고 로그인 화면으로 돌아간다. 비밀번호는 지속 저장하지 않는다.
+- **보안 경계**: 쿠키는 `Secure; SameSite=Strict; Path=/; Max-Age=2592000`(최대 약 30일 목표, Safari 실제 제한과 Supabase 세션 정책에 따름). Streamlit의 읽기 전용 `st.context.cookies`와 기존 `components.html` 부모창 JavaScript를 연결했으므로 **HttpOnly는 불가능**하고 XSS가 남은 위험이다. `unsafe_allow_html`에 삽입되던 책장 제목을 escape했다. 그 밖의 전체 앱 HTML 감사·재작성은 하지 않았다.
+- **어디까지 끝났는지**: 기능 커밋 `70810d0`을 local main에 반영했다. 인증 관련 21 PASS, 전체 269 PASS, Python compile PASS, diff check PASS. 이 HANDOFF·WORKLOG·PROJECT 갱신은 후속 기록 커밋이다. **origin/main push·deploy/main 반영·Streamlit 운영 확인은 아직 없다.** 이번 세션의 실제 `git ls-remote origin`은 `Could not resolve host: github.com`으로 실패해 원격 상태를 확인하지 못했다. 로컬 추적 ref는 origin/main=`93479a5`, deploy/main=`3f42a52`이지만 실제 원격 SHA로 단정하지 않는다.
+- **확인해야 할 것**: GitHub 연결이 정상인 환경에서 실제 origin/main·deploy/main SHA를 다시 조회하고 fast-forward 관계 및 diff를 대조한 뒤 local main→origin/main→deploy/main을 일반 push한다. Streamlit 갱신 뒤 David가 Safari에서 로그인→탭 닫기·재접속→자동 복구→로그아웃→재접속 시 로그인 화면을 실제 검증한다. 이 세션에는 운영 브라우저 검증이 없다.
+- **다음 작업자**: GitHub 연결이 정상인 읽담 담당자. 다음 작업은 **원격 SHA 대조 후 안전한 fast-forward 배포 1건**이다.
+- **브랜치 / 커밋 / 배포 상태**: `main` / 기능 `70810d0` + 이 기록 커밋 / 원격·운영 미반영. 오늘의 서재와 Reading Chunk 계약은 변경하지 않았다.
+- **보류·실패·중단 이유**: 현재 Codex 실행환경의 github.com DNS 해석 실패로 원격 확인과 push를 진행할 수 없다. 원본 `codex/reading-chunks-1a` 작업트리의 David 소유 기획문서 수정·미추적 각 1건은 그대로 보존했다.
+
 ## David가 이어받을 작업 — i9 복귀 정본 대조 완료, 로그인 지속성 계획 승인 대기 (2026-09-28, Claude Code)
 
 - **무엇을 했는지**: 실행환경은 Intel i9 Mac 실제 Terminal / Claude Code다. David가 M1에서 i9로 옮겨온 뒤 3층(읽담·오늘의 서재·통합 계약) 기록을 실제 Git과 대조했다. 코드 변경은 없다.

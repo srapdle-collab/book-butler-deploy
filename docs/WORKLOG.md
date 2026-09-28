@@ -8,6 +8,17 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: 안전한 로그인 지속성 로컬 구현
+
+- **작업 목적**: 새 Streamlit 세션·탭 재접속에서 Supabase 로그인이 사라지는 문제를 해결하고 명시적 로그아웃을 제공한다. David가 승인한 최소 XSS escape를 포함한다.
+- **실행환경·정본**: Intel i9 Mac, `/private/tmp/readdam-login-persist` clean `main`, 시작 `93479a5`(로컬 origin/main 추적 ref도 동일), deploy/main 추적 ref `3f42a52`. 실제 `git ls-remote origin`은 github.com DNS 실패로 이번 세션에서 원격 SHA를 독립 확인하지 못했다. 원본 `codex/reading-chunks-1a`의 David 소유 수정 `도서비서_기획문서.md`와 미추적 `도서비서_기획문서 2.md`는 변경하지 않았다.
+- **변경 파일·내용**: `lib/auth.py`에 refresh token/만료시각을 포함한 세션 결과, `refresh_session`, 현재 브라우저 범위 `sign_out`을 추가했다. `lib/auth_cookie.py`는 refresh token만 `__Host-readdam-refresh` 쿠키에 쓰고 읽는다. `app.py`는 최초 로그인 후 쿠키 기록, 새 세션 자동 복구, 만료 전 refresh와 rotated token 갱신, invalid cookie 제거, 사이드바 로그아웃과 로컬 상태 제거를 수행한다. `lib/shelf_ui.py`는 `unsafe_allow_html` 경계의 사용자 책 제목을 escape한다. 인증 회귀 테스트 `tests/test_auth_persistence.py`와 기존 로그인 stub을 조정한 `tests/test_schema_preflight.py`가 변경됐다. DB schema·Reading Chunk·예화 사전·오늘의 서재·통합 계약은 불변이다.
+- **쿠키 보안·한계**: `Secure; SameSite=Strict; Path=/; Max-Age=2592000`, `__Host-` host-only 이름을 쓴다. 브라우저 JavaScript로 설정하므로 **HttpOnly를 사용할 수 없다**. refresh token이 JavaScript에 노출될 수 있어 XSS가 잔여 위험이다. 이번 범위는 실제 사용자 제목이 unsafe HTML에 직접 들어가던 책장 경계만 보강했다. 정확한 30일 지속은 Safari/WebKit 또는 Supabase 세션 정책으로 보장되지 않는다.
+- **검증**: 새 인증 테스트는 구현 전 RED 확인 후 GREEN; 인증 관련 21 passed, 전체 **269 passed**. `compileall -q app.py lib tests`와 `git diff --check` PASS. 실제 Supabase/운영 DB write나 Safari 인증 지속성 시험은 하지 않았다.
+- **커밋·반영**: 기능 `70810d0`을 local main에 커밋했다. HANDOFF·WORKLOG·PROJECT는 후속 기록 커밋. origin/main push·deploy/main 반영·운영 Streamlit 확인은 DNS 실패 때문에 미실행이며, 원격 현재 SHA는 미확인이다. 실제 iCloud write·DB 운영 write·오늘의 서재 변경은 0건이다.
+- **남은 작업·위험**: GitHub 연결 가능 환경에서 두 원격 실제 SHA와 fast-forward 관계를 확인하고 배포한다. 배포 후 David가 Safari에서 로그인 유지·로그아웃 후 재접속을 확인한다. 브라우저 JavaScript 쿠키의 HttpOnly 불가와 Safari 저장 기간 한계는 운영 결과에 남긴다.
+- **다음 작업 1개**: 원격 SHA 대조 후 local main을 origin/main·deploy/main에 안전한 fast-forward로 반영한다.
+
 ## 2026-09-28 — Claude Code: i9 복귀 3층 정본 대조, 로그인 지속성 계획
 
 - **작업 목적**: M1→i9 이동 뒤 읽담·오늘의 서재·통합 계약의 최신 기록을 실제 Git과 대조해 정본을 복원하고, 로그인 지속성 작업 계획을 세운다.
