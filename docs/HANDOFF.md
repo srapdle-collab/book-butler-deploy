@@ -21,6 +21,15 @@
 
 ## 항목
 
+## David가 이어받을 작업 — 승인된 예화 카테고리 사전의 main 반영 판단 (2026-09-28, Codex)
+
+- **무엇을 했는지**: David가 승인한 세 keyword만 반영했다. `그리스도인의 삶`은 `그리스도인의 삶의 방식`으로 구체화했고, `시간`의 `세월`은 삭제했으며, `위선`의 `가면`은 `위선의 가면`으로 구체화했다. 63개 카테고리는 배타적 분류가 아닌 주제 바구니이므로 유용한 다중 추천은 최대 3개까지 유지한다.
+- **어디까지 끝났는지**: 읽담 로컬 기능 커밋 `d037be1` 완료. canonical names·aliases·나머지 keywords는 불변이며, 새 카테고리·실제 iCloud export·운영 DB write는 없다.
+- **확인해야 할 것**: 공동 계약 저장소의 Git metadata 쓰기 권한이 현재 세션에서 막혀, 이번 승인 철학의 CROSS 기록 커밋은 만들지 못했다. 공동 worktree에는 미커밋 변경을 남기지 않았다.
+- **다음 작업자/작업**: David가 승인된 로컬 사전 변경의 main 반영 여부를 결정한다.
+- **브랜치 / 커밋 / 배포 상태**: `codex/reading-chunk-category-approval` / `d037be1`; `main`·`origin/main`=`0d1530d`, `deploy/main`=`74d3c9d`. push·배포·Secrets·운영 DB·iCloud write 없음.
+- **보류·실패·중단 이유**: fixture·관련 테스트·전체 202 tests·compile·diff·실제 폴더 read-only preflight는 PASS다. 공동 계약 신규 기록만 현재 상위 저장소 Git lock 권한 제약으로 보류했다.
+
 ## David가 이어받을 작업 — 예화 카테고리 63개 사전 초안 검토 (2026-09-28, Codex)
 
 - **무엇을 했는지**: Reading Chunk 경로 A의 비AI 규칙 추천·명시 승인 UI·canonical 저장 검증·snapshot 갱신 도구를 구현했다. 실제 예화창고 최상위 폴더 이름만 읽어 63개 NFC canonical snapshot과 alias/keyword 초안을 만들었다. exporter는 실제 폴더 NFC exact match를 legacy alias/ambiguity보다 먼저 처리하도록 고쳤다. 공동 계약은 별도 로컬 브랜치 `codex/reading-chunk-category-contract`의 `188ac7b`에 반영했다.

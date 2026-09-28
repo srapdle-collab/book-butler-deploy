@@ -1,5 +1,7 @@
 # 읽담
 
+최신 상태(2026-09-28, Codex): David가 63개 예화 카테고리 추천 사전을 승인했고, 로컬 `d037be1`에서 세 keyword만 최소 수정했다. 카테고리는 배타적 분류가 아닌 주제 바구니이므로 관련된 여러 후보를 최대 3개까지 함께 추천하고 David가 최종 선택한다. canonical name·aliases·나머지 keywords·실제 63개 폴더는 불변이다. 실제 iCloud/운영 DB write, main 반영·push·배포는 없다.
+
 최신 상태(2026-09-28, Codex): Reading Chunk 경로 A의 예화 카테고리 추천·승인은 로컬 기능 브랜치 `codex/reading-chunk-category-approval`의 `276c958`에 구현됐다. 실제 예화창고 최상위 폴더 63개의 NFC canonical snapshot, aliases/keywords 초안, 비AI 추천 fixture, 승인 UI와 exporter exact-match 우선순위를 포함한다. 새 조각은 빈 `illustrationTags`로 먼저 저장하며 David가 명시 승인할 때만 snapshot canonical 이름을 저장한다. 실제 iCloud 이름/metadata read-only preflight는 63/63 일치·물리 폴더명 NFD·`교회`/`사명` exact match를 확인했고, iCloud/운영 DB write는 0건이다. 이 작업은 main·origin/main·deploy/main·배포에 아직 반영하지 않았다. 63개 초안은 `docs/ILLUSTRATION_CATEGORY_DICTIONARY_DRAFT.md`에서 검토한다.
 
 최신 상태(2026-09-28, Codex): Reading Chunk 1차-A **COMPLETE**. 1차-B ingest·pull은 local main 정본화와 186개 테스트를 마쳤으나, 오늘의 서재 Sites 관리형 D1 `0004`의 공식 migration lifecycle 미확인으로 **운영 연결 BLOCKED**다. 2차 예화창고 exporter도 local main에 정본화됐다. 실제 운영 DB READ ONLY와 실제 iCloud dry-run 2회는 PASS였지만 활성 illustrationTags 대상 Chunk가 0건이어서 실제 export는 실행하지 않았다. DB/iCloud write 0건. exporter는 명시적으로 실행해야 하며 앱 시작 시 자동으로 실행되지 않는다. 원격 push·운영 배포는 이번에 하지 않았다. 공동 계약의 최신 정본은 공동 main `4a610de`의 `CROSS_PROJECT_HANDOFF.md`다. 아래의 과거 미완료·NO-GO 표기는 당시 상태 기록이다.

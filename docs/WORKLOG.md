@@ -8,6 +8,14 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: David 승인 예화 카테고리 사전 최소 수정
+
+- **목적/변경**: 예화창고 카테고리를 배타적 분류가 아닌 다중 추천 가능한 주제 바구니로 확정했다. 유용한 중복 후보는 최대 3개·David 최종 선택 원칙을 유지했다. 승인된 세 keyword만 `d037be1`에서 반영했다: `그리스도인의 삶의 방식`, `시간`의 `세월` 삭제, `위선의 가면`.
+- **불변 범위**: category 63개·canonical name·aliases·그 외 keywords는 이전 승인 사전과 동일하다. 새 카테고리·실제 폴더 이름·schema·오늘의 서재·1차-B·exporter 실행은 바꾸지 않았다.
+- **검증**: 변경 전 승인 테스트는 RED, 반영 후 category 테스트 13 PASS와 공용 fixture PASS. 이전 snapshot과의 구조 비교로 category 63개·canonical 순서·aliases 불변, keyword 변경 category가 정확히 3개임을 확인했다. 전체 **202 passed**, Python compile PASS, `git diff --check` PASS.
+- **실제 폴더/운영**: 실제 iCloud 최상위 디렉터리 이름과 metadata만 읽어 63/63 대응, 실제 물리 이름 63개 NFD, `교회`·`사명` NFC exact match, 검사 전후 metadata 동일을 확인했다. iCloud write·실제 export·운영 DB write 0건이다.
+- **공동 기록/남은 일**: 읽담 HANDOFF/PROJECT/사전 문서는 갱신한다. 공동 CROSS 저장소에는 승인 철학을 기록하려 했으나 상위 Git worktree lock 쓰기 권한이 거부되어 커밋하지 못했고 깨끗하게 되돌렸다. 다음 작업은 David의 main 반영 여부 결정 1건이다.
+
 ## 2026-09-28 — Codex: Reading Chunk 경로 A 예화 카테고리 추천·승인 구현
 
 - **목적/범위**: Reading Chunk를 먼저 빈 `illustrationTags`로 저장한 뒤, 실제 예화창고 기존 카테고리를 비AI 규칙으로 최대 3개 추천하고 David의 명시 승인 때만 canonical 값으로 저장한다. 오늘의 서재 코드·1차-B 운영 연결·운영 DB write·실제 iCloud export·main/push/deploy는 범위 밖으로 유지했다.

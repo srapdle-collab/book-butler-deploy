@@ -1,9 +1,10 @@
-# 예화창고 카테고리 사전 초안
+# 예화창고 카테고리 추천 사전
 
 2026-09-28에 Mac/iCloud 예화창고의 최상위 **폴더 이름만** 읽어 만든 63개
-snapshot의 검토용 표다. `canonical`은 실제 폴더 이름을 NFC로 정규화한 값이며,
-읽담은 이 값만 `illustrationTags`에 저장한다. aliases와 keywords는 규칙 기반
-추천용 초안이고 각 항목은 8개 이하다.
+snapshot의 David 승인 사전이다. `canonical`은 실제 폴더 이름을 NFC로 정규화한
+값이며, 읽담은 이 값만 `illustrationTags`에 저장한다. aliases와 keywords는 규칙
+기반 추천용이고 각 항목은 8개 이하다. 카테고리는 배타적 분류가 아닌 주제 바구니이므로
+관련된 여러 카테고리의 동시 추천은 최대 3개까지 정상이며, David가 최종 선택한다.
 
 | canonical | aliases | keywords |
 | --- | --- | --- |
