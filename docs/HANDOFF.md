@@ -21,6 +21,16 @@
 
 ## 항목
 
+## David가 이어받을 작업 — 도서 검색 title/isbn13 수정 운영 반영, 실제 검색 확인 (2026-09-28, Claude Code)
+
+- **무엇을 했는지**: Intel i9 Mac 실제 Terminal / Claude Code, worktree `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`, `main`, 시작 HEAD `7f6bc6f`. David가 승인한 범위만 수정했다. `lib/library_api.py:search_books`가 `keyword=` 대신 `title=`을 보낸다. 공백·하이픈을 뺀 입력이 978/979로 시작하는 13자리 숫자면 `isbn13=`을 보낸다. 기존 ISBN 유틸이 없어 이 최소 정규화만 추가했다. pageSize·pagination·파싱·UI·schema는 불변이다.
+- **어디까지 끝났는지**: RED 5건 → GREEN. `tests/test_library_api.py` 6건, 관련 책 추가 AppTest 포함 13 passed, 전체 **209 passed**, compile·diff check PASS. 실제 upstream에서 `희망을 짓는다는 것` 제목·`9788932550817`·`978-89-325-5081-7` 모두 **1위**였고, 부분 제목 `희망을 짓는다`는 10위였다. 기존 도서 6권(역사란 무엇인가·데미안·채식주의자·사피엔스·고요한 아침·순전한 기독교)은 title 결과 상위 10건에 모두 있었다. 기존 keyword보다 나빠진 사례는 없다. 기능 `a5a7a51`, origin/main·deploy/main에 fast-forward push 결과는 아래 WORKLOG와 git 기록으로 확인한다.
+- **확인해야 할 것**: David가 운영 읽담 새 책 추가에서 `희망을 짓는다는 것`과 ISBN `9788932550817`을 검색해 책이 보이는지 확인한다. Streamlit 로그·화면 smoke는 브라우저 도구가 없어 **미확인**이다.
+- **보류(별도 데이터 품질 이슈)**: upstream authors가 `엘렌 데이비스,윤상필 옮김` 형식이라 역자가 저자 칸에 들어간다. 공저자 `오스틴 매키버 데니스`는 upstream authors에 없다. 국립중앙도서관 fallback·새 API key·pageSize·UI 개편은 범위 밖이다.
+- **다음 작업자**: David(운영 실제 검색 확인).
+- **브랜치 / 커밋 / 배포 상태**: `main` 기능 `a5a7a51` + 이 기록 커밋. origin/main·deploy/main 반영, Streamlit 화면 미확인.
+- **보류·실패·중단 이유**: 없음. 원본 작업트리의 사용자 기획문서 2건은 불변.
+
 ## David가 이어받을 작업 — 신간 검색 누락 원인은 query 파라미터(B), 수정 승인 판단 (2026-09-28, Claude Code)
 
 - **무엇을 했는지**: Intel i9 Mac 실제 Terminal / Claude Code에서 `희망을 짓는다는 것`(ISBN `9788932550817`) 검색 누락을 진단했다. worktree `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`, `main`, 시작 HEAD `f836a89`. 읽담과 같은 `srchBooks` endpoint와 같은 인증키로 upstream을 재현했다(키 비출력).

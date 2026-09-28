@@ -8,6 +8,17 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Claude Code: 도서관정보나루 title/isbn13 검색 수정 및 운영 반영
+
+- **작업 목적**: 진단 판정 B에 따라 `srchBooks` 검색 파라미터를 최소 수정해 신간 제목·ISBN 검색 누락을 해소하고 운영에 반영한다.
+- **실행환경**: Intel i9 Mac 실제 Terminal / Claude Code, `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`, `main`, 시작 HEAD `7f6bc6f`.
+- **실제 변경 내용**: `lib/library_api.py`에 `_normalize_isbn13`을 추가했다(공백·하이픈 제거, 978/979로 시작하는 13자리). ISBN-13이면 `isbn13=`, 아니면 `title=`을 보낸다. 신규 `tests/test_library_api.py`는 title 사용·부분 제목·ISBN13·하이픈/공백 ISBN·숫자 제목(1984) 유지·파싱과 제목 없는 항목 제거 유지를 검증한다.
+- **테스트 결과**: 먼저 RED 5 failed/1 passed를 확인했다. 수정 뒤 관련 13 passed(책 추가 AppTest 포함), 전체 **209 passed**, compile·`git diff --check` PASS.
+- **실제 재현**(키 비출력): `희망을 짓는다는 것` 1건 중 1위, `9788932550817`·`978-89-325-5081-7` 1위, `희망을 짓는다` 10건 중 10위. 기존 도서 6권은 title 결과 상위 10건에 모두 있었다. 기존 keyword 결과는 `역사란 무엇인가`·`고요한 아침`·`순전한 기독교`에서 무관한 책이 상위에 나왔지만 title은 정확했다.
+- **커밋/배포 여부**: 기능 `a5a7a51`, 이 기록 커밋. 이후 origin/main·deploy/main에 일반 fast-forward push(사전 원격 `542dbc8` 확인). Streamlit 화면 smoke는 브라우저 도구 부재로 미확인.
+- **보류**: 저자/역자 파싱(`엘렌 데이비스,윤상필 옮김`), 공저자 누락, 국립중앙도서관 fallback, pageSize/pagination, UI 개편, schema 변경은 하지 않았다.
+- **다음 작업**: David가 운영에서 제목·ISBN 검색을 직접 확인한다.
+
 ## 2026-09-28 — Claude Code: 도서관정보나루 신간 검색 누락 진단
 
 - **작업 목적**: `희망을 짓는다는 것`(성서유니온, 2026-06-22, ISBN `9788932550817`)이 읽담 검색에서 나오지 않는 원인을 upstream과 읽담 처리 단계로 나눠 확인한다.
