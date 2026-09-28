@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Claude Code: 책장 상단 새 책 추가 origin/deploy 동기화
+
+- **작업 목적**: local main `542dbc8`(새 책 추가 `dcf640c` 포함)을 origin/main·deploy/main에 반영하고 Streamlit 운영 갱신을 확인한다.
+- **실행환경**: Intel i9 Mac 실제 Terminal / Claude Code, clean main worktree `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`.
+- **실제 변경 내용**: 실제 원격 사전 조회 origin=deploy=`6a66872`(기록과 일치). ff 확인 후 `git push origin main:main`·`git push deploy main:main` 모두 `6a66872..542dbc8` 일반 push. force·merge·rebase 없음. 재조회 두 원격 모두 `542dbc8`.
+- **테스트 결과**: 격리 pyenv에서 **203 passed**, compile·`git diff --check 6a66872 main` PASS. push 후 health 200 `ok`.
+- **커밋/배포 여부**: 제품 원격 반영 완료. 운영 화면 smoke는 브라우저 도구 부재로 미수행. Secrets·Sites/D1·운영 DB·iCloud·launchd·오늘의 서재 변경 없음. 사용자 기획문서 2건 불변.
+- **남은 일**: David가 운영 화면 smoke(새 책 추가 바로가기·추천 UI)를 확인한다.
+
 ## 2026-09-28 — Codex: 책장 상단 새 책 추가 바로가기
 
 - **작업 목적**: 책장 맨 아래까지 이동하지 않고 새 책 등록을 시작할 수 있도록 `이어서 읽기` 바로 위에 상단 바로가기를 추가한다.

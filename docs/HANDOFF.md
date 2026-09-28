@@ -21,6 +21,15 @@
 
 ## 항목
 
+## David가 이어받을 작업 — 542dbc8 origin/deploy 반영, 운영 화면 smoke 수동 확인 필요 (2026-09-28, Claude Code)
+
+- **무엇을 했는지**: 실행환경은 Intel i9 Mac 실제 Terminal / Claude Code. worktree `/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`, branch `main`, 시작 HEAD `542dbc8`. 실제 원격 재조회 origin/main=deploy/main=`6a66872`(예상 일치)와 fast-forward 관계, 차이 5개 파일(`app.py`·`lib/shelf_ui.py`·책장 테스트·문서)을 확인하고 일반 push했다.
+- **어디까지 끝났는지**: 실제 원격 재조회로 origin/main=deploy/main=`542dbc8`. push 전 203 passed·compile·diff check PASS. push 약 90초 뒤 앱 `_stcore/health` HTTP 200 `ok`. Streamlit `Updated app` 로그·실행 SHA·로그인·책장·상단 `＋ 새 책 추가`·Reading Chunk 추천 UI smoke는 브라우저 도구 부재로 **미확인**이다.
+- **확인해야 할 것**: David가 Streamlit 관리 화면 `Updated app` 로그, 로그인·책장·기존 기능, 상단 `＋ 새 책 추가`가 `이어서 읽기` 바로 위에 있고 기존 책 추가 폼을 여는지, 하단 `➕ 새 책 추가` 유지, Reading Chunk 추천 패널·63개 검색·복수 선택·보내지 않음·수정 화면을 확인한다. 실제 책 추가·illustrationTags 승인은 David가 직접 한다.
+- **다음 작업자**: David(운영 화면 smoke).
+- **브랜치 / 커밋 / 배포 상태**: `main` 제품 `542dbc8`(origin·deploy push 완료), 이번 기록은 local main 후속 커밋·미push. Secrets·Sites/D1·운영 DB write·iCloud write·launchd·오늘의 서재 변경 없음.
+- **보류·실패·중단 이유**: blocker는 브라우저 도구 부재로 운영 UI 자동 확인 불가뿐이다. 원본 `codex/reading-chunks-1a` 작업트리의 사용자 기획문서 2건은 불변.
+
 ## David가 이어받을 작업 — 책장 상단 새 책 추가 바로가기 검증·배포 판단 (2026-09-28, Codex)
 
 - **무엇을 했는지**: 책장 지표 바로 아래, `이어서 읽기` 바로 위에 `＋ 새 책 추가` 버튼을 추가했다. 버튼을 누르면 상단 입력 surface가 열리며, 기존 하단 `➕ 새 책 추가`도 그대로 남는다. 두 surface는 하나의 `render_add_book_form` 함수와 동일한 검색·검증·`db.insert_book` 저장 경로를 공유하고, widget key scope만 분리한다.
