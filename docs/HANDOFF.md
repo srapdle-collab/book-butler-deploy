@@ -21,6 +21,16 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — 원격·운영 DB DNS 차단, 실제 예화창고 무쓰기 사전점검 완료 (2026-09-29, Codex)
+
+- **무엇을 했는지**: 세 층의 읽담 HANDOFF/WORKLOG/Git, 최상위 공동 계약·오늘의 서재 기록을 다시 대조했다. actual `origin/main`·`deploy/main`을 각 1회 `ls-remote`했으나 둘 다 이 Codex 실행환경에서 `github.com` DNS 실패로 조회·push하지 못했다. 공식 읽담 `.env`의 기존 PostgreSQL 연결 설정을 **값 출력 없이 프로세스에만** 로드해 Intel x86_64 psycopg의 READ ONLY 연결을 시도했지만 DB 호스트 DNS `gaierror`, 연결 `OperationalError`로 SQL 전 중단됐다. Secret·DB·원격 설정 변경 없음.
+- **예화창고 결과**: 실제 iCloud 예화창고를 이름/관리 metadata만 READ ONLY 확인했다. snapshot 63개와 물리 63개 NFC 정확 일치, 물리 이름 63개 모두 NFD, `교회`·`사명` exact 매핑 PASS. `독서조각/_index.csv`는 1행이며 2026-09-26 문서화된 **합성 검증 Chunk** `64894842…`와 일치하고 해당 txt가 존재한다. 1차-A `.export-state.json`, 2차 manifest 및 두 pending은 없다. 소유가 확인되지 않은 이 기존 검증 파일을 파이프라인이 건드리지 않고 보존하도록 RED→GREEN 회귀 테스트·최소 수정을 local `main` `17c4e02`에 커밋했다. 사람 파일 내용 미열람·변경 0.
+- **어디까지 끝났는지**: 전체 **281 tests PASS**, Python compile, diff check, plist lint PASS. 실제 운영 Chunk 연결에 실패했으므로 **운영 데이터 기반 전체 dry-run 미실행**이다. 따라서 CREATE/UPDATE/DELETE/SKIP/UNMAPPED/CONFLICT·대상 Chunk/카테고리·사람 파일 영향 계획은 **미산출(0으로 판정 금지)**. 실제 iCloud write/export 0, 운영 DB write 0, launchd 설치 0. 수동 로그인·진단 UI 유지/OIDC BACKLOG. 오늘의 서재 코드·통합 계약 변경 없음.
+- **확인해야 할 것**: DNS 가능한 실행환경에서 기존 READ ONLY 경로로 「희망을 짓는다는 것」 두 행과 정렬 순위를 확인하고, 같은 연결로 실제 Chunk→실제 예화창고 `tools/export_pipeline.py` 기본 dry-run을 실행해 충돌·사람 파일 영향·manifest/state 계획을 산출한다. 이 결과 전에는 실제 export/launchd GO 불가.
+- **다음 작업자 / 다음 작업 1개**: 읽담 담당자 — DNS 가능한 환경에서 **기존 운영 DB READ ONLY 연결을 복구**한다.
+- **브랜치 / 커밋 / 배포 상태**: clean `/private/tmp/readdam-login-persist` `main`, 시작 `e91204d`, 기능 `17c4e02`와 이 기록 커밋이 로컬 정본이다. 로컬 추적 origin/main=deploy/main=`9f7aedf`는 **원격 현재값 미확인**. push·deploy 없음. 원본 `codex/reading-chunks-1a`의 David 기획문서 수정·미추적 2건 보존.
+- **보류·실패·중단 이유**: 이 환경의 GitHub·Supabase DB DNS가 모두 실패. 이전 감사상 책 중복은 위시리스트/읽는 중 2건이나 이번 실제 row/rank 조회 불가; local SQLite 705권에는 해당 제목 0건, `reading_chunks` 표도 없어 운영 대체 데이터로 쓰지 않았다. 기존 `start_date` 코드 결함이 실제 누락의 직접 원인인지 미확정. 실제 export·launchd 활성화는 승인 전 금지.
+
 ## 읽담 담당자가 이어받을 작업 — 자동 export 격리 구현 완료, 운영 DB 감사 대기 (2026-09-29, Codex)
 
 - **무엇을 했는지**: `tools/export_pipeline.py`로 해당 owner의 전체 Reading Chunk를 READ ONLY 조회해 1차-A txt와 예화 카테고리 `읽담/` 분류를 잇는 단일 명령을 만들었다. CLI는 기본 dry-run, 실제 파일 반영은 별도 승인 후 `--apply`다. 바뀐 Chunk 탐지, 수정·태그 이동·soft delete, pending 복구, 충돌/미매핑 선차단, 사람 파일 보호, 로컬 중복 실행 잠금을 임시 SQLite/폴더에서 검증했다. 설치되지 않은 launchd 템플릿과 [운영 준비 문서](READING_CHUNK_AUTO_EXPORT.md)를 추가했다.

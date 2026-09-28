@@ -8,6 +8,16 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-29 — Codex: 실제 예화창고 READ ONLY 프리플라이트와 DNS 차단 인계
+
+- **목적·3층/환경**: local `main` `e91204d`부터 재개. 읽담 HANDOFF/WORKLOG/PROJECT·최상위 PROJECT/WORKLOG/CROSS_PROJECT_HANDOFF·오늘의 서재 HANDOFF/WORKLOG를 대조했다. 양 앱 계약 변경 없음. 원본 David 기획문서 2건·상위 미추적 작업물 보존. Intel x86_64, 검증 venv psycopg 3.2.13 로딩 성공.
+- **원격**: 실제 `git ls-remote origin refs/heads/main`, `git ls-remote deploy refs/heads/main` 각 1회 모두 `github.com` DNS 해석 실패. 추적 refs `9f7aedf`는 실제 원격 확인이 아니므로 fast-forward push를 시도하지 않았다. local main 변경은 공유 Git ref에 커밋, 원격 보존/Streamlit 배포 0.
+- **운영 DB**: 공식 읽담 `.env` 기존 설정은 값·DSN·host·비밀번호를 출력하지 않고 그 프로세스에만 로드했다. `SUPABASE_DB_*` 구성 완료, `READDAM_OWNER_EMAIL` 설정 존재, `BOOK_BUTLER_DB_PATH` 미설정 확인. DB host DNS `gaierror`; `db.get_readonly_connection()`은 `OperationalError`/SQLSTATE 없음으로 SQL 실행 전 실패. 설정·Secrets 변경, SQL/DB write 0. 공식 로컬 SQLite는 705권이나 `reading_chunks` 표가 없고 대상 제목 0건이라 운영 상태로 간주하지 않았다. 따라서 두 중복 책의 id/status/category/start_date/progress/session/Chunk/순위 및 직접 누락 원인은 미확정. `db.list_books`의 실제 정렬은 최근 activity date → start_date → 0, 책장 상단은 그 결과 `head(6)`다; 기존 `6064b1b`은 새 책 start_date만 보정한다.
+- **실제 예화창고 READ ONLY**: 실제 상위 폴더 63개가 snapshot 63개와 NFC 집합 정확 일치하고 63개 물리 이름 모두 NFD. `교회`/`사명` exact 매핑 PASS. `독서조각/_index.csv` 1행은 과거 문서의 합성 검증 Chunk `64894842…`에 해당하며 txt 존재, 파생 경로 비어 있음. `.export-state.json`·`_illustration_manifest.json`·두 pending 없음. 기존 사람 파일 본문은 열지 않았고 실제 iCloud write 0.
+- **안전 수정**: 이 소유 미확인 legacy index 행을 유지한 채 실제 DB Chunk를 처리하도록 `tools/export_pipeline.py`를 최소 수정. receipt/state 또는 manifest·파생 경로가 있는 DB 외 ID는 계속 중단하고, receipt 없는 기존 txt가 존재할 때만 보존한다. RED fixture 실패 확인 후 GREEN, 신규 2 tests와 관련 **46 PASS**, 전체 **281 PASS**, Python compile·diff check·plist lint PASS. 기능 `17c4e02` local main 커밋. `docs/READING_CHUNK_AUTO_EXPORT.md`의 안전 계약 갱신. 테스트는 합성 DB/임시 폴더만 사용했다.
+- **실제 dry-run 판정**: 운영 DB DNS 불가로 실제 Reading Chunk + 실제 예화창고의 pipeline dry-run은 **실행 불가**. CREATE/UPDATE/DELETE/SKIP/UNMAPPED/CONFLICT 및 대상 Chunk/카테고리, 사람 파일 영향, manifest/state *예정 변경*은 계산하지 못했다. 과거 운영 read-only 기준 Chunk 총2(활성1·soft deleted1)/활성 태그0은 이번 시점 재확인 값이 아니다. 실제 export·launchd 설치/활성화 0, 운영 GO 불가.
+- **기록/다음 작업 1개**: 이 HANDOFF/WORKLOG만 별도 커밋. local main 기능 `17c4e02` 이후 기록 HEAD, origin/deploy 실제 SHA 미확인·push 없음. 인증은 수동 로그인 유지/OIDC BACKLOG, 오늘의 서재/공동 계약 수정 없음. 다음은 DNS 가능한 환경에서 기존 운영 DB READ ONLY 연결 복구 1건이다.
+
 ## 2026-09-29 — Codex: Reading Chunk → 예화창고 단일 파이프라인 격리 구현
 
 - **목적·환경**: David 승인으로 인증은 수동 로그인·진단 UI 유지/OIDC BACKLOG로 기록하고, P0-B 운영 DB READ ONLY 연결 실패를 주차한 뒤 Reading Chunk 자동 export 본선의 안전한 로컬 구현을 진행했다. clean `main` worktree `/private/tmp/readdam-login-persist` 사용, 원본 사용자 기획문서 2건은 변경하지 않았다.
