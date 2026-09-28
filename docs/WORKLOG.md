@@ -8,6 +8,12 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-29 — Codex: David 인증 판정 승인 및 야간 우선순위 변경
+
+- **목적·결정**: David 승인으로 JS cookie → `st.context.cookies` 추가 패치를 중단하고 Streamlit + Supabase OIDC를 BACKLOG로 보냈다. 수동 로그인·현재 진단 UI 유지. 오늘 밤 인증 관련 구현·Secrets·OAuth 설정·배포는 하지 않는다.
+- **변경·검증·반영**: HANDOFF/WORKLOG에 현재 판정만 기록한다. 코드·테스트·DB·iCloud·오늘의 서재·통합 계약 변경 0, tests/compile 해당 없음, `git diff --check` PASS. clean `main` `/private/tmp/readdam-login-persist`, 시작 `6b86fd1`, 원격 tracking origin/main=deploy/main=`9f7aedf`; 실제 원격 SHA는 GitHub DNS 제약으로 미확인. 이 기록은 local 문서 커밋, push·deploy 없음. David 기존 기획문서 2건 보존.
+- **다음 작업 1개**: 운영 DB를 READ ONLY로 열 수 있으면 「희망을 짓는다는 것」 두 행·정렬 순위를 대조한다. 연결이 막히면 blocker를 남기고 Reading Chunk → 예화창고 자동화의 격리 구현으로 이동한다.
+
 ## 2026-09-29 — Codex: persistent login 공식 인증 대안 설계 감사
 
 - **목적·환경**: 운영에서 실패한 JS refresh cookie → `st.context.cookies` 경로의 패치를 중단하고, Streamlit OIDC와 Supabase OAuth Server 및 양방향 component를 기존 읽담 owner 계약 기준으로 비교했다. clean `main` worktree `/private/tmp/readdam-login-persist`, 시작 HEAD `9f7aedf`, 로컬 origin/main·deploy/main tracking ref도 `9f7aedf`. 실제 두 `git ls-remote`는 github.com DNS 실패로 원격 SHA를 독립 확인하지 못했다. 읽담 HANDOFF/WORKLOG/PROJECT·AGENTS/CLAUDE와 최상위 CROSS_PROJECT_HANDOFF를 대조했다. 원본 사용자 기획문서 수정·미추적 각 1건 보존.

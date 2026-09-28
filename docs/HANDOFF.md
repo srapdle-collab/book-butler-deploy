@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — 인증 수동 운영 유지, 자동 예화 export 본선 (2026-09-29, Codex)
+
+- **무엇을 했는지**: David가 로그인 지속성 설계 감사의 판정을 승인했다. 운영에서 실패한 JS cookie → `st.context.cookies` 경로의 추가 패치는 **중단**한다. Streamlit + Supabase OIDC는 Beta·별도 승인 화면·서명 키·Secrets·user ID/RLS·철회 검증이 필요한 **BACKLOG**다. 오늘 밤 인증 코드·설정·배포 작업은 없다. 현재 수동 로그인과 비밀값 없는 진단 UI를 유지한다.
+- **어디까지 끝났는지**: 이전 설계 감사 `6b86fd1` 뒤 이 결정은 local main의 기록 커밋으로 남긴다. 원격·deploy·운영 DB·iCloud 변경 0. P0-B 「희망을 짓는다는 것」과 Reading Chunk → 예화창고 자동화를 차례로 진행한다.
+- **확인해야 할 것**: P0-B의 기존 두 행·정렬 순위는 운영 DB READ ONLY로만 확인한다. 연결이 막히면 blocker로 기록하고 예화 자동 파이프라인을 격리 환경에서 계속한다. 실제 iCloud 쓰기와 launchd 설치는 금지다.
+- **다음 작업자 / 다음 작업 1개**: 읽담 Codex — 운영 DB READ ONLY로 「희망을 짓는다는 것」 두 레코드의 누락 직접 원인을 대조한다.
+- **브랜치 / 커밋 / 배포 상태**: clean `main` `/private/tmp/readdam-login-persist`, 시작 `6b86fd1`; 로컬 tracking origin/main=deploy/main=`9f7aedf`(실제 원격은 DNS 제약으로 미확인). 이번 기록은 push·deploy하지 않는다.
+- **보류·실패·중단 이유**: OIDC는 BACKLOG, 운영 데이터 변경은 David 결정 전 금지. 오늘의 서재·통합 계약 변경 없음.
+
 ## David가 결정할 작업 — persistent login 공식 인증 전환의 조건부 검토 (2026-09-29, Codex)
 
 - **무엇을 했는지**: 읽담 인증만 설계 감사했다. David의 운영 증거는 JS 쿠키 write·재접속 persistence PASS, 같은 host WebSocket 101 PASS지만 Cookie 전달 FAIL, 앱 진단 `server_cookie_name_seen=NO`, `restore_attempted=YES`, `refresh_success=NO`, `session_restored=NO`, `failure_stage=cookie_missing`이다. 즉 Supabase refresh 전 서버 쿠키 경계에서 막힌다. [Streamlit `st.context.cookies` 문서](https://docs.streamlit.io/develop/api-reference/caching-and-state/st.context)는 최초 요청의 쿠키만 읽는다고 명시한다. **현 JS cookie → `st.context.cookies` 방식의 추가 속성 패치는 중단 권고**다. 브라우저가 WebSocket에서 쿠키를 누락한 내부 이유까지 확정한 것은 아니다.
