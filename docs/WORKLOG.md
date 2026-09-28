@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-29 — Codex: WebSocket 쿠키 미전달 진단과 앱 자체 복원 상태 표시
+
+- **작업 목적·정본**: Safari 재접속에서 browser cookie는 남지만 로그인 복원이 실패하는 서버 경계를, 추가 개발자도구 조작 없이 코드·앱 화면으로 진단한다. Intel i9의 clean `/private/tmp/readdam-login-persist` `main`=`95f7354`에서 시작. 읽담 HANDOFF/WORKLOG/PROJECT 및 공동 계약 대조; 프로젝트 간 계약 변경 없음. 원본 `codex/reading-chunks-1a`의 David 기획문서 수정·미추적 각 1건과 상위 공동 저장소는 건드리지 않았다.
+- **운영 증거·원인 범위**: David/Work가 Safari에서 refresh cookie write·탭 재접속 persistence PASS, 앱 origin `https://read-dam-book-butler.streamlit.app`, 동일 host `/_stcore/stream` WSS 101 PASS, **WebSocket Cookie 전달 FAIL**, 자동 로그인 FAIL을 확인했다. Safari 저장 쿠키 세부 속성·일반 HTTP 전송은 미확인. 코드의 `components.html`은 iframe의 `window.parent.document.cookie`로 부모 앱 문서에 쓴다. 속성은 `Secure; SameSite=Strict; Path=/; Max-Age=2592000`, Domain 없음으로 `__Host-` 계약과 일치한다. JS 방식이라 HttpOnly는 불가. Streamlit 1.50의 `st.context.cookies`는 최초 WebSocket request 쿠키를 보므로, 해당 요청에 이름이 없다면 helper는 None, `refresh_session`은 미호출, session_state는 미복원이다. **즉시 실패 경계는 쿠키의 서버 전달→읽기이며, 왜 Safari/Cloud가 WebSocket에서 제외하는지는 미확정**이다. 404 `/api/v2/user/details`는 읽담의 직접 Supabase refresh URL이 아니다; 간접 관련성은 미확정.
+- **RED→GREEN·변경**: `tests/test_auth_persistence.py`에 서버 이름 존재 여부·cookie_missing·refresh_failed 진단 3건을 먼저 추가해 3 FAIL 확인. `lib/auth_cookie.py`의 `request_cookie_name_seen()`은 최초 요청의 이름 존재만 bool/None으로 반환한다. `app.py`는 새 세션 복원 시 boolean/status만 session_state에 보관하고 로그인 화면에 표시하며 수동 로그인·로그아웃 뒤 진단을 지운다. cookie/token/password/credential/예외 본문을 진단 상태·UI에 저장/출력하지 않는다. 기존 인증 구조와 쿠키 설정은 변경하지 않았다. 기존 성공 복원 테스트에도 상태 확인을 추가했다.
+- **검증·반영**: 관련 인증 **16 PASS**, 전체 **273 PASS**. Python `compileall -q app.py lib tests`는 기본 pycache 경로 권한 거부 후 `PYTHONPYCACHEPREFIX=/private/tmp/readdam-pycache`로 PASS; `git diff --check` PASS. 기능·테스트 `804b512`을 local main에 커밋했고 이 HANDOFF/WORKLOG는 후속 기록 커밋이다. 원격 push·deploy·실제 운영 진단 화면 확인 없음. 원격 `ls-remote`는 양쪽 github.com DNS 실패라 실제 현재 SHA 미확인, 로컬 추적 origin/main=deploy/main=`06bc5e1`. 운영 DB/iCloud write 0.
+- **P0-B·보류**: `db.get_readonly_connection()`으로 운영 두 책 조회를 재시도했지만 `OperationalError`로 연결 전 실패했다. 이전 감사의 위시리스트/읽는 중 두 행 외 실제 id/start_date/정렬/활동/세션/Chunk는 확정 불가. 기존 데이터 수정·병합·삭제 0. 인증 대체 후보는 Streamlit v1 양방향 component로 JS에서 읽은 쿠키를 Python에 전달하는 방식(새 패키지 필수 아님)이나 token의 컴포넌트 메시지·세션 전달 보안 영향과 구현량이 있어 승인 전 미구현. Streamlit 1.50에 v2 API는 없다.
+- **다음 작업 1개**: David가 진단 기능 운영 반영을 요청하면 원격 SHA 대조 후 승인된 push·deploy를 수행하고, 일반 로그인 화면에서 비밀값 없는 실패 단계만 확인한다. Safari 개발자도구 추가 작업은 요청하지 않는다.
+
 ## 2026-09-29 — Codex: Safari persistent cookie 확인과 서버 복원 경계 대조
 
 - **작업 목적·환경**: P0-A 로그인 지속성 실제 Safari 실패를 cookie write 이후 단계로 좁힌다. Intel i9의 clean worktree `/private/tmp/readdam-login-persist`, 시작 local main=`a40368c`, 로컬 추적 origin/main=deploy/main=`06bc5e1`. GitHub 실제 원격과 Streamlit 실행 SHA는 이번에 조회·확인하지 않았다. 읽담 최신 HANDOFF/WORKLOG와 공동 계약을 확인했고 오늘의 서재·통합 변경은 없다.

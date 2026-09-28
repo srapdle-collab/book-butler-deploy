@@ -21,6 +21,16 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — 로그인 복원 서버 경계 확인, 비밀값 없는 진단은 로컬 구현 (2026-09-29, Codex)
+
+- **무엇을 했는지**: Work 브라우저 진단은 종료했다. David의 운영 증거는 `__Host-readdam-refresh` 쿠키 write·재접속 persistence PASS, 동일 host `wss /_stcore/stream` 101 PASS, **그 WebSocket Cookie 전달 FAIL**, 자동 복원 FAIL이다. 코드의 `components.html`은 iframe에서 `window.parent.document.cookie`로 앱 부모 문서에 쓰며 `__Host-` 요구조건인 `Secure; Path=/; Domain 미지정`을 충족한다. `SameSite=Strict; Max-Age=2592000`이다. Streamlit 1.50의 `st.context.cookies`는 최초 WebSocket request에서 읽으므로, 확인된 쿠키 미전달에서는 `refresh_session`·session_state 복원에 도달하지 못한다. Safari가 WebSocket Cookie를 제외한 **근본 이유**와 일반 HTTP Cookie 전달 여부는 미확정이다. `/api/v2/user/details` 404는 읽담의 직접 refresh 호출이 아니며 관련성은 미확정이다.
+- **어디까지 끝났는지**: `lib/auth_cookie.py`에 서버 최초 요청의 쿠키 **이름 존재 여부만** 보는 함수를 추가했다. `app.py` 로그인 화면에 `server_cookie_name_seen`, `restore_attempted`, `refresh_success`, `session_restored`, `failure_stage`의 YES/NO/UNKNOWN 또는 단계명만 표시한다. token·cookie 값·비밀번호·Supabase credential·예외 본문은 진단 상태나 화면에 넣지 않는다. 로그인/로그아웃 동작과 인증 구조는 그대로다. 기능·테스트 local main 커밋 `804b512`; 전체 **273 PASS**, Python compile(허용된 `/private/tmp` pycache)·diff check PASS. 원격 push·deploy·운영 진단 화면 확인은 없다. 운영 DB/iCloud write 0.
+- **확인해야 할 것**: 현재 JS cookie → 최초 WebSocket `st.context.cookies` 경로는 **이번 Safari 접속에서는 서버 복원에 실패**했다. `SameSite` 등을 추측으로 바꾸지 않는다. 더 작은 대체 구조 후보는 Streamlit v1 양방향 custom component로 브라우저 저장 쿠키를 Python 세션에 전달하는 방법이며 새 패키지는 필수 아님. 다만 refresh token이 컴포넌트 메시지와 세션으로 이동하는 보안 영향·구현/운영 검증이 있어 David 승인 전에 적용하지 않는다. 설치된 Streamlit 1.50에는 components v2가 없다. 진단 화면을 운영에 반영하려면 실제 원격을 다시 확인하고 별도 승인된 push·deploy가 필요하다. David에게 Safari 개발자도구 추가 조작을 요구하지 않는다.
+- **P0-B**: 「희망을 짓는다는 것」 두 운영 행의 이번 READ ONLY 재조회는 `OperationalError`로 연결 단계에서 실패했다(비밀값 미출력). 이전 감사의 위시리스트/읽는 중 2건 외 현재 id·status·start_date·정렬순위·연결 데이터는 미확정이다. 미래 새 책용 `6064b1b`은 기존 운영 행을 수정하지 않는다. 두 행의 삭제·병합·상태 변경 없음.
+- **다음 작업자 / 다음 작업 1개**: David가 진단 기능 운영 반영을 요청하면, 실제 원격 SHA를 대조해 안전하게 배포한 뒤 **일반 로그인 화면만**으로 `server_cookie_name_seen`과 실패 단계를 확인한다.
+- **브랜치 / 커밋 / 배포 상태**: clean `main` worktree `/private/tmp/readdam-login-persist`; 시작 `95f7354`, 기능 `804b512` + 이 기록 커밋. 로컬 추적 origin/main=deploy/main=`06bc5e1`이고 이번 세션 실제 `ls-remote`는 github.com DNS 실패로 독립 확인 불가. 운영 실행 SHA 미확인. 사용자 원본 작업트리 기획문서 2건, 오늘의 서재, 통합 계약 불변.
+- **보류·실패·중단 이유**: WebSocket 쿠키 미전달의 브라우저/Cloud 내부 이유 미확정; DB와 GitHub 원격 DNS/연결 실패. 인증 대체 구조·운영 데이터 변경은 승인 전 중단한다.
+
 ## 읽담 담당자가 이어받을 작업 — Safari 쿠키 지속 PASS, 서버 복원 경계 미확인 (2026-09-29, Codex)
 
 - **무엇을 했는지**: David가 실제 Safari Console에서 `document.cookie.includes("__Host-readdam-refresh=")`를 정상 로그인 직후와 탭을 닫고 운영 URL을 다시 연 로그인 화면에서 모두 `true`로 확인했다. 따라서 **브라우저 cookie write·탭 종료 후 persistence는 PASS, 자동 로그인 복원은 FAIL**이다. refresh token 값은 보거나 기록하지 않았다.
