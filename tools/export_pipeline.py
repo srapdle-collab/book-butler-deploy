@@ -81,8 +81,17 @@ def _run(root, owner_id, dry_run):
     rows = _rows(owner_id)
     ids = {r["chunk_id"] for r in rows}
     existing = base.read_index(archive / "_index.csv")
-    if set(existing) - ids:
-        raise RuntimeError("DB에 없는 조각이 기존 export 목록에 있습니다. 자동 삭제하지 않습니다.")
+    orphans = set(existing) - ids
+    if orphans:
+        state_path = archive / ".export-state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+        manifest = illustrations._read_manifest(archive / illustrations.MANIFEST, root, owner_id)
+        for chunk_id in orphans:
+            legacy = existing[chunk_id]
+            if (chunk_id in state or chunk_id in manifest["entries"] or legacy["예화창고 경로들"]
+                    or not base._safe_path(archive, legacy["상대경로"]).is_file()):
+                raise RuntimeError("DB에 없는 소유 조각이 기존 export 목록에 있습니다. 자동 삭제하지 않습니다.")
+        # Receipt-less legacy verification rows are preserved byte-for-byte, never claimed.
     if not rows:
         if (archive / illustrations.MANIFEST).exists():
             raise RuntimeError("DB 조각은 없지만 기존 분류 manifest가 있습니다.")

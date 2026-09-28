@@ -134,3 +134,48 @@ def test_resume_old_selection_then_export_new_chunk(isolated_app, tmp_path, monk
     assert result["illustrations"]["CREATE"] == 2
     assert len(list((tmp_path / "용서" / "읽담").glob("*.txt"))) == 2
     assert not (tmp_path / "독서조각" / ".export-pending.json").exists()
+
+
+def test_unowned_legacy_index_row_is_preserved_without_claiming_it(isolated_app, tmp_path):
+    (tmp_path / "용서").mkdir()
+    archive = tmp_path / "독서조각"
+    legacy = archive / "2026" / "2026-09" / "old-synthetic.txt"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text("기존 검증 파일")
+    export_pipeline.base.write_index(archive / "_index.csv", {
+        "old-synthetic-id": {
+            "chunkId": "old-synthetic-id", "상대경로": "2026/2026-09/old-synthetic.txt",
+            "updatedAt": "2026-09-26", "contentHash": "old", "예화창고 경로들": "",
+        },
+    })
+    conn = db.get_connection()
+    _save(conn, illustration_tags=["용서"])
+    conn.close()
+    before = legacy.read_bytes()
+    preview = export_pipeline.run(tmp_path, owner_id=OWNER, dry_run=True)
+    assert preview["illustrations"]["CREATE"] == 1
+    export_pipeline.run(tmp_path, owner_id=OWNER)
+    assert legacy.read_bytes() == before
+    assert len(export_pipeline.base.read_index(archive / "_index.csv")) == 2
+    state = json.loads((archive / ".export-state.json").read_text())
+    assert "old-synthetic-id" not in state
+
+
+def test_owned_orphan_row_fails_closed(isolated_app, tmp_path):
+    (tmp_path / "용서").mkdir()
+    archive = tmp_path / "독서조각"
+    archive.mkdir()
+    export_pipeline.base.write_index(archive / "_index.csv", {
+        "missing-owned-id": {
+            "chunkId": "missing-owned-id", "상대경로": "2026/2026-09/owned.txt",
+            "updatedAt": "2026-09-26", "contentHash": "old", "예화창고 경로들": "",
+        },
+    })
+    (archive / ".export-state.json").write_text(json.dumps({
+        "missing-owned-id": {"owner_id": OWNER, "path": "2026/2026-09/owned.txt", "sha256": "0" * 64},
+    }))
+    conn = db.get_connection()
+    _save(conn, illustration_tags=["용서"])
+    conn.close()
+    with pytest.raises(RuntimeError, match="DB에 없는"):
+        export_pipeline.run(tmp_path, owner_id=OWNER, dry_run=True)
