@@ -21,6 +21,17 @@
 
 ## 항목
 
+## 최신 — P0 운영 책장 TypeError/StreamlitAPIException 복구 완료 (2026-09-28, Claude Code/Orca)
+
+- **무엇을 했는지**: David가 모바일에서 새 카테고리("분별력")를 직접 입력해 책을 저장한 뒤 책장으로 돌아오면 화면이 죽는 P0를 조사·재현·수정했다. Root cause: Postgres 경로에서 `pages` 같은 숫자 컬럼에 NULL이 한 행이라도 섞이면 pandas가 그 컬럼 전체를 float64로 승격시켜 NULL이 None이 아니라 NaN이 된다. NaN은 파이썬에서 참으로 판정돼 `shelf_ui._cover_card`의 `book['pages'] or 0`가 NaN을 그대로 넘기고 `st.progress(nan)`이 `StreamlitAPIException`을 던졌다. 스크린샷의 `db.cover_source(...)` 프레임은 예외가 표시된 위치였을 뿐 root cause는 아니었다. `notebook_ui.cards()`가 이미 쓰는 `pd.isna()` 정규화 패턴을 `_cover_card` 진입부에 그대로 적용해 고쳤다. `lib/database.py`의 `read_frame`을 고치는 방법도 검토했으나 pandas `future.infer_string` 'str' dtype을 깨서 기존 `test_cards_normalize_missing_values_from_new_pandas_string_dtype` 테스트를 회귀시켜 채택하지 않았다.
+- **어디까지 끝났는지**: 실제 크래시를 재현하는 회귀 테스트 추가(수정 전 상태로는 진짜로 실패함을 확인) 후 전체 pytest 238개 통과, py_compile·git diff --check 통과. `hotfix/shelf-nan-progress-crash` 브랜치에서 커밋 `f4f3179` 생성 후, `main`을 그 커밋으로 **fast-forward하여 origin과 deploy 모두에 push·운영 배포 완료**했다(둘 다 `0cbe841` → `f4f3179`). Streamlit Community Cloud는 deploy/main 변경 시 자동 재배포되며, 재배포 후 실제 새 카테고리 등록→책장 진입 브라우저 검증은 아직 하지 않았다(아래 확인 항목).
+- **확인해야 할 것**: 재배포 완료 후 실제 운영 앱에서 (1) 새 카테고리 직접 입력→책 저장→책장 진입이 죽지 않는지, (2) 기존 책·표지·검색이 정상인지, (3) Reading Chunk 관련 화면에 영향이 없는지(이번 수정은 `lib/shelf_ui.py`와 테스트 파일만 건드렸고 reading_chunks 코드는 만지지 않았다) 브라우저로 한 번 확인이 필요하다.
+- **다음 작업자**: 운영 브라우저 검증을 할 수 있는 작업자(Safari/Chrome 연결 가능한 세션). 이상 없으면 이 항목의 "확인해야 할 것"에 결과만 추가하면 된다.
+- **브랜치**: `hotfix/shelf-nan-progress-crash` (별도 워크트리 `/private/tmp/readdam-p0-shelf-repro/readdam`에서 작업, 원본 `codex/reading-chunks-1a` 작업트리와 그 안의 사용자 미커밋 기획문서 2개는 건드리지 않았다).
+- **커밋**: 기능 `f4f3179`. 이 HANDOFF·WORKLOG 기록은 같은 브랜치의 후속 문서 커밋.
+- **배포 상태**: **origin/main과 deploy/main 모두 `f4f3179`로 배포 완료.** Reading Chunk 1차-A/1차-B는 이번 작업과 무관하며 기존 NO-GO 상태를 그대로 유지한다(코드 변경 없음).
+- **보류·실패·중단 이유**: 없음. 재현→원인 확정→최소 수정→테스트→배포까지 이번 세션에서 완료했다. 운영 브라우저를 통한 최종 시각 확인만 다음 작업자에게 남긴다.
+
 ## M1 읽담 담당자가 이어받을 작업 — i9→M1 이관 Checkpoint (2026-09-28, Claude Code)
 
 이 항목은 이관 시점의 **전체 상태 요약**이다. 아래 이전 항목들의 "다음 작업"은 이 항목으로 대체한다.

@@ -8,6 +8,19 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Claude Code(Orca): P0 운영 책장 크래시 재현·원인 확정·핫픽스·배포
+
+- **작업 목적**: David가 모바일 운영 앱에서 새 카테고리("분별력")를 직접 입력해 책을 저장한 뒤 책장으로 돌아오면 화면이 죽는 P0 장애를 복구한다. 새 기능 개발은 하지 않는다.
+- **Phase 0**: `docs/HANDOFF.md`·`WORKLOG.md`·최상위 `AGENTS.md`·`CROSS_PROJECT_HANDOFF.md`를 먼저 읽었다. 원래 작업트리(`codex/reading-chunks-1a`, 사용자 미커밋 기획문서 2개 보유)는 건드리지 않고, `/private/tmp/readdam-p0-shelf-repro/readdam`에 `main`(당시 `0cbe841`) 워크트리를 새로 만들어 작업했다.
+- **Phase 1 재현**: 실제 traceback 원문은 이번 세션에 전달되지 않아 스크린샷 기반 호출 흐름(`render_shelf → _cover_grid → _cover_card → db.cover_source(...)`)과 David가 추가로 확인한 재현 조건(새 카테고리 직접 생성 → 책 저장 → 책장 진입)만으로 시작했다.
+- **Phase 2/3 원인 조사**: SQLite 기반 AppTest 재현은 실패했다(크래시 없음) — SQLite 경로는 문제가 없었다. Postgres dict-row 경로를 psycopg 없이 흉내 낸 `PostgresConnection`/`Cursor` 스텁으로 `lib.database.read_frame`과 `lib.shelf_ui._cover_card`를 직접 호출해 재현한 결과: **`pages` 같은 숫자 컬럼에 NULL이 한 행이라도 섞이면 pandas가 그 컬럼 전체를 float64로 승격시켜 NULL이 None이 아니라 NaN이 된다.** NaN은 파이썬에서 참으로 판정되므로 `shelf_ui._cover_card`의 `total = book['pages'] or 0`가 NaN을 그대로 넘기고, `st.progress(min(max(current/total,0),1) if total else 0, ...)`가 `st.progress(nan)`을 호출해 **`streamlit.errors.StreamlitAPIException: Progress Value has invalid value [0.0, 1.0]: nan`**을 던진다. 이건 `show_progress=True`(책장의 "이어서 읽기", `status='읽는 중'`)에서만 발생한다. `db.cover_source(...)`는 스크린샷에서 예외가 표시된 프레임이었을 뿐 그 함수 자체에서 예외가 나지는 않았다(직접 호출로 확인, `cover_photo`/`cover_url`이 None인 경우 정상적으로 `None`을 반환함).
+- **부수 발견**: 2026-09-26에 같은 종류의 "nan 문자열" 버그를 고치며 `lib/database.py`의 `read_frame`에 `frame.where(pd.notna(frame), None)`을 추가했었는데(커밋 `51e5b0c` 계열), 이번 조사로 **이 수정이 숫자(float64) 컬럼에는 실제로 적용되지 않는다는 것을 확인했다.** `.where(cond, None)`은 float64 dtype 컬럼에 None을 넣어도 pandas가 조용히 NaN으로 되돌린다(`frame.astype(object).where(...)`처럼 dtype을 먼저 object로 바꿔야 실제로 None이 유지된다). 문자열 전용 컬럼(예: `quote`)에서는 우연히 잘 작동했을 뿐이었다.
+- **수정 방법 검토**: `read_frame`을 `frame.astype(object).where(pd.notna(frame), None)`으로 바꾸는 안을 먼저 시도해 이 P0는 해결됨을 확인했다. 하지만 전체 테스트를 돌리자 `tests/test_notebook_app.py::test_cards_normalize_missing_values_from_new_pandas_string_dtype`가 회귀했다: 이 테스트는 pandas `future.infer_string` 모드에서 `read_frame`이 문자열 컬럼의 `'str'` dtype을 그대로 보존해야 한다고 요구하는데, `astype(object)`는 이를 깨버린다. 대신 `lib/notebook_ui.py`의 `cards()`가 이미 쓰고 있던 패턴 — DataFrame row를 쓰는 지점에서 `{k: None if pd.isna(v) else v for k, v in row.items()}`로 정규화 — 을 `lib/shelf_ui.py::_cover_card` 진입부에 그대로 적용하는 것으로 방향을 바꿨다. `read_frame`은 원래 상태로 되돌렸다(변경 없음).
+- **Phase 4 최소 수정**: `lib/shelf_ui.py`의 `_cover_card` 맨 앞에 `book = {key: None if pd.isna(value) else value for key, value in book.items()}` 한 줄(및 import pandas) 추가. DB 데이터 변경 없음, schema 변경 없음, 새 API 없음, UI 재설계 없음.
+- **테스트**: `tests/test_postgres_compat.py`에 `test_shelf_cover_card_does_not_crash_on_new_book_with_null_pages_from_postgres` 추가. 수정 전 상태(`git stash`로 되돌려 확인)로는 이 테스트가 실제로 실패함을 확인해 진짜 회귀 테스트임을 검증했다. 수정 후: 전체 pytest **238개 통과**(회귀 테스트 추가분 포함, 기존 `test_cards_normalize_missing_values_from_new_pandas_string_dtype`도 그대로 통과), `python -m py_compile` 통과, `git diff --check` 통과.
+- **배포**: `hotfix/shelf-nan-progress-crash` 브랜치 커밋 `f4f3179`(`main` `0cbe841`에서 분기). `origin/main`·`deploy/main` 모두 `f4f3179`로 fast-forward push해 **운영 배포 완료**. Reading Chunk 1차-A/1차-B 코드는 건드리지 않았고 기존 NO-GO 상태는 그대로다.
+- **남은 일**: 재배포 후 실제 운영 브라우저에서 "새 카테고리 생성 → 책 저장 → 책장 진입"이 실제로 안 죽는지 최종 시각 확인이 아직 없다(이 세션엔 브라우저 연결이 없었음). `docs/HANDOFF.md`에도 같은 내용을 기록했다.
+
 ## 2026-09-28 — Claude Code: i9→M1 이관 Checkpoint
 
 - **작업 목적**: 새 기능 없이, M1 작업자가 HANDOFF·WORKLOG만 보고 이어받을 수 있게 전체 상태를 확정한다.
