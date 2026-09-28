@@ -8,6 +8,15 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: 예화 카테고리 추천·승인 기능 main 반영 및 배포 안전성 관문
+
+- **작업 목적**: 검증된 예화 카테고리 추천·승인 기능을 읽담 main에 안전하게 반영하고 Streamlit 배포 전 1차-B·2차 exporter 자동 실행 여부를 확인한다.
+- **실제 변경 내용**: 깨끗한 별도 main worktree에서 `codex/reading-chunk-category-approval`을 `0d1530d..59d0250`으로 ff-only 반영했다. 원본 작업트리의 사용자 소유 `도서비서_기획문서.md` 수정과 `도서비서_기획문서 2.md` 미추적 파일은 그대로 보존했다. 이 상태 기록만 추가한다.
+- **테스트 결과**: 반영 main에서 전체 pytest **202 passed in 29.92s**, Python compile PASS, `git diff --check` PASS. deploy/main=`74d3c9d`부터 main까지의 변경은 Reading Chunk 1차-B·2차와 예화 카테고리 추천·승인 관련 파일임을 대조했다.
+- **배포 안전성 감사**: 2차 exporter는 앱 시작·Streamlit 사용 흐름에서 호출되지 않는 명시적 CLI다. 1차-B `sync_once`는 URL·두 key가 비어 있으면 외부 HTTP 전에 `not_configured`로 반환한다. 다만 `lib/readdam_sync_ui.py`의 `@st.fragment(run_every="5m")`가 자동으로 동기화 경로를 호출하므로 “background sync 자동 시작 없음” 조건에는 맞지 않는다.
+- **커밋/배포 여부**: 이번 상태 문서는 후속 커밋으로 남긴다. origin/main push, deploy/main 반영, Streamlit 배포, Secrets 등록, Sites/D1 변경, 운영 DB 직접 write, iCloud write는 모두 없다.
+- **남은 일과 중단 이유**: 이번 범위는 오늘의 서재 코드를 바꿀 수 없으므로 자동 fragment를 제거·비활성화하는 별도 승인 없이 배포를 진행하지 않는다. 실제 David E2E도 운영 UI 반영 전에는 시작하지 않는다.
+
 ## 2026-09-28 — Codex: David 승인 예화 카테고리 사전 최소 수정
 
 - **목적/변경**: 예화창고 카테고리를 배타적 분류가 아닌 다중 추천 가능한 주제 바구니로 확정했다. 유용한 중복 후보는 최대 3개·David 최종 선택 원칙을 유지했다. 승인된 세 keyword만 `d037be1`에서 반영했다: `그리스도인의 삶의 방식`, `시간`의 `세월` 삭제, `위선의 가면`.

@@ -21,6 +21,15 @@
 
 ## 항목
 
+## David가 이어받을 작업 — main 반영 완료, 1차-B 자동 동기화 관문으로 운영 배포 중단 (2026-09-28, Codex)
+
+- **무엇을 했는지**: 깨끗한 별도 main worktree에서 `codex/reading-chunk-category-approval`을 `0d1530d..59d0250`으로 fast-forward했다. 원본 작업트리의 사용자 소유 기획문서 2건은 변경하지 않았다. main 기준 전체 테스트·compile·diff와 deploy/main 차이를 감사했다.
+- **어디까지 끝났는지**: 추천·승인 기능은 local main에만 반영됐다. 전체 **202 passed**, Python compile, `git diff --check`는 PASS다. origin/main·deploy/main·Streamlit·Secrets·운영 DB·iCloud는 변경하지 않았다.
+- **확인해야 할 것**: 1차-B UI `lib/readdam_sync_ui.py`는 Secrets가 비어 있으면 외부 HTTP 전에 `not_configured`로 끝나지만, `@st.fragment(run_every="5m")`가 자동으로 `sync_once`를 호출한다. 이번 배포 조건인 background sync 자동 시작 없음은 충족하지 않는다. 2차 exporter는 앱에서 호출되지 않는 명시적 CLI 진입점임을 확인했다.
+- **다음 작업자**: David가 별도 1차-B 작업에서 자동 실행을 제거·비활성화할지 결정한 뒤 읽담 담당자.
+- **브랜치 / 커밋 / 배포 상태**: `main` / 제품 `59d0250` (이번 상태 문서는 후속 커밋); origin/main=`0d1530d`, deploy/main=`74d3c9d`. 운영 배포 없음.
+- **보류·실패·중단 이유**: 외부 HTTP 자동 실행 증거는 없지만 자동 scheduled fragment가 존재한다. 이번 작업은 오늘의 서재 코드를 수정할 수 없으므로 push·deploy·운영 UI smoke를 진행하지 않았다.
+
 ## David가 이어받을 작업 — 승인된 예화 카테고리 사전의 main 반영 판단 (2026-09-28, Codex)
 
 - **무엇을 했는지**: David가 승인한 세 keyword만 반영했다. `그리스도인의 삶`은 `그리스도인의 삶의 방식`으로 구체화했고, `시간`의 `세월`은 삭제했으며, `위선`의 `가면`은 `위선의 가면`으로 구체화했다. 63개 카테고리는 배타적 분류가 아닌 주제 바구니이므로 유용한 다중 추천은 최대 3개까지 유지한다.
