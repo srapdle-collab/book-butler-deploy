@@ -400,6 +400,13 @@ try:
     if st.session_state.get("notice"):
         st.toast(st.session_state.pop("notice"))
 
+    # The Sites token identifies one Today Library account. Keep its pull bound
+    # to the already configured owner of this private personal library.
+    if (authenticated_user and has_personal_library and ownership.configured_owner_email()
+            and authenticated_user.email.casefold() == ownership.configured_owner_email()):
+        from lib.readdam_sync_ui import render as render_readdam_sync
+        render_readdam_sync(authenticated_user.id)
+
     if st.session_state.view == "소그룹" and authenticated_user:
         from lib.groups_ui import render as render_groups
         render_groups(conn, authenticated_user)

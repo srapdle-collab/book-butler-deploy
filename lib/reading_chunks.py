@@ -8,6 +8,8 @@ from __future__ import annotations
 from datetime import date, datetime
 import hashlib
 import json
+import re
+import unicodedata
 from zoneinfo import ZoneInfo
 import uuid
 
@@ -259,3 +261,129 @@ def soft_delete(conn, chunk_id: str, *, owner_id: str):
     if cursor.rowcount != 1:
         raise ValueError("읽은 조각이 변경되어 삭제하지 못했습니다.")
     conn.commit()
+
+
+def _incoming_error(payload) -> str | None:
+    """Return the first invalid schemaVersion 1 field without echoing its value."""
+    if not isinstance(payload, dict):
+        return "payload"
+    if type(payload.get("schemaVersion")) is not int or payload["schemaVersion"] != 1:
+        return "schemaVersion"
+    chunk_id = payload.get("chunkId")
+    try:
+        parsed = uuid.UUID(chunk_id)
+        if parsed.version != 4 or str(parsed) != chunk_id:
+            return "chunkId"
+    except (TypeError, ValueError, AttributeError):
+        return "chunkId"
+    if payload.get("sourceApp") != "today-library":
+        return "sourceApp"
+    for field, limit, required in (
+        ("bookId", 100, False), ("bookTitle", 500, True), ("author", 300, False),
+        ("isbn", 100, False), ("positionNote", 300, False),
+        ("originalText", 50000, False), ("userNote", 50000, False),
+    ):
+        value = payload.get(field)
+        if value is None and not required:
+            continue
+        if not isinstance(value, str) or len(value) > limit or (required and not value.strip()):
+            return field
+    try:
+        if date.fromisoformat(payload.get("readDate")).isoformat() != payload["readDate"]:
+            return "readDate"
+    except (TypeError, ValueError):
+        return "readDate"
+    for field in ("pageStart", "pageEnd", "minutes"):
+        value = payload.get(field)
+        if value is not None and (type(value) is not int or value < 0 or value > 100000):
+            return field
+    if payload.get("pageStart") is not None and payload.get("pageEnd") is not None and payload["pageStart"] > payload["pageEnd"]:
+        return "pageEnd"
+    if not (payload.get("originalText") or "").strip() and not (payload.get("userNote") or "").strip():
+        return "originalText"
+    for field in ("tags", "illustrationTags", "contentTypes"):
+        values = payload.get(field)
+        if not isinstance(values, list) or len(values) > 40 or any(not isinstance(value, str) or not value.strip() or len(value) > 100 for value in values):
+            return field
+    if any(value not in CONTENT_TYPES for value in payload["contentTypes"]):
+        return "contentTypes"
+    for field in ("createdAt", "updatedAt"):
+        value = payload.get(field)
+        try:
+            if not isinstance(value, str) or not datetime.fromisoformat(value.replace("Z", "+00:00")).tzinfo:
+                return field
+        except ValueError:
+            return field
+    return None
+
+
+def _match_incoming_book(conn, payload, owner_id):
+    rows = database.execute(conn, "SELECT id, title, author, isbn, pages, status FROM books WHERE owner_id=?", (owner_id,)).fetchall()
+    book_id = payload.get("bookId")
+    if book_id:
+        for row in rows:
+            if row["id"] == book_id:
+                return row
+    digits = lambda value: re.sub(r"\D", "", value or "")
+    isbn = digits(payload.get("isbn"))
+    if isbn:
+        matches = [row for row in rows if digits(row["isbn"]) == isbn]
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            return None
+    normalize = lambda value: " ".join(unicodedata.normalize("NFKC", value or "").casefold().split())
+    title, author = normalize(payload["bookTitle"]), normalize(payload.get("author"))
+    matches = [row for row in rows if normalize(row["title"]) == title and normalize(row["author"]) == author]
+    return matches[0] if len(matches) == 1 else None
+
+
+def ingest(conn, payload, *, owner_id: str):
+    """Store a Today Library chunk without entering save()'s edit path."""
+    _require_owner(conn, owner_id)
+    field = _incoming_error(payload)
+    chunk_id = payload.get("chunkId") if isinstance(payload, dict) else None
+    updated_at = payload.get("updatedAt") if isinstance(payload, dict) else None
+    receipt = {"chunkId": chunk_id, "payloadUpdatedAt": updated_at}
+    if field:
+        return {**receipt, "result": "rejected", "errorCode": "invalid_payload", "errorField": field}
+
+    def existing_owner():
+        return database.execute(conn, "SELECT owner_id FROM reading_chunks WHERE chunk_id=?", (chunk_id,)).fetchone()
+
+    existing = existing_owner()
+    if existing:
+        return {**receipt, "result": "already_stored" if existing["owner_id"] == owner_id else "rejected",
+                "errorCode": None if existing["owner_id"] == owner_id else "chunk_id_conflict"}
+    book = _match_incoming_book(conn, payload, owner_id)
+    if book is None:
+        return {**receipt, "result": "rejected", "errorCode": "book_not_matched"}
+    digest = content_hash(payload.get("originalText"), payload.get("userNote"))
+    try:
+        with database.transaction(conn):
+            existing = existing_owner()
+            if existing:
+                return {**receipt, "result": "already_stored" if existing["owner_id"] == owner_id else "rejected",
+                        "errorCode": None if existing["owner_id"] == owner_id else "chunk_id_conflict"}
+            duplicate = _duplicate(conn, owner_id=owner_id, book_id=book["id"], read_date=payload["readDate"],
+                                   page_start=payload.get("pageStart"), page_end=payload.get("pageEnd"), digest=digest)
+            database.execute(conn, """INSERT INTO reading_chunks (
+                chunk_id, owner_id, book_id, book_title, author, isbn, source_app, source_ref,
+                read_date, page_start, page_end, position_note, minutes, original_text, user_note,
+                tags, illustration_tags, content_types, content_hash, created_at, updated_at, deleted_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 'today-library', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)""",
+                (chunk_id, owner_id, book["id"], book["title"], book["author"], book["isbn"],
+                 payload["readDate"], payload.get("pageStart"), payload.get("pageEnd"), payload.get("positionNote"),
+                 payload.get("minutes"), payload.get("originalText") or None, payload.get("userNote") or None,
+                 json.dumps(clean_tags(payload["tags"]), ensure_ascii=False),
+                 json.dumps(clean_tags(payload["illustrationTags"]), ensure_ascii=False),
+                 json.dumps(clean_tags(payload["contentTypes"]), ensure_ascii=False), digest,
+                 payload["createdAt"], payload["updatedAt"]),
+            )
+    except Exception:
+        existing = existing_owner()
+        if existing:
+            return {**receipt, "result": "already_stored" if existing["owner_id"] == owner_id else "rejected",
+                    "errorCode": None if existing["owner_id"] == owner_id else "chunk_id_conflict"}
+        raise
+    return {**receipt, "result": "stored", "errorCode": None, "duplicateSuspected": bool(duplicate)}

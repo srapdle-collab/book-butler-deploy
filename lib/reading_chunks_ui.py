@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
+from collections import Counter
 import uuid
 
 import streamlit as st
@@ -178,12 +179,17 @@ def render(conn, book, *, owner_id):
 
     tag = st.text_input("조각 태그 필터", key="chunk_tag_filter", placeholder="태그 하나를 입력하세요")
     rows = chunks.list_for_book(conn, book["id"], owner_id=owner_id, tag=tag or None)
+    duplicate_counts = Counter((item["read_date"], item["page_start"], item["page_end"], item["content_hash"])
+                               for item in chunks.list_for_book(conn, book["id"], owner_id=owner_id))
     if not rows:
         st.caption("아직 저장한 읽은 조각이 없습니다.")
         return
     for row in rows:
         with st.container(border=True, key=f"chunk_card_{row['chunk_id']}"):
-            st.caption(f"{row['read_date']} · {_range_label(row)} · 읽담")
+            source = "오늘의 서재" if row["source_app"] == "today-library" else "읽담"
+            st.caption(f"{row['read_date']} · {_range_label(row)} · {source}")
+            if duplicate_counts[(row["read_date"], row["page_start"], row["page_end"], row["content_hash"])] > 1:
+                st.warning("중복 의심 · 다른 조각으로 보관했습니다.")
             if row["original_text"]:
                 st.markdown(row["original_text"])
             if row["user_note"]:
