@@ -1,3 +1,4 @@
+import html
 import pandas as pd
 import streamlit as st
 from lib import db
@@ -20,7 +21,7 @@ def _cover_card(book, goto, prefix='shelf', show_progress=False):
             st.image(source, width='stretch')
         else:
             st.markdown(
-                f'<div class="shelf-cover-placeholder">📖<span>{book["title"]}</span></div>',
+                f'<div class="shelf-cover-placeholder">📖<span>{html.escape(str(book["title"] or ""))}</span></div>',
                 unsafe_allow_html=True,
             )
             st.caption('표지 없음')

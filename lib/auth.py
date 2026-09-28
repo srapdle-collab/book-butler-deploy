@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from typing import Any
 
 
@@ -11,6 +12,14 @@ class AuthUser:
     id: str
     email: str
     display_name: str | None = None
+
+
+@dataclass(frozen=True)
+class AuthSession:
+    user: AuthUser
+    access_token: str = field(repr=False)
+    refresh_token: str = field(repr=False)
+    expires_at: int | None = None
 
 
 class AuthError(RuntimeError):
@@ -66,17 +75,47 @@ def sign_up(email: str, password: str, display_name: str) -> str:
     return "가입 확인 메일을 보냈습니다. 메일 확인 후 로그인해주세요."
 
 
-def sign_in(email: str, password: str) -> tuple[AuthUser, str]:
+def _session_from_response(response) -> AuthSession:
+    session = getattr(response, "session", None)
+    user = getattr(response, "user", None)
+    access = getattr(session, "access_token", None)
+    refresh = getattr(session, "refresh_token", None)
+    if not user or not access or not refresh:
+        raise AuthError("로그인 세션을 만들지 못했습니다.")
+    payload = user.model_dump() if hasattr(user, "model_dump") else user.__dict__
+    expires_at = getattr(session, "expires_at", None)
+    if expires_at is None:
+        expires_in = getattr(session, "expires_in", None)
+        expires_at = int(time.time() + expires_in) if expires_in else None
+    return AuthSession(user_from_payload(payload), access, refresh, expires_at)
+
+
+def sign_in(email: str, password: str) -> AuthSession:
     try:
         response = _client().auth.sign_in_with_password({"email": email.strip(), "password": password})
     except Exception as exc:  # pragma: no cover - Supabase HTTP 오류
         raise AuthError("이메일 또는 비밀번호가 맞지 않습니다.") from exc
-    session = getattr(response, "session", None)
-    user = getattr(response, "user", None)
-    token = getattr(session, "access_token", None)
-    if not user or not token:
-        raise AuthError("로그인 세션을 만들지 못했습니다.")
-    return user_from_payload(user.model_dump() if hasattr(user, "model_dump") else user.__dict__), token
+    return _session_from_response(response)
+
+
+def refresh_session(refresh_token: str) -> AuthSession:
+    if not refresh_token:
+        raise AuthError("로그인 세션이 만료되었습니다. 다시 로그인해주세요.")
+    try:
+        response = _client().auth.refresh_session(refresh_token)
+        return _session_from_response(response)
+    except Exception as exc:
+        raise AuthError("로그인 세션이 만료되었습니다. 다시 로그인해주세요.") from exc
+
+
+def sign_out(access_token: str, refresh_token: str) -> None:
+    """Revoke this browser's Supabase session; caller clears local state even on error."""
+    try:
+        client = _client()
+        client.auth.set_session(access_token, refresh_token)
+        client.auth.sign_out({"scope": "local"})
+    except Exception as exc:
+        raise AuthError("서버 로그아웃을 완료하지 못했습니다.") from exc
 
 
 def current_user(access_token: str) -> AuthUser:

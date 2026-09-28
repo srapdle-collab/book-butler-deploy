@@ -339,7 +339,9 @@ def test_login_then_render_has_no_ddl(isolated_app, monkeypatch):
         return conn
     monkeypatch.setattr(db, "connect", recording)
     monkeypatch.setattr(auth, "is_configured", lambda: True)
-    monkeypatch.setattr(auth, "sign_in", lambda *args: (auth.AuthUser("TEST-owner", "test@example.invalid"), "TEST-token"))
+    monkeypatch.setattr(auth, "sign_in", lambda *args: auth.AuthSession(
+        auth.AuthUser("TEST-owner", "test@example.invalid"), "TEST-token", "TEST-refresh", 9999999999
+    ))
     # No external authentication service or owner-email secret lookup.
     monkeypatch.setattr(ownership, "configured_owner_email", lambda: "")
     at = AppTest.from_file(APP_PATH, default_timeout=10).run()

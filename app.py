@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hmac
 import os
+import time
 from datetime import datetime
 
 import streamlit as st
@@ -51,15 +52,60 @@ def require_app_password() -> None:
 
 def require_authenticated_user():
     """Auth가 설정된 배포에서는 계정 로그인 전 앱 본문을 숨긴다."""
-    from lib import auth
+    from lib import auth, auth_cookie
+
+    def accept_session(session) -> None:
+        st.session_state.auth_user = session.user
+        st.session_state.auth_access_token = session.access_token
+        st.session_state.auth_refresh_token = session.refresh_token
+        st.session_state.auth_refresh_at = (session.expires_at or int(time.time()) + 3600) - 300
+        st.session_state.auth_cookie_pending = session.refresh_token
+        st.session_state.auth_cookie_clear = False
+
+    def forget_session() -> None:
+        for key in ("auth_user", "auth_access_token", "auth_refresh_token",
+                    "auth_refresh_at", "auth_cookie_pending"):
+            st.session_state.pop(key, None)
+        st.session_state.auth_restore_attempted = True
+        st.session_state.auth_cookie_clear = True
 
     if not auth.is_configured():
         require_app_password()
         return None
 
     current = st.session_state.get("auth_user")
+    if current and st.session_state.get("auth_refresh_token"):
+        if time.time() >= st.session_state.get("auth_refresh_at", float("inf")):
+            try:
+                refreshed = auth.refresh_session(st.session_state.auth_refresh_token)
+                if refreshed.user.id != current.id:
+                    raise auth.AuthError("로그인 계정이 일치하지 않습니다.")
+                accept_session(refreshed)
+                current = refreshed.user
+            except auth.AuthError:
+                forget_session()
+                current = None
     if current:
+        pending = st.session_state.pop("auth_cookie_pending", None)
+        if pending:
+            auth_cookie.write_refresh_cookie(pending)
         return current
+
+    if not st.session_state.get("auth_restore_attempted"):
+        st.session_state.auth_restore_attempted = True
+        cookie = auth_cookie.read_refresh_cookie()
+        if cookie:
+            try:
+                restored = auth.refresh_session(cookie)
+            except auth.AuthError:
+                forget_session()
+            else:
+                accept_session(restored)
+                auth_cookie.write_refresh_cookie(st.session_state.pop("auth_cookie_pending"))
+                return restored.user
+
+    if st.session_state.get("auth_cookie_clear"):
+        auth_cookie.write_refresh_cookie(None)
 
     def open_signup() -> None:
         # 버튼 위젯 키와 별도 상태 키를 써야, 위젯 생성 뒤 상태를 바꾸는 오류가 없다.
@@ -91,12 +137,11 @@ def require_authenticated_user():
                         st.success(message)
             if login:
                 try:
-                    user, token = auth.sign_in(login_email, login_password)
+                    session = auth.sign_in(login_email, login_password)
                 except auth.AuthError as exc:
                     st.error(str(exc))
                 else:
-                    st.session_state.auth_user = user
-                    st.session_state.auth_access_token = token
+                    accept_session(session)
                     st.rerun()
     st.stop()
 
@@ -519,6 +564,21 @@ try:
                 goto(label)
         if authenticated_user:
             st.caption(authenticated_user.display_name or authenticated_user.email)
+            if st.button("로그아웃", key="auth_logout"):
+                from lib import auth
+                access = st.session_state.get("auth_access_token")
+                refresh = st.session_state.get("auth_refresh_token")
+                if access and refresh:
+                    try:
+                        auth.sign_out(access, refresh)
+                    except auth.AuthError:
+                        pass  # Local credentials are cleared even if remote revocation fails.
+                for key in ("auth_user", "auth_access_token", "auth_refresh_token",
+                            "auth_refresh_at", "auth_cookie_pending"):
+                    st.session_state.pop(key, None)
+                st.session_state.auth_restore_attempted = True
+                st.session_state.auth_cookie_clear = True
+                st.rerun()
 
     if has_personal_library:
         from lib import reading
