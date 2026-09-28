@@ -150,6 +150,7 @@ def render_shelf(conn):
 
 
 AUTOFILL_FIELDS = ("title", "subtitle", "author", "translator", "publisher", "isbn")
+ADD_BOOK_FORM_FIELDS = (*AUTOFILL_FIELDS, "category", "custom_category", "pages", "status")
 
 
 def _autofill_add_book_fields(selected: dict, key) -> None:
@@ -157,12 +158,19 @@ def _autofill_add_book_fields(selected: dict, key) -> None:
 
     폼 위젯은 key로 상태를 유지하므로 value= 인자로는 선택 변경이 반영되지 않는다.
     사용자가 직접 입력·수정한 값은 덮어쓰지 않는다.
+
+    `autofill_values`는 선택한 책의 등록 draft다. 폼이 한 번이라도 그려지지 않으면
+    (다른 화면에 다녀오기 등) Streamlit이 위젯 상태를 지우므로, 같은 선택이면
+    지워진 칸만 draft에서 되살린다.
     """
     marker_key, filled_key = key("autofill_source"), key("autofill_values")
     source = (selected.get("isbn"), selected.get("title"))
-    if st.session_state.get(marker_key) == source:
-        return
     previous = st.session_state.get(filled_key) or {}
+    if st.session_state.get(marker_key) == source:
+        for field, value in previous.items():
+            if key(field) not in st.session_state:
+                st.session_state[key(field)] = value
+        return
     filled = {}
     for field in AUTOFILL_FIELDS:
         widget_key = key(field)
@@ -172,6 +180,12 @@ def _autofill_add_book_fields(selected: dict, key) -> None:
         st.session_state[widget_key] = filled[field] = selected.get(field) or ""
     st.session_state[marker_key] = source
     st.session_state[filled_key] = filled
+
+
+def _reset_add_book_draft(key) -> None:
+    """저장 뒤 새 등록이 이전 책 값으로 오염되지 않게 draft와 폼 칸을 비운다."""
+    for name in ("autofill_source", "autofill_values", *ADD_BOOK_FORM_FIELDS):
+        st.session_state.pop(key(name), None)
 
 
 def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
@@ -193,6 +207,8 @@ def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
         else:
             try:
                 results = library_api.search_books(query, auth_key)
+                # 명시적 새 검색 뒤의 선택은 같은 책이어도 draft를 다시 적용한다.
+                st.session_state.pop(key("autofill_source"), None)
             except library_api.LibraryAPIError as exc:
                 st.session_state[candidates_key] = []
                 st.warning(f"검색 실패: {exc}\n아래 수동 입력 폼을 사용해주세요.")
@@ -233,7 +249,8 @@ def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
 
     st.markdown("**세부 정보를 확인·수정한 뒤 저장하세요.**")
     categories = db.list_categories(conn)
-    with st.form(key("form"), clear_on_submit=True):
+    # Enter는 제출이 아니다. '카테고리 직접 입력'에서 Enter로 책이 저장되며 폼이 비던 문제.
+    with st.form(key("form"), clear_on_submit=True, enter_to_submit=False):
         title = st.text_input("제목", key=key("title"))
         subtitle = st.text_input("부제", key=key("subtitle"))
         author = st.text_input("저자", key=key("author"))
@@ -251,9 +268,9 @@ def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
         if not title.strip():
             st.error("제목을 입력해주세요.")
         else:
-            if category_choice == "직접 입력":
-                final_category = custom_category.strip() or None
-            elif category_choice == "(미지정)":
+            if custom_category.strip():  # 새 카테고리를 적었으면 선택 상자와 무관하게 쓴다.
+                final_category = custom_category.strip()
+            elif category_choice in ("직접 입력", "(미지정)"):
                 final_category = None
             else:
                 final_category = category_choice
@@ -275,8 +292,7 @@ def render_add_book_form(conn, *, key_prefix: str = "add_book") -> None:
             )
             st.success(f"'{title.strip()}'을(를) 책장에 추가했습니다.")
             st.session_state[candidates_key] = []
-            st.session_state.pop(key("autofill_source"), None)
-            st.session_state.pop(key("autofill_values"), None)
+            _reset_add_book_draft(key)
             st.rerun()
 
 

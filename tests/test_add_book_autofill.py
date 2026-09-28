@@ -132,3 +132,84 @@ def test_saving_selected_result_persists_bibliographic_fields(isolated_app, upst
     assert row["cover_url"].startswith("https://shopping-phinf.pstatic.net/")
     assert row["category"] is None  # KDC 분류를 개인 카테고리로 추측 저장하지 않는다.
     assert row["pages"] is None  # upstream이 쪽수를 주지 않는다.
+
+
+# --- 등록 draft 상태 유지 (카테고리 조작·화면 이동·재검색) ---------------------
+
+def _nav(at, label):
+    [b for b in at.sidebar.button if b.label == label][0].click().run()
+    return at
+
+
+def test_form_category_changes_keep_draft(isolated_app, upstream):
+    at = _search(AppTest.from_file(APP_PATH).run())
+    at.selectbox(key="add_book_category").set_value("신앙").run()
+    assert _fields(at) == HOPE
+    at.selectbox(key="add_book_category").set_value("직접 입력").run()
+    at.text_input(key="add_book_custom_category").set_value("설교").run()
+    assert _fields(at) == HOPE
+
+
+def test_rerun_keeps_user_edit(isolated_app, upstream):
+    at = _search(AppTest.from_file(APP_PATH).run())
+    at.text_input(key="add_book_author").set_value("엘렌 F. 데이비스").run()
+    at.selectbox(key="shelf_category").set_value("신앙").run()  # 폼 밖 위젯 rerun
+    assert _fields(at) == {**HOPE, "author": "엘렌 F. 데이비스"}
+
+
+def test_draft_survives_leaving_and_returning_to_shelf(isolated_app, upstream):
+    at = _search(AppTest.from_file(APP_PATH).run())
+    _nav(_nav(at, "통계"), "책장")
+    assert _fields(at) == HOPE
+
+
+def test_research_same_book_after_state_loss_restores_everything(isolated_app, upstream):
+    at = _search(AppTest.from_file(APP_PATH).run())
+    _nav(_nav(at, "통계"), "책장")
+    for name in ("title", "author"):
+        at.text_input(key=f"add_book_{name}").set_value("").run()
+    _search(at)
+    assert _fields(at) == HOPE
+
+
+def test_top_add_book_panel_keeps_draft_after_navigation(isolated_app, upstream):
+    at = AppTest.from_file(APP_PATH).run()
+    at.button(key="shelf_add_book_top").click().run()
+    at.text_input(key="shelf_top_add_book_query").set_value("희망을 짓는다는 것").run()
+    at.button(key="shelf_top_add_book_search_btn").click().run()
+    _nav(_nav(at, "통계"), "책장")
+    assert at.text_input(key="shelf_top_add_book_title").value == HOPE["title"]
+    assert at.text_input(key="shelf_top_add_book_translator").value == HOPE["translator"]
+
+
+def test_new_registration_after_save_is_not_polluted(isolated_app, upstream):
+    at = _search(AppTest.from_file(APP_PATH).run())
+    at.button(key="add_book_submit").click().run()
+    _search(at, "두 번째")
+    at.radio(key="add_book_pick").set_value(1).run()
+    assert _fields(at) == {"title": "두 번째 후보 책", "subtitle": "", "author": "홍길동",
+                           "translator": "김역자, 이역자", "publisher": "두번째출판사", "isbn": "9791100000002"}
+    at.radio(key="add_book_pick").set_value(0).run()
+    assert _fields(at) == HOPE
+
+
+def test_typed_new_category_is_saved_without_switching_selectbox(isolated_app, upstream):
+    at = _search(AppTest.from_file(APP_PATH).run())
+    at.text_input(key="add_book_custom_category").set_value("설교 예화").run()
+    at.button(key="add_book_submit").click().run()
+    row = db.get_connection().execute("SELECT category FROM books WHERE isbn = ?", (HOPE["isbn"],)).fetchone()
+    assert row["category"] == "설교 예화"
+
+
+def _form_blocks(node):
+    proto = getattr(node, "proto", None)
+    if proto is not None and proto.DESCRIPTOR.name == "Block" and proto.WhichOneof("type") == "form":
+        yield proto.form
+    for child in getattr(node, "children", {}).values():
+        yield from _form_blocks(child)
+
+
+def test_enter_in_category_field_does_not_submit_book(isolated_app, upstream):
+    at = _search(AppTest.from_file(APP_PATH).run())
+    forms = {f.form_id: f for f in _form_blocks(at._tree)}
+    assert forms["add_book_form"].enter_to_submit is False
