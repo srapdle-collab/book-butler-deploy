@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 최신 — 현 local main 양경로 fixture 재검증 (2026-09-29, Codex)
+
+- **무엇을 했는지**: 통합팀이 격리 기록 `6b5803a`를 읽담 `main ef5742c` 위에 fast-forward해 전담팀의 후속 운영 조사 기록을 보존했다. 공동 fixture를 읽담 `6b5803a`·서재 `30d1f5e`·공동 `263810f` 조합에서 재실행했다. 제품 코드 변경 없음.
+- **어디까지 끝났는지**: 두 입력 경로가 동일 `reading_chunks`와 exporter dry-run에 도달하고 receipt 유실·재전송/행 1건, 태그 보존·오래된 snapshot/invalid payload/not_configured까지 **3 PASS**. 기존 읽담 전체 281 PASS는 제품 코드가 같은 선행 검사다. 실제 운영 E2E는 미실행.
+- **확인해야 할 것**: Sites 관리형 D1 `0004` 적용 주체·시점·실패 처리 공식 절차는 아직 확인되지 않아 1차-B 운영 연결 BLOCKED. 운영 책 중복 결정과 실제 exporter 보류 상태는 아래 전담팀 기록을 따른다.
+- **다음 작업자 / 다음 작업 1개**: 읽담 담당자 — 아래 중복 책 보존 결정을 기다린다. 통합팀은 공동 계약서의 Sites D1 관문을 담당한다.
+- **브랜치 / 커밋 / 배포 상태**: clean `main 6b5803a` 기준 fixture PASS. origin/deploy로 이번 기록 push/배포 없음. 원본 사용자 변경·운영 DB/iCloud/Sites/Secrets 변경 0.
+- **보류·실패·중단 이유**: Sites D1 공식 절차 미확인. 로컬 통합 제품 실패 없음.
+
 ## 최신 — 통합 fixture의 읽담 경로 검증 (2026-09-29, Codex)
 
 - **무엇을 했는지**: 공동 통합팀이 읽담 local `main 85c1e22`와 오늘의 서재 `main 28cfe37`을 격리해 두 입력 경로를 실제 읽담 계약 함수·합성 SQLite·임시 예화 폴더로 연결했다. 공동 `tests/test_reading_chunk_fixture_e2e.py` 3건 PASS. 제품 코드 변경 없음.

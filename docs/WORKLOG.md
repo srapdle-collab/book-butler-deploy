@@ -1,5 +1,10 @@
 # 읽담 작업 기록
 
+## 2026-09-29 — Codex: 전담팀 main 계승 후 통합 fixture 재검증
+
+- 읽담 `ef5742c`의 운영 read-only 조사 기록을 보존하며 fixture 기록만 `6b5803a`로 fast-forward. 공동 `263810f`·서재 `30d1f5e`와 결합한 `pytest -q tests/test_reading_chunk_fixture_e2e.py --tb=short` 3 PASS. 직접/서재 입력의 읽담 정본·동일 exporter dry-run, receipt 유실→already_stored→행 1건, 태그/오류 상태를 확인했다. 제품 코드 무변경이므로 기존 전체 281 PASS는 선행 결과로 유지.
+- 브라우저·실제 HTTP/D1·운영 E2E 미실행. 공식 Sites D1 `0004` 적용 절차 미확인으로 운영 연결 BLOCKED. 이번 기록 외 코드·운영 DB/iCloud/Sites/Secrets/사용자 파일 변경 없음. 다음 통합 작업은 공동 계약서의 공식 절차 확인이다.
+
 ## 2026-09-29 — Codex: 양경로 통합 fixture에서 읽담 정본·export 접속 확인
 
 - 공동 통합팀이 제품 코드를 수정하지 않고 지정 `main 85c1e22`를 별도 worktree로 검증했다. 직접 save·예화 태그 승인과 서재 pull/ingest가 같은 `reading_chunks` 표에 저장됐고, 두 Chunk 모두 단일 export pipeline의 임시 `용서/읽담/` CREATE 계획에 포함됐다. 실제 export write 0.
