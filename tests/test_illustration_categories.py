@@ -200,3 +200,15 @@ def test_checked_in_snapshot_has_the_63_actual_canonical_categories():
     names = subject.canonical_names(snapshot)
     assert len(names) == 63
     assert "교회" in names and "사명" in names
+
+
+def test_david_approved_keyword_narrowing_changes_only_the_three_terms():
+    snapshot = subject.load_snapshot()
+    entries = {entry["canonical"]: entry for entry in snapshot["categories"]}
+    assert entries["그리스도인의 삶"]["keywords"] == ["일상 신앙", "그리스도인의 삶의 방식"]
+    assert entries["시간"]["keywords"] == ["시간의 우선순위"]
+    assert entries["위선"]["keywords"] == ["겉과 속", "위선의 가면"]
+
+    for original, excluded in (("삶의 방식", "그리스도인의 삶"), ("세월", "시간"), ("가면", "위선")):
+        candidates = subject.recommend(snapshot, originalText=original, userNote="", tags=[])
+        assert excluded not in [item["canonical"] for item in candidates]
