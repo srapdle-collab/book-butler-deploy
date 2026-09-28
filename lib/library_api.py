@@ -45,19 +45,35 @@ def _parse_authors(raw: str | None) -> tuple[str | None, str | None]:
     return author, translator
 
 
+def _normalize_isbn13(raw: str) -> str | None:
+    """공백·하이픈을 뺀 값이 978/979로 시작하는 13자리 숫자면 ISBN-13으로 본다."""
+    digits = raw.replace("-", "").replace(" ", "")
+    if len(digits) == 13 and digits.isdigit() and digits.startswith(("978", "979")):
+        return digits
+    return None
+
+
 def search_books(keyword: str, auth_key: str, page_size: int = 10) -> list[dict]:
-    """제목 키워드로 도서를 검색해 3.1(Book) 구조에 맞는 후보 목록을 반환한다."""
+    """제목(또는 ISBN-13)으로 도서를 검색해 3.1(Book) 구조에 맞는 후보 목록을 반환한다.
+
+    srchBooks의 `keyword`는 제목 검색이 아니어서 신간이 누락되므로
+    `title`, ISBN-13 형태 입력은 `isbn13` 파라미터를 쓴다.
+    """
     if not auth_key:
         raise LibraryAPIError("DATA4LIBRARY_AUTH_KEY가 설정되지 않았습니다.")
     if not keyword or not keyword.strip():
         return []
+
+    query = keyword.strip()
+    isbn13 = _normalize_isbn13(query)
+    search_param = {"isbn13": isbn13} if isbn13 else {"title": query}
 
     try:
         response = requests.get(
             SEARCH_URL,
             params={
                 "authKey": auth_key,
-                "keyword": keyword.strip(),
+                **search_param,
                 "pageNo": 1,
                 "pageSize": page_size,
                 "format": "json",
