@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — 자동 sync 휴면 안전성 확인, GitHub DNS 복구 후 배포 재개 (2026-09-28, Codex)
+
+- **무엇을 했는지**: David 결정에 따라 1차-B의 5분 fragment는 유지했다. Secrets 없는 `sync_once`를 HTTP 접근을 실패시키는 격리 probe로 실행해 owner 형식 확인 뒤 `not_configured`로 반환함을 확인했다. HTTP·Chunk 생성/수정/삭제·receipt·book snapshot 호출은 0건이며, DB 연결의 schema inspection은 read-only다. fragment의 상태 변화는 `readdam_last_sync_monotonic`과 `readdam_sync_result` 두 session state뿐이다.
+- **어디까지 끝났는지**: local main=`eff70b1` 기준으로 자동 sync 휴면 안전성은 PASS다. 전체 202 tests·compile·diff PASS 근거를 유지한다. 1차-B Secrets·오늘의 서재 운영 연결·Sites/D1·운영 DB/iCloud write는 모두 없다.
+- **확인해야 할 것**: origin 사전 확인을 위해 `git ls-remote origin refs/heads/main`을 두 번 실행했지만 모두 `Could not resolve host: github.com`으로 실패했다. 원격 SHA를 확인하지 못했으므로 push·deploy를 시도하지 않았다.
+- **다음 작업자**: GitHub DNS/네트워크가 정상인 읽담 담당자. origin/main SHA를 확인한 뒤 일반 fast-forward push → deploy/main 반영 → Streamlit smoke를 순서대로 재개한다.
+- **브랜치 / 커밋 / 배포 상태**: `main` / `eff70b1` (이번 상태 문서는 후속 커밋); origin/main=`0d1530d`, deploy/main=`74d3c9d`. Streamlit 운영 배포 없음.
+- **보류·실패·중단 이유**: 현재 실행 환경에서 GitHub DNS를 해석할 수 없다. 제품·테스트·자동 sync 휴면 경로의 실패가 아니라 원격 접속 제약이다.
+
 ## David가 이어받을 작업 — main 반영 완료, 1차-B 자동 동기화 관문으로 운영 배포 중단 (2026-09-28, Codex)
 
 - **무엇을 했는지**: 깨끗한 별도 main worktree에서 `codex/reading-chunk-category-approval`을 `0d1530d..59d0250`으로 fast-forward했다. 원본 작업트리의 사용자 소유 기획문서 2건은 변경하지 않았다. main 기준 전체 테스트·compile·diff와 deploy/main 차이를 감사했다.

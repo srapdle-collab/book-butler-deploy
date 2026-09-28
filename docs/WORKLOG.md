@@ -8,6 +8,14 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: 추천·승인 기능 Streamlit 운영 배포 재개 전 휴면 sync 안전성 확인
+
+- **작업 목적**: David가 유지하기로 한 1차-B 5분 fragment가 Secrets 없이 휴면 상태에서 외부 통신·DB write·chunk/receipt/book snapshot 부작용 없이 끝나는지 확인하고, PASS 시 origin·deploy·Streamlit 배포를 진행한다.
+- **안전성 확인**: `sync_once`는 owner 형식 확인 뒤 URL·두 key가 하나라도 비어 있으면 `not_configured`로 즉시 반환한다. HTTP 접근을 예외로 만드는 격리 probe에서 결과는 `not_configured`였고 HTTP·Chunk DML·receipt·book snapshot 접근은 0건이었다. `db.get_connection()`은 `connect → read-only require_schema` 경로이며 schema mutation을 하지 않는다. fragment는 내부 session state 두 항목만 기록하고 오류를 출력하지 않는다.
+- **검증 근거**: 기존 `test_missing_settings_make_no_http_request`와 main 전체 **202 passed in 29.92s**, Python compile PASS, `git diff --check` PASS를 유지한다. Secrets 등록·오늘의 서재 운영 연결·Sites/D1·운영 DB 직접 write·iCloud write는 0건이다.
+- **배포 중단**: `git ls-remote origin refs/heads/main`을 두 차례 실행했으나 모두 `Could not resolve host: github.com`으로 실패했다. 원격 main 상태를 재확인할 수 없으므로 push·deploy를 시도하지 않았다.
+- **커밋/남은 일**: 이번 결과 문서는 후속 커밋으로 남긴다. GitHub DNS/네트워크 복구 후 origin/main SHA 확인, 일반 fast-forward push, deploy/main 반영, Streamlit smoke 순으로 재개한다.
+
 ## 2026-09-28 — Codex: 예화 카테고리 추천·승인 기능 main 반영 및 배포 안전성 관문
 
 - **작업 목적**: 검증된 예화 카테고리 추천·승인 기능을 읽담 main에 안전하게 반영하고 Streamlit 배포 전 1차-B·2차 exporter 자동 실행 여부를 확인한다.

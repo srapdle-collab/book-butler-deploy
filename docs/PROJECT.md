@@ -1,5 +1,7 @@
 # 읽담
 
+최신 상태(2026-09-28, Codex): David가 1차-B의 `@st.fragment(run_every="5m")` 유지 결정을 승인했다. Secrets 없는 휴면 경로는 URL·두 key 검사에서 `not_configured`로 즉시 반환하며, 격리 probe로 HTTP·Chunk DML·receipt·book snapshot 접근 0건을 확인했다. fragment의 DB 연결은 read-only schema inspection이고 session state 두 항목만 갱신한다. origin 사전 확인은 현재 환경의 GitHub DNS 해석 실패로 중단돼, origin/main·deploy/main·Streamlit 배포는 아직 변경하지 않았다.
+
 최신 상태(2026-09-28, Codex): 예화 카테고리 추천·승인 기능을 깨끗한 별도 worktree에서 local `main` `59d0250`까지 fast-forward했다. 전체 202 tests·compile·diff check는 PASS다. Streamlit 배포 전 감사에서 1차-B UI의 `@st.fragment(run_every="5m")` 자동 동기화 호출을 확인했다. Secrets가 없으면 외부 HTTP 전 `not_configured`로 반환하지만, “background sync 자동 시작 없음” 배포 조건을 충족하지 않아 origin/main·deploy/main·Streamlit은 변경하지 않았다. 2차 exporter는 명시적 CLI로만 실행된다. 운영 DB 직접 write와 iCloud write는 0건이다.
 
 최신 상태(2026-09-28, Codex): David가 63개 예화 카테고리 추천 사전을 승인했고, 로컬 `d037be1`에서 세 keyword만 최소 수정했다. 카테고리는 배타적 분류가 아닌 주제 바구니이므로 관련된 여러 후보를 최대 3개까지 함께 추천하고 David가 최종 선택한다. canonical name·aliases·나머지 keywords·실제 63개 폴더는 불변이다. 실제 iCloud/운영 DB write, main 반영·push·배포는 없다.
