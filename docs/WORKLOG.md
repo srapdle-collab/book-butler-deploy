@@ -8,6 +8,14 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Claude Code: 추천·승인 기능 origin/deploy 동기화
+
+- **작업 목적**: 검증된 local main `6a66872`를 origin/main·deploy/main에 반영하고 Streamlit 운영 smoke를 준비한다.
+- **실제 변경 내용**: 실제 원격 사전 조회 origin=`0d1530d`, deploy=`74d3c9d`(기록과 일치). 두 SHA 모두 main의 조상임을 확인하고 `git push origin main:main`(`0d1530d..6a66872`), `git push deploy main:main`(`74d3c9d..6a66872`)을 일반 push했다. force·merge·rebase 없음. 재조회 결과 두 원격 모두 `6a66872`.
+- **테스트 결과**: 기존 i9 `.venv`는 x86_64/numpy 불일치로 수집 오류가 나 사용하지 않았고, 기존 격리 test-venv 두 곳에서 각각 **202 passed**. compile·`git diff --check 74d3c9d main` PASS. 앱 health endpoint 200 `ok`.
+- **커밋/배포 여부**: 제품 원격 반영 완료. Streamlit 로그·로그인·UI smoke는 브라우저 도구 부재로 미수행이며 David 수동 확인 대기. Secrets·Sites/D1·운영 DB·iCloud write 없음.
+- **남은 일과 중단 이유**: 운영 UI 확인과 경로 A 실제 사용자 E2E는 David가 수행한다.
+
 ## 2026-09-28 — Codex: 추천·승인 기능 Streamlit 운영 배포 재개 전 휴면 sync 안전성 확인
 
 - **작업 목적**: David가 유지하기로 한 1차-B 5분 fragment가 Secrets 없이 휴면 상태에서 외부 통신·DB write·chunk/receipt/book snapshot 부작용 없이 끝나는지 확인하고, PASS 시 origin·deploy·Streamlit 배포를 진행한다.

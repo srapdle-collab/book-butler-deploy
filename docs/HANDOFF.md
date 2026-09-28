@@ -21,6 +21,15 @@
 
 ## 항목
 
+## David가 이어받을 작업 — origin/deploy 6a66872 반영, Streamlit 운영 UI smoke 수동 확인 필요 (2026-09-28, Claude Code)
+
+- **무엇을 했는지**: i9 실제 Terminal에서 `git ls-remote`로 origin/main=`0d1530d`, deploy/main=`74d3c9d`를 확인했다. 깨끗한 main worktree(`/private/tmp/reading-chunk-1b-qfdk556c/readdam-main`)에서 두 원격 모두 fast-forward 관계와 deploy..main 22개 파일 차이(1차-B·2차 exporter·추천/승인, requirements·DDL 변경 없음)를 확인한 뒤 일반 push했다.
+- **어디까지 끝났는지**: 실제 원격 재조회로 origin/main=deploy/main=`6a66872` 확인. push 전 202 passed·compile·diff check PASS. 앱 `_stcore/health` HTTP 200 `ok`. Streamlit `Updated app` 로그·로그인·책장·기존 기능·추천 UI는 브라우저 도구 부재로 **미확인**이다. 실행 SHA 직접 확인 없음.
+- **확인해야 할 것**: David가 Streamlit 관리 화면에서 `Updated app` 로그, 로그인·책장·기존 활동·Reading Chunk 동작, 자유 입력 예화 태그 제거·추천 패널·63개 검색·복수 선택·보내지 않음·기존 Chunk 수정 화면 선택·snapshot 로드를 확인한다. 실제 illustrationTags 승인 저장은 David E2E에서 수행한다.
+- **다음 작업자**: David(운영 smoke 및 경로 A 실제 사용자 E2E).
+- **브랜치 / 커밋 / 배포 상태**: `main` 제품 `6a66872`(origin·deploy push 완료), 이번 상태 문서는 local main 후속 커밋·미push. Secrets·Sites/D1·운영 DB write·iCloud write 없음.
+- **보류·실패·중단 이유**: Claude in Chrome 미연결로 운영 UI 자동 확인 불가. 코드·원격 반영 실패는 없다. 원본 작업트리의 사용자 기획문서 2건은 불변.
+
 ## 읽담 담당자가 이어받을 작업 — 자동 sync 휴면 안전성 확인, GitHub DNS 복구 후 배포 재개 (2026-09-28, Codex)
 
 - **무엇을 했는지**: David 결정에 따라 1차-B의 5분 fragment는 유지했다. Secrets 없는 `sync_once`를 HTTP 접근을 실패시키는 격리 probe로 실행해 owner 형식 확인 뒤 `not_configured`로 반환함을 확인했다. HTTP·Chunk 생성/수정/삭제·receipt·book snapshot 호출은 0건이며, DB 연결의 schema inspection은 read-only다. fragment의 상태 변화는 `readdam_last_sync_monotonic`과 `readdam_sync_result` 두 session state뿐이다.
