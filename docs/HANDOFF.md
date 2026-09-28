@@ -21,6 +21,17 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — 운영 책 원인 확인·실제 예화창고 dry-run 완료 (2026-09-29, Codex)
+
+- **무엇을 했는지**: M1 영구 저장소의 David 기획문서 미커밋 2건을 보존하고 clean 분리 worktree에서 local `main` `85c1e22`를 계승했다. 실제 `origin/main`·`deploy/main`은 모두 `9f7aedf`로 조회했다. 운영 DB 읽기 전용 연결로 「희망을 짓는다는 것」 두 행과 전체 Chunk를 조사하고 실제 예화창고에서 단일 파이프라인 dry-run을 두 번 실행했다.
+- **어디까지 끝났는지**: 읽는 중 행 `94a4470c…`는 `분별력`, ISBN `9788932550817`, 567쪽, 현재 0쪽, `start_date=NULL`, 미삭제 활동 0건, 중단 세션 1건, 활성 Chunk 1건이다. 위시리스트 행 `b735496a…`는 같은 ISBN, 카테고리·쪽수 없음, 활동·세션·Chunk 0건이다. 책 표에는 created_at/updated_at가 없다. 이어서 읽기는 읽는 중 36권 중 정렬 상위 6권만 보이며, 읽는 중 행은 활동 날짜·start_date가 모두 없어 정렬값 0, 순위 36위다. `분별력`은 이 조회의 필터가 아니다. 중복으로 상태·메타데이터가 갈라졌으나 누락 직접 원인은 정렬 기준 날짜 부재다. 두 행은 변경하지 않았다.
+- **dry-run 판정**: 운영 Chunk 3건(활성 2, soft deleted 1), 활성 예화 태그 0건. 1차-A 계획은 새 txt 2개, 기존 파일 UPDATE 0, 이동 0, soft delete 행 1건은 기존 소유 파일이 없어 실제 파일 삭제 0이다. 2차 분류 계획은 CREATE/UPDATE/DELETE/UNMAPPED/CONFLICT 0, SKIP 2, 대상 카테고리 0. 물리 카테고리와 snapshot은 NFC 63/63 일치. 기존 사람 파일 UPDATE/DELETE 0, 새 최상위 폴더 0, 중복 Chunk+카테고리 계획 0, 두 dry-run 결과 동일. `.export-state.json`과 분류 manifest는 현재 없으며 실제 쓰기 시 1차-A state 2행·index 총 3행(기존 소유 불명 검증 행 보존), 분류 manifest는 Chunk 3키/파생 파일 0개로 계획된다. DB/iCloud write 0. 주어진 사전 조건상 **실제 export 실행 준비 YES**, 실제 `--apply`와 launchd 활성화는 수행하지 않는다.
+- **확인해야 할 것**: David가 중복 책 중 어느 행을 보존할지 결정한다. 독서 진행 이력이 붙은 읽는 중 행 보존이 합리적이나 DB 수정·병합·삭제는 별도 결정 전 금지다. 새 예화 태그가 생기면 dry-run을 다시 평가한다.
+- **다음 작업자 / 다음 작업 1개**: 읽담 담당자 — David의 중복 책 보존 결정을 기다리고, 승인 범위가 정해지면 데이터 정리 계획을 제시한다.
+- **검증**: 전체 281 tests PASS, Python 38파일 구문 검사 PASS, launchd plist lint PASS, `git diff --check` PASS. 실제 DB/iCloud write 0.
+- **브랜치 / 커밋 / 배포 상태**: `codex/read-only-audit-20260929` clean worktree에서 기록. 이 기록 커밋 후 local main fast-forward와 origin/main 일반 push를 안전 조건에 따라 확인한다. deploy/main 변경 없음, 앱 재배포 없음.
+- **보류·실패·중단 이유**: 실제 export와 launchd는 David가 보류했다. 예화 분류 대상 태그는 현재 0건이다.
+
 ## 읽담 담당자가 이어받을 작업 — 원격·운영 DB DNS 차단, 실제 예화창고 무쓰기 사전점검 완료 (2026-09-29, Codex)
 
 - **무엇을 했는지**: 세 층의 읽담 HANDOFF/WORKLOG/Git, 최상위 공동 계약·오늘의 서재 기록을 다시 대조했다. actual `origin/main`·`deploy/main`을 각 1회 `ls-remote`했으나 둘 다 이 Codex 실행환경에서 `github.com` DNS 실패로 조회·push하지 못했다. 공식 읽담 `.env`의 기존 PostgreSQL 연결 설정을 **값 출력 없이 프로세스에만** 로드해 Intel x86_64 psycopg의 READ ONLY 연결을 시도했지만 DB 호스트 DNS `gaierror`, 연결 `OperationalError`로 SQL 전 중단됐다. Secret·DB·원격 설정 변경 없음.

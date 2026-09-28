@@ -8,6 +8,13 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-29 — Codex: 운영 중복 책 READ ONLY 원인 확정과 실제 파이프라인 dry-run
+
+- **목적·환경**: M1 arm64. 영구 읽담 저장소는 `codex/reading-chunks-1a`에 David 소유 기획문서 수정 1건·미추적 1건이 있어 그대로 보존했다. local main `85c1e22`에서 clean `codex/read-only-audit-20260929` worktree로 시작했다. 실제 원격 `origin/main`·`deploy/main`은 둘 다 `9f7aedf`; local main이 7커밋 앞섰다. 최상위 공동 계약·오늘의 서재 최신 기록을 대조했고 계약 변경은 없다.
+- **READ ONLY DB 조사**: 기존 `.env`를 값 출력 없이 프로세스에 로드하고 `get_readonly_connection()`의 PostgreSQL `transaction_read_only=on`에서 SELECT만 수행했다. 「희망을 짓는다는 것」은 같은 저자·ISBN `9788932550817`의 두 행이다. `94a4470c-46bc-4a70-9359-c105361bfe6f`는 읽는 중·분별력·567쪽·현재 0쪽·start_date NULL, 활동 0, stopped 독서 세션 1, 활성 Chunk 1(31쪽, 예화 태그 없음), 이어서 읽기 36권 중 36위. `b735496a-3c23-402d-a853-1c30ac2f721d`는 위시리스트·카테고리 없음·쪽수 없음·현재 0쪽·start_date NULL, 활동·세션·Chunk 0, 이어서 읽기 대상 아님. `books`에는 created_at/updated_at 열이 없다. 화면은 status='읽는 중'을 `MAX(미삭제 activity.date) → start_date → 0`으로 정렬해 상위 6권만 보인다. 읽는 중 행은 두 날짜가 모두 없어 정렬값 0이므로 직접 누락 원인은 날짜 부재다. 세션·Chunk는 이 정렬에 반영되지 않는다. 카테고리 필터는 적용되지 않는다. 두 중복의 상태/자료가 갈라졌지만 중복 자체가 직접 필터링 원인은 아니다. 보존 추천은 실제 독서 이력이 붙은 읽는 중 행, 최종 정리는 David 결정 사항이다.
+- **실제 예화창고 dry-run**: 운영 전체 Chunk 3(활성 2·soft deleted 1), 활성 illustrationTags 0. 기존 실제 예화창고 NFC 카테고리 snapshot 63/물리 63 일치. `tools/export_pipeline.py` 기본 dry-run을 두 번 동일 대상에 실행했고 결과가 일치했다. 1차-A 계획 `written=2, moved=0, deleted=1, total=3`; 여기서 `deleted=1`은 soft deleted DB 행 집계이며 기존 소유 txt가 없어 실제 파일 삭제 계획은 0이다. 1차-A operations 2개는 새 txt 경로, 기존 파일 업데이트 0, cleanup 0. 기존 `_index.csv` 1행은 소유 불명 합성 검증 행으로 보존; 계획 index 3행, state 2행이다. 2차 분류는 CREATE 0·UPDATE 0·DELETE 0·SKIP 2·UNMAPPED 0·CONFLICT 0, 대상 카테고리·writes·cleanup 모두 0. 분류 manifest는 현재 없고 적용 시 Chunk 3키/파생 파일 0개 계획이다. Chunk+카테고리 중복 계획 0, 새 최상위 폴더·사람 파일 UPDATE/DELETE 계획 0. 추적한 실제 루트·독서조각·index·state·manifest 메타데이터는 전후 동일했다. 운영 DB write 0, iCloud write 0.
+- **판정·검증·반영**: 사용자 지정 조건은 모두 충족해 현재 데이터의 실제 export **실행 준비 YES**. 이는 실제 `--apply` 승인이나 launchd 활성화가 아니다. 코드 변경 없음. 전체 `pytest -q` **281 PASS**, Python 38파일 AST 구문 검사, plist lint, `git diff --check` PASS. 실제 export·launchd·deploy·오늘의 서재·통합층 변경 0. 다음 1개는 David의 중복 책 보존 결정 후 안전한 정리 계획 수립.
+
 ## 2026-09-29 — Codex: 실제 예화창고 READ ONLY 프리플라이트와 DNS 차단 인계
 
 - **목적·3층/환경**: local `main` `e91204d`부터 재개. 읽담 HANDOFF/WORKLOG/PROJECT·최상위 PROJECT/WORKLOG/CROSS_PROJECT_HANDOFF·오늘의 서재 HANDOFF/WORKLOG를 대조했다. 양 앱 계약 변경 없음. 원본 David 기획문서 2건·상위 미추적 작업물 보존. Intel x86_64, 검증 venv psycopg 3.2.13 로딩 성공.
