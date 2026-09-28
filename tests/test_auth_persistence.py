@@ -69,6 +69,60 @@ def test_cookie_script_has_security_attributes_and_escapes_script_text():
     assert "Max-Age=0" in clear
 
 
+def test_cookie_name_probe_exposes_only_presence(monkeypatch):
+    from lib import auth_cookie
+
+    secret = "refresh-token-must-stay-private"
+    monkeypatch.setattr(auth_cookie, "st", SimpleNamespace(context=SimpleNamespace(
+        cookies={auth_cookie.COOKIE_NAME: secret}
+    )))
+    assert auth_cookie.request_cookie_name_seen() is True
+    monkeypatch.setattr(auth_cookie, "st", SimpleNamespace(context=SimpleNamespace(cookies={})))
+    assert auth_cookie.request_cookie_name_seen() is False
+
+
+def test_missing_server_cookie_reports_restore_stage_without_refresh(isolated_app, monkeypatch):
+    from lib import auth, auth_cookie
+
+    _configured(monkeypatch)
+    monkeypatch.setattr(auth_cookie, "request_cookie_name_seen", lambda: False)
+    monkeypatch.setattr(auth_cookie, "read_refresh_cookie", lambda: None)
+    monkeypatch.setattr(auth, "refresh_session", lambda token: pytest.fail("refresh must not run"))
+    at = AppTest.from_file(APP_PATH).run()
+    assert not at.exception
+    assert at.session_state["auth_restore_diagnostics"] == {
+        "server_cookie_name_seen": False,
+        "restore_attempted": True,
+        "refresh_success": False,
+        "session_restored": False,
+        "failure_stage": "cookie_missing",
+    }
+    assert any("cookie_missing" in item.value for item in at.caption)
+
+
+def test_refresh_failure_reports_stage_without_token(isolated_app, monkeypatch):
+    from lib import auth, auth_cookie
+
+    _configured(monkeypatch)
+    secret = "refresh-token-must-stay-private"
+    monkeypatch.setattr(auth_cookie, "request_cookie_name_seen", lambda: True)
+    monkeypatch.setattr(auth_cookie, "read_refresh_cookie", lambda: secret)
+    monkeypatch.setattr(auth_cookie, "write_refresh_cookie", lambda value: None)
+    monkeypatch.setattr(auth, "refresh_session", lambda token: (_ for _ in ()).throw(auth.AuthError("invalid")))
+    at = AppTest.from_file(APP_PATH).run()
+    assert not at.exception
+    assert at.session_state["auth_restore_diagnostics"] == {
+        "server_cookie_name_seen": True,
+        "restore_attempted": True,
+        "refresh_success": False,
+        "session_restored": False,
+        "failure_stage": "refresh_failed",
+    }
+    assert any("refresh_failed" in item.value for item in at.caption)
+    assert secret not in repr(at.session_state["auth_restore_diagnostics"])
+    assert all(secret not in item.value for item in at.caption)
+
+
 def _configured(monkeypatch):
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.setenv("SUPABASE_ANON_KEY", "anon-key")
@@ -106,6 +160,8 @@ def test_login_restores_new_session_and_updates_rotated_cookie(isolated_app, mon
     assert not second.exception
     assert second.session_state["auth_user"].id == "user-a"
     assert writes[-1] == "rotated"
+    assert second.session_state["auth_restore_diagnostics"]["refresh_success"] is True
+    assert second.session_state["auth_restore_diagnostics"]["session_restored"] is True
     assert all(widget.key != "login_password" for widget in second.text_input)
 
 

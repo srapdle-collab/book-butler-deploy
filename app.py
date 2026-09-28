@@ -93,16 +93,32 @@ def require_authenticated_user():
 
     if not st.session_state.get("auth_restore_attempted"):
         st.session_state.auth_restore_attempted = True
+        name_seen = auth_cookie.request_cookie_name_seen()
+        diagnostics = {
+            "server_cookie_name_seen": name_seen,
+            "restore_attempted": True,
+            "refresh_success": False,
+            "session_restored": False,
+            "failure_stage": "cookie_missing" if name_seen is False else "cookie_read_unavailable",
+        }
+        st.session_state.auth_restore_diagnostics = diagnostics
         cookie = auth_cookie.read_refresh_cookie()
         if cookie:
+            diagnostics["failure_stage"] = "refresh_failed"
             try:
                 restored = auth.refresh_session(cookie)
             except auth.AuthError:
                 forget_session()
             else:
+                diagnostics["refresh_success"] = True
+                diagnostics["failure_stage"] = "session_restore_failed"
                 accept_session(restored)
+                diagnostics["session_restored"] = True
+                diagnostics["failure_stage"] = "none"
                 auth_cookie.write_refresh_cookie(st.session_state.pop("auth_cookie_pending"))
                 return restored.user
+        elif name_seen is True:
+            diagnostics["failure_stage"] = "cookie_unreadable"
 
     if st.session_state.get("auth_cookie_clear"):
         auth_cookie.write_refresh_cookie(None)
@@ -117,6 +133,19 @@ def require_authenticated_user():
             st.markdown('<div class="auth-badge">📖</div>', unsafe_allow_html=True)
             st.title("읽담")
             st.caption("개인 서재와 소그룹을 사용하려면 로그인해주세요.")
+            diagnostics = st.session_state.get("auth_restore_diagnostics")
+            if diagnostics:
+                def yes_no(value):
+                    return "YES" if value is True else "NO" if value is False else "UNKNOWN"
+
+                st.caption(
+                    "로그인 복원 진단 · "
+                    f"server_cookie_name_seen: {yes_no(diagnostics['server_cookie_name_seen'])} · "
+                    f"restore_attempted: {yes_no(diagnostics['restore_attempted'])} · "
+                    f"refresh_success: {yes_no(diagnostics['refresh_success'])} · "
+                    f"session_restored: {yes_no(diagnostics['session_restored'])} · "
+                    f"failure_stage: {diagnostics['failure_stage']}"
+                )
             login_email = st.text_input("이메일", key="login_email")
             login_password = st.text_input("비밀번호", type="password", key="login_password")
 
@@ -141,6 +170,7 @@ def require_authenticated_user():
                 except auth.AuthError as exc:
                     st.error(str(exc))
                 else:
+                    st.session_state.pop("auth_restore_diagnostics", None)
                     accept_session(session)
                     st.rerun()
     st.stop()
@@ -578,6 +608,7 @@ try:
                     st.session_state.pop(key, None)
                 st.session_state.auth_restore_attempted = True
                 st.session_state.auth_cookie_clear = True
+                st.session_state.pop("auth_restore_diagnostics", None)
                 st.rerun()
 
     if has_personal_library:

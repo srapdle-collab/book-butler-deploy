@@ -15,6 +15,18 @@ COOKIE_NAME = "__Host-readdam-refresh"
 COOKIE_MAX_AGE = 30 * 24 * 60 * 60
 
 
+def request_cookie_name_seen() -> bool | None:
+    """Inspect only the initial server request, never expose the cookie value.
+
+    None means Streamlit could not provide request cookies at all. This probe
+    cannot inspect the browser's current cookie jar or later HTTP requests.
+    """
+    try:
+        return COOKIE_NAME in st.context.cookies
+    except Exception:
+        return None
+
+
 def read_refresh_cookie() -> str | None:
     try:
         value = st.context.cookies.get(COOKIE_NAME)
