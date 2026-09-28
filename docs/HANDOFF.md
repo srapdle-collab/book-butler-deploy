@@ -21,6 +21,15 @@
 
 ## 항목
 
+## David가 이어받을 작업 — 예화 카테고리 63개 사전 초안 검토 (2026-09-28, Codex)
+
+- **무엇을 했는지**: Reading Chunk 경로 A의 비AI 규칙 추천·명시 승인 UI·canonical 저장 검증·snapshot 갱신 도구를 구현했다. 실제 예화창고 최상위 폴더 이름만 읽어 63개 NFC canonical snapshot과 alias/keyword 초안을 만들었다. exporter는 실제 폴더 NFC exact match를 legacy alias/ambiguity보다 먼저 처리하도록 고쳤다. 공동 계약은 별도 로컬 브랜치 `codex/reading-chunk-category-contract`의 `188ac7b`에 반영했다.
+- **어디까지 끝났는지**: 읽담 로컬 기능 커밋 `276c958`만 완료했다. 새 Chunk는 먼저 `illustrationTags=[]`로 저장되고, 승인 버튼을 눌렀을 때만 snapshot canonical 이름을 저장한다. 기존/오늘의 서재 Chunk도 읽담에서 카테고리를 고를 수 있다. main 반영·push·배포·운영 DB write·실제 iCloud export는 없다.
+- **확인해야 할 것**: [63개 사전 초안](ILLUSTRATION_CATEGORY_DICTIONARY_DRAFT.md)을 David가 검토한다. 실제 폴더 추가·삭제·이름 변경은 snapshot 갱신 명령으로만 반영하며, alias/keyword는 이 초안에서만 조정한다.
+- **다음 작업자/작업**: David가 63개 category/alias/keyword 초안 1건을 검토한다.
+- **브랜치 / 커밋 / 배포 상태**: `codex/reading-chunk-category-approval` / `276c958`; `main`·`origin/main`=`0d1530d`, `deploy/main`=`74d3c9d`. 운영 배포·Secrets·DB 변경·iCloud write 없음.
+- **보류·실패·중단 이유**: 구현·201개 테스트·compile·diff check·iCloud 이름/metadata read-only preflight는 PASS다. 사전 초안의 의미 적합성은 David 검토 전 확정하지 않는다. 1차-B 운영 연결 및 실제 2차 export는 기존 보류 상태로 유지한다.
+
 ## David가 이어받을 작업 — 읽담 Reading Chunk main을 origin에 보존 (2026-09-28, Codex)
 
 - **무엇을 했는지**: 읽담 local main `8e15c1f`와 실제 원격 origin/main `74d3c9d`를 대조해 fast-forward 관계와 깨끗한 main worktree를 확인한 뒤 일반 push로 동기화했다. `deploy/main`은 건드리지 않았다.

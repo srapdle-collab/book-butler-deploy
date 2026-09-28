@@ -8,6 +8,14 @@
 - 과거 항목은 수정하지 않는다. 사실을 보강할 때는 `- 보강(<날짜>, <작업자>):` 줄을 덧붙인다.
 - 2026-09-26 이전 항목은 이 규칙 이전 형식이다.
 
+## 2026-09-28 — Codex: Reading Chunk 경로 A 예화 카테고리 추천·승인 구현
+
+- **목적/범위**: Reading Chunk를 먼저 빈 `illustrationTags`로 저장한 뒤, 실제 예화창고 기존 카테고리를 비AI 규칙으로 최대 3개 추천하고 David의 명시 승인 때만 canonical 값으로 저장한다. 오늘의 서재 코드·1차-B 운영 연결·운영 DB write·실제 iCloud export·main/push/deploy는 범위 밖으로 유지했다.
+- **변경/커밋**: `276c958`은 `config/illustration_categories.json`(실제 63개 폴더의 NFC canonical snapshot), 안전한 갱신 CLI, aliases/keywords 초안, 공용 recommendation fixture, snapshot 검증·정규화·점수 엔진을 추가했다. UI에서 자유 예화 태그 입력을 제거하고 저장 직후 추천/검색 가능한 전체 다중 선택/승인/보내지 않음을 제공한다. 기존 legacy 자유 값은 일반 수정에서 보존하고 승인 패널에서만 canonical 또는 빈 목록으로 바뀐다. exporter는 canonical NFC exact folder match를 먼저 처리해 `교회`·`사명`을 정상 매핑하고 legacy ambiguous 규칙은 exact match가 없을 때만 적용한다.
+- **검증**: 신규 snapshot·추천·저장·UI·legacy exporter 테스트를 포함한 전체 **201 passed**, Python `compileall` PASS, tracked 및 신규 파일 `diff --check` PASS. 공용 fixture는 명시 용서/관계/기도/믿음/사명/교회/복수/없음/alias/일반 tag 사례를 고정한다.
+- **실제 예화창고 read-only preflight**: 최상위 이름/디렉터리 metadata만 읽었다. snapshot 63개와 실제 폴더 63개가 같은 순서로 일치하고, 물리 이름 63개 모두 NFD이며 `교회`·`사명`은 각각 단일 NFC exact match였다. 검사 전후 최상위 directory metadata도 동일했다. 파일 본문·실제 exporter는 실행하지 않았고 iCloud write 0건이다.
+- **공동 계약/배포/남은 일**: exporter 우선순위 정책은 공동 로컬 문서 커밋 `188ac7b`에 기록했다. 읽담 main/origin/main=`0d1530d`, deploy/main=`74d3c9d`는 불변이며 운영 DB write 0건이다. 다음 작업 1개는 [63개 사전 초안](ILLUSTRATION_CATEGORY_DICTIONARY_DRAFT.md)의 David 검토다.
+
 ## 2026-09-28 — Codex: 읽담 Reading Chunk local main을 origin/main에 동기화
 
 - **목적/변경**: local main `8e15c1f`와 실제 원격 origin/main `74d3c9d`가 fast-forward 관계이고 별도 main worktree가 clean임을 확인했다. `git push origin main:main`으로 읽담의 Reading Chunk 1차-B·2차 코드/문서를 원격에 보존했다. 상태 인계를 HANDOFF/WORKLOG에 추가했다.
