@@ -161,6 +161,8 @@ def test_category_ui_allows_explicit_no_send_for_existing_chunk(isolated_app, mo
         conn, owner_id=chunks.LOCAL_OWNER_ID, book_id="book-1", read_date="2026-09-28",
         original_text="기도", user_note="", tags=[], illustration_tags=["기도"], content_types=[],
     )
+    conn.execute("UPDATE reading_chunks SET source_app='today-library' WHERE chunk_id=?", (saved["chunk_id"],))
+    conn.commit()
     conn.close()
     at = open_detail()
     at.button(key=f"chunk_category_open_{saved['chunk_id']}").click().run()
