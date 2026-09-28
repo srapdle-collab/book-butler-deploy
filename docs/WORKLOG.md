@@ -15,6 +15,7 @@
 - **검증**: 신규 snapshot·추천·저장·UI·legacy exporter 테스트를 포함한 전체 **201 passed**, Python `compileall` PASS, tracked 및 신규 파일 `diff --check` PASS. 공용 fixture는 명시 용서/관계/기도/믿음/사명/교회/복수/없음/alias/일반 tag 사례를 고정한다.
 - **실제 예화창고 read-only preflight**: 최상위 이름/디렉터리 metadata만 읽었다. snapshot 63개와 실제 폴더 63개가 같은 순서로 일치하고, 물리 이름 63개 모두 NFD이며 `교회`·`사명`은 각각 단일 NFC exact match였다. 검사 전후 최상위 directory metadata도 동일했다. 파일 본문·실제 exporter는 실행하지 않았고 iCloud write 0건이다.
 - **공동 계약/배포/남은 일**: exporter 우선순위 정책은 공동 로컬 문서 커밋 `188ac7b`에 기록했다. 읽담 main/origin/main=`0d1530d`, deploy/main=`74d3c9d`는 불변이며 운영 DB write 0건이다. 다음 작업 1개는 [63개 사전 초안](ILLUSTRATION_CATEGORY_DICTIONARY_DRAFT.md)의 David 검토다.
+- **보강(2026-09-28, Codex)**: `298ef54`로 오늘의 서재 source Chunk도 읽담 승인 패널에서 카테고리를 비울 수 있는 UI 회귀를 명시했다. 전체 201 tests·compile·diff check를 다시 PASS했다.
 
 ## 2026-09-28 — Codex: 읽담 Reading Chunk local main을 origin/main에 동기화
 
