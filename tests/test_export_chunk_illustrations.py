@@ -12,11 +12,32 @@ import pytest
 
 from lib import db, reading_chunks as chunks
 from test_activity_inputs_app import isolated_app
-from test_reading_chunks import _export_module, _ids, _save
+from test_reading_chunks import _export_module, _ids, _save as _save_chunk
 from tools import export_chunk_illustrations as subject
 
 
 OWNER = chunks.LOCAL_OWNER_ID
+
+
+def _save(conn, **overrides):
+    """Seed historical raw tags only for legacy exporter compatibility cases.
+
+    Current product writes are validated against the snapshot.  These exporter
+    tests also need pre-policy records so that alias and ambiguity handling
+    remains covered without weakening the product write contract.
+    """
+    legacy_tags = overrides.get("illustration_tags", [])
+    if legacy_tags:
+        overrides["illustration_tags"] = []
+    row = _save_chunk(conn, **overrides)
+    if not legacy_tags:
+        return row
+    conn.execute(
+        "UPDATE reading_chunks SET illustration_tags=? WHERE chunk_id=?",
+        (json.dumps(legacy_tags, ensure_ascii=False), row["chunk_id"]),
+    )
+    conn.commit()
+    return chunks.get(conn, row["chunk_id"], owner_id=OWNER)
 
 
 def categories(root, *names):
@@ -37,7 +58,7 @@ def tree(root):
             for p in root.rglob("*") if p.is_file()}
 
 
-def test_exact_alias_ambiguous_unmapped_and_no_tags(isolated_app, tmp_path):
+def test_exact_canonical_alias_legacy_ambiguous_unmapped_and_no_tags(isolated_app, tmp_path):
     conn = db.get_connection()
     records = [
         _save(conn, original_text=f"내용 {i}", illustration_tags=tags, allow_duplicate=True)
@@ -53,14 +74,18 @@ def test_exact_alias_ambiguous_unmapped_and_no_tags(isolated_app, tmp_path):
     before = tree(tmp_path)
     preview = subject.export(tmp_path, owner_id=OWNER, chunk_ids=_ids(), dry_run=True)
     assert tree(tmp_path) == before
-    assert {a["chunkId"] for a in actions(preview, "CREATE")} == {records[0]["chunk_id"], records[1]["chunk_id"]}
+    assert {a["chunkId"] for a in actions(preview, "CREATE")} == {
+        records[0]["chunk_id"], records[1]["chunk_id"], records[2]["chunk_id"],
+    }
     assert {a["reason"] for a in actions(preview, "UNMAPPED")} >= {
-        "모호한 태그: 교회", "모호한 태그: 사명", "매핑 없음: 없는태그"}
+        "모호한 legacy 태그: 성경", "모호한 legacy 태그: 말씀",
+        "모호한 legacy 태그: 결혼", "모호한 legacy 태그: 이성교제", "매핑 없음: 없는태그"}
     result = subject.export(tmp_path, owner_id=OWNER, chunk_ids=_ids())
-    assert len(actions(result, "CREATE")) == 2
+    assert len(actions(result, "CREATE")) == 4
     assert len(list((tmp_path / "용서" / "읽담").glob("*.txt"))) == 1
     assert len(list((tmp_path / unicodedata.normalize("NFD", "공동체,관계, 교회") / "읽담").glob("*.txt"))) == 1
-    assert not (tmp_path / "교회" / "읽담").exists()
+    assert len(list((tmp_path / "교회" / "읽담").glob("*.txt"))) == 1
+    assert len(list((tmp_path / "사명" / "읽담").glob("*.txt"))) == 1
     assert not (tmp_path / "_미분류").exists()
     again = subject.export(tmp_path, owner_id=OWNER, chunk_ids=_ids())
     assert not actions(again, "CREATE") and not actions(again, "UPDATE") and not actions(again, "DELETE")
@@ -169,6 +194,21 @@ def test_approved_explicit_mapping(tag, category):
     physical = unicodedata.normalize("NFD", category)
     mapped, unmapped = subject._map_tags([tag], {physical: None}, {category: [physical]}, subject.ALIASES)
     assert mapped == [physical] and unmapped == []
+
+
+@pytest.mark.parametrize("canonical", ["교회", "사명"])
+def test_exact_canonical_folder_match_precedes_legacy_ambiguity(canonical):
+    physical = unicodedata.normalize("NFD", canonical)
+    mapped, unmapped = subject._map_tags([canonical], {physical: None}, {canonical: [physical]}, subject.ALIASES)
+    assert mapped == [physical] and unmapped == []
+
+
+def test_legacy_ambiguous_tag_without_exact_folder_remains_unmapped():
+    mapped, unmapped = subject._map_tags(
+        ["성경"], {}, {"성경, 말씀": ["성경, 말씀"], "성경,말씀묵상": ["성경,말씀묵상"]}, subject.ALIASES,
+    )
+    assert mapped == []
+    assert unmapped == [("성경", "모호한 legacy 태그: 성경")]
 
 
 def test_resume_after_index_write_failure(isolated_app, tmp_path, monkeypatch):

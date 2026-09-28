@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-28T00:00:00+09:00",
+  "categories": [
+    {"canonical": "용서", "aliases": ["용서하다"], "keywords": ["용납", "화해"]},
+    {"canonical": "공동체,관계, 교회", "aliases": ["관계", "공동체"], "keywords": ["서로 세움", "연합"]},
+    {"canonical": "기도", "aliases": ["기도하다"], "keywords": ["간구", "중보"]},
+    {"canonical": "믿음", "aliases": ["신뢰"], "keywords": ["확신", "순종"]},
+    {"canonical": "사명", "aliases": ["부르심"], "keywords": ["헌신", "파송"]},
+    {"canonical": "교회", "aliases": [], "keywords": ["예배", "성도"]},
+    {"canonical": "사랑", "aliases": ["사랑하다"], "keywords": ["긍휼", "돌봄"]},
+    {"canonical": "회복", "aliases": ["회복하다"], "keywords": ["치유", "새롭게"]}
+  ]
+}

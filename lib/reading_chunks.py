@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 import uuid
 
 from lib import database
+from lib import illustration_categories
 
 KST = ZoneInfo("Asia/Seoul")
 LOCAL_OWNER_ID = "local-owner"
@@ -65,6 +66,14 @@ def clean_tags(values) -> list[str]:
 
 def parse_tags(value: str | None) -> list[str]:
     return clean_tags((value or "").replace("\n", ",").split(","))
+
+
+def canonical_illustration_tags(values) -> list[str]:
+    """Store only snapshot-backed NFC canonical category names."""
+    if values in (None, []):
+        return []
+    snapshot = illustration_categories.load_snapshot()
+    return illustration_categories.canonicalize_selection(snapshot, values)
 
 
 def _decode(row):
@@ -201,7 +210,10 @@ def save(
     user_note = (user_note or "").strip()
     position_note = (position_note or "").strip() or None
     tags = clean_tags(tags)
-    illustration_tags = clean_tags(illustration_tags)
+    # Pre-policy records can contain legacy free text.  A normal body edit must
+    # not silently rewrite that value; the dedicated approval panel resolves it.
+    illustration_tags = (existing["illustration_tags"] if existing is not None and illustration_tags is None
+                         else canonical_illustration_tags(illustration_tags or []))
     content_types = clean_tags(content_types)
     _validate(
         read_date=read_date, page_start=page_start, page_end=page_end, minutes=minutes,
@@ -251,6 +263,27 @@ def save(
             raise ValueError("읽은 조각이 변경되어 저장하지 못했습니다.")
     conn.commit()
     return get(conn, chunk_id, owner_id=owner_id, include_deleted=True)
+
+
+def set_illustration_tags(conn, chunk_id: str, *, owner_id: str, illustration_tags) -> dict:
+    """Approve a snapshot-backed category choice without changing the chunk body.
+
+    This intentionally accepts both 읽담 and today-library chunks: reading chunk
+    categorization is finalized only in 읽담.
+    """
+    selected = canonical_illustration_tags(illustration_tags or [])
+    current = get(conn, chunk_id, owner_id=owner_id)
+    if current is None:
+        raise ValueError("읽은 조각을 찾을 수 없습니다.")
+    cursor = database.execute(
+        conn,
+        "UPDATE reading_chunks SET illustration_tags=?, updated_at=? WHERE chunk_id=? AND owner_id=? AND deleted_at IS NULL",
+        (json.dumps(selected, ensure_ascii=False), now_iso(), chunk_id, owner_id),
+    )
+    if cursor.rowcount != 1:
+        raise ValueError("예화 카테고리를 저장하지 못했습니다.")
+    conn.commit()
+    return get(conn, chunk_id, owner_id=owner_id)
 
 
 def soft_delete(conn, chunk_id: str, *, owner_id: str):
@@ -347,6 +380,10 @@ def ingest(conn, payload, *, owner_id: str):
     receipt = {"chunkId": chunk_id, "payloadUpdatedAt": updated_at}
     if field:
         return {**receipt, "result": "rejected", "errorCode": "invalid_payload", "errorField": field}
+    try:
+        illustration_tags = canonical_illustration_tags(payload["illustrationTags"])
+    except ValueError:
+        return {**receipt, "result": "rejected", "errorCode": "invalid_payload", "errorField": "illustrationTags"}
 
     def existing_owner():
         return database.execute(conn, "SELECT owner_id FROM reading_chunks WHERE chunk_id=?", (chunk_id,)).fetchone()
@@ -376,7 +413,7 @@ def ingest(conn, payload, *, owner_id: str):
                  payload["readDate"], payload.get("pageStart"), payload.get("pageEnd"), payload.get("positionNote"),
                  payload.get("minutes"), payload.get("originalText") or None, payload.get("userNote") or None,
                  json.dumps(clean_tags(payload["tags"]), ensure_ascii=False),
-                 json.dumps(clean_tags(payload["illustrationTags"]), ensure_ascii=False),
+                 json.dumps(illustration_tags, ensure_ascii=False),
                  json.dumps(clean_tags(payload["contentTypes"]), ensure_ascii=False), digest,
                  payload["createdAt"], payload["updatedAt"]),
             )

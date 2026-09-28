@@ -22,7 +22,7 @@ def _save(conn, **overrides):
         "original_text": "  용서는  \n 관계를  회복한다. ",
         "user_note": "설교에 쓸 수 있다.",
         "tags": ["용서", "관계", "용서"],
-        "illustration_tags": ["회복"],
+        "illustration_tags": [],
         "content_types": ["illustration", "meditation"],
     }
     values.update(overrides)
@@ -73,7 +73,6 @@ def test_chunk_input_is_available_in_book_detail_and_saves_metadata(isolated_app
     at.text_area(key="chunk_input_original_text").set_value("입력한 원문")
     at.text_area(key="chunk_input_user_note").set_value("입력한 메모")
     at.text_input(key="chunk_input_tags").set_value("묵상, 은혜")
-    at.text_input(key="chunk_input_illustration_tags").set_value("회복")
     at.multiselect(key="chunk_input_content_types").set_value(["meditation"])
     at.button(key="save_reading_chunk").click().run()
     assert not at.exception

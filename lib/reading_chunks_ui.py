@@ -8,6 +8,7 @@ import uuid
 import streamlit as st
 
 from lib import reading_chunks as chunks
+from lib import illustration_categories
 
 
 def _clear_form_state():
@@ -24,6 +25,13 @@ def _close_form(message: str | None = None):
     st.session_state.pop("chunk_draft_id", None)
     if message:
         st.session_state.notice = message
+
+
+def _close_category_panel(chunk_id: str | None = None):
+    current = chunk_id or st.session_state.get("chunk_category_pending_id")
+    if current:
+        st.session_state.pop(f"chunk_category_selection_{current}", None)
+    st.session_state.pop("chunk_category_pending_id", None)
 
 
 def _open_new():
@@ -68,7 +76,7 @@ def _optional_page(value: str) -> int | None:
 
 def _save(conn, payload, *, owner_id, allow_duplicate=False):
     try:
-        chunks.save(conn, owner_id=owner_id, allow_duplicate=allow_duplicate, **payload)
+        saved = chunks.save(conn, owner_id=owner_id, allow_duplicate=allow_duplicate, **payload)
     except chunks.DuplicateChunk as exc:
         st.session_state.chunk_duplicate = payload
         st.warning(f"{exc} 자동 병합하거나 삭제하지 않았습니다.")
@@ -76,6 +84,7 @@ def _save(conn, payload, *, owner_id, allow_duplicate=False):
         st.error(str(exc))
     else:
         _close_form("읽은 조각을 저장했습니다.")
+        st.session_state.chunk_category_pending_id = saved["chunk_id"]
 
 
 def _form(book, existing):
@@ -109,10 +118,6 @@ def _form(book, existing):
             "내 메모", value=(existing["user_note"] if is_edit else "") or "", key="chunk_input_user_note",
         )
         st.text_input("태그 (쉼표로 구분)", value=_tag_text(existing["tags"]) if is_edit else "", key="chunk_input_tags")
-        st.text_input(
-            "예화 태그 (쉼표로 구분)", value=_tag_text(existing["illustration_tags"]) if is_edit else "",
-            key="chunk_input_illustration_tags",
-        )
         st.multiselect(
             "콘텐츠 타입", options=list(chunks.CONTENT_TYPES),
             default=existing["content_types"] if is_edit else [],
@@ -138,13 +143,67 @@ def _submit_form(conn, book, existing, *, owner_id):
             "original_text": values.chunk_input_original_text,
             "user_note": values.chunk_input_user_note,
             "tags": chunks.parse_tags(values.chunk_input_tags),
-            "illustration_tags": chunks.parse_tags(values.chunk_input_illustration_tags),
+            # 새 조각은 항상 빈 목록으로 먼저 저장한다. 기존 조각의 선택값은
+            # 보존한 뒤, 아래 승인 패널에서만 바꾼다.
+            "illustration_tags": None if existing else [],
             "content_types": values.chunk_input_content_types,
         }
     except ValueError as exc:
         st.error(str(exc))
         return
     _save(conn, payload, owner_id=owner_id)
+
+
+def _category_panel(conn, *, owner_id):
+    chunk_id = st.session_state.get("chunk_category_pending_id")
+    if not chunk_id:
+        return
+    chunk = chunks.get(conn, chunk_id, owner_id=owner_id)
+    if chunk is None:
+        _close_category_panel(chunk_id)
+        return
+    try:
+        snapshot = illustration_categories.load_snapshot()
+    except ValueError:
+        st.warning("예화 카테고리 snapshot을 준비 중입니다.")
+        return
+
+    names = illustration_categories.canonical_names(snapshot)
+    recommendations = illustration_categories.recommend(
+        snapshot, originalText=chunk["original_text"], userNote=chunk["user_note"], tags=chunk["tags"],
+    )
+    current = [name for name in names if name in chunk["illustration_tags"]]
+    defaults = current or [item["canonical"] for item in recommendations if item["defaultChecked"]]
+    selection_key = f"chunk_category_selection_{chunk_id}"
+    if selection_key not in st.session_state:
+        st.session_state[selection_key] = defaults
+
+    with st.container(border=True):
+        st.subheader("예화창고로 보낼까요?")
+        st.caption("카테고리를 승인해도 파일은 아직 내보내지 않습니다.")
+        if recommendations:
+            for item in recommendations:
+                mark = "☑" if item["defaultChecked"] else "☐"
+                st.caption(f"{mark} {item['canonical']} · 추천 점수 {item['score']}")
+        else:
+            st.caption("추천할 카테고리가 없습니다. 전체 목록에서 직접 고를 수 있습니다.")
+        selected = st.multiselect(
+            "다른 카테고리 검색", options=names, key=selection_key,
+            placeholder="기존 예화창고 카테고리를 검색하세요",
+        )
+        selected = illustration_categories.canonicalize_selection(snapshot, selected)
+        label = "예화창고로 보내기 · " + (", ".join(selected) if selected else "선택 없음")
+        send, skip = st.columns(2)
+        if send.button(label, key=f"chunk_category_send_{chunk_id}", width="stretch", disabled=not selected):
+            chunks.set_illustration_tags(conn, chunk_id, owner_id=owner_id, illustration_tags=selected)
+            _close_category_panel(chunk_id)
+            st.session_state.notice = "예화창고 카테고리를 저장했습니다."
+            st.rerun()
+        if skip.button("보내지 않음", key=f"chunk_category_skip_{chunk_id}", width="stretch"):
+            chunks.set_illustration_tags(conn, chunk_id, owner_id=owner_id, illustration_tags=[])
+            _close_category_panel(chunk_id)
+            st.session_state.notice = "예화 태그를 비워 두었습니다."
+            st.rerun()
 
 
 def render(conn, book, *, owner_id):
@@ -175,6 +234,8 @@ def render(conn, book, *, owner_id):
             _form(book, existing)
             return
 
+    _category_panel(conn, owner_id=owner_id)
+
     st.button("✦ 읽은 조각 남기기", key="open_reading_chunk", width="stretch", on_click=_open_new)
 
     tag = st.text_input("조각 태그 필터", key="chunk_tag_filter", placeholder="태그 하나를 입력하세요")
@@ -199,8 +260,11 @@ def render(conn, book, *, owner_id):
                       *[chunks.CONTENT_TYPES[item] for item in row["content_types"]]]
             if badges:
                 st.caption(" · ".join(badges))
-            edit, delete = st.columns(2)
+            edit, categorize, delete = st.columns(3)
             edit.button("수정", key=f"chunk_edit_{row['chunk_id']}", width="stretch", on_click=_open_edit, args=(row["chunk_id"],))
+            if categorize.button("예화 카테고리", key=f"chunk_category_open_{row['chunk_id']}", width="stretch"):
+                st.session_state.chunk_category_pending_id = row["chunk_id"]
+                st.rerun()
             if delete.button("삭제", key=f"chunk_delete_{row['chunk_id']}", width="stretch"):
                 st.session_state.chunk_delete_id = row["chunk_id"]
                 st.rerun()

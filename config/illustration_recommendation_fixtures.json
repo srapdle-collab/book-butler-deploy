@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "normalization": "NFC + lowercase + collapsed whitespace",
+  "cases": [
+    {
+      "id": "explicit-forgiveness",
+      "input": {"originalText": "용서를 구한다.", "userNote": "", "tags": []},
+      "recommendations": [{"canonical": "용서", "score": 2, "defaultChecked": false}]
+    },
+    {
+      "id": "relationship-community",
+      "input": {"originalText": "", "userNote": "공동체 안에서 서로를 세운다.", "tags": []},
+      "recommendations": [{"canonical": "공동체,관계, 교회", "score": 2, "defaultChecked": false}]
+    },
+    {
+      "id": "prayer",
+      "input": {"originalText": "기도로 간구한다.", "userNote": "", "tags": []},
+      "recommendations": [{"canonical": "기도", "score": 3, "defaultChecked": true}]
+    },
+    {
+      "id": "faith",
+      "input": {"originalText": "믿음으로 순종한다.", "userNote": "", "tags": []},
+      "recommendations": [{"canonical": "믿음", "score": 3, "defaultChecked": true}]
+    },
+    {
+      "id": "mission",
+      "input": {"originalText": "부르심에 응답하는 사명과 헌신", "userNote": "", "tags": []},
+      "recommendations": [{"canonical": "사명", "score": 3, "defaultChecked": true}]
+    },
+    {
+      "id": "church",
+      "input": {"originalText": "교회 예배에 모인 성도", "userNote": "", "tags": []},
+      "recommendations": [{"canonical": "교회", "score": 4, "defaultChecked": true}]
+    },
+    {
+      "id": "multiple-topics",
+      "input": {"originalText": "용서와 기도를 함께 묵상한다.", "userNote": "", "tags": []},
+      "recommendations": [
+        {"canonical": "용서", "score": 2, "defaultChecked": false},
+        {"canonical": "기도", "score": 2, "defaultChecked": false}
+      ]
+    },
+    {
+      "id": "no-recommendation",
+      "input": {"originalText": "오늘은 책의 서지 정보를 정리했다.", "userNote": "", "tags": []},
+      "recommendations": []
+    },
+    {
+      "id": "alias-match",
+      "input": {"originalText": "관계를 이해하는 길", "userNote": "", "tags": []},
+      "recommendations": [{"canonical": "공동체,관계, 교회", "score": 2, "defaultChecked": false}]
+    },
+    {
+      "id": "strong-general-tag",
+      "input": {"originalText": "", "userNote": "", "tags": ["용서"]},
+      "recommendations": [{"canonical": "용서", "score": 3, "defaultChecked": true}]
+    }
+  ]
+}

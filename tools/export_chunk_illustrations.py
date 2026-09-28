@@ -91,10 +91,23 @@ def _map_tags(tags, names, normalized, aliases):
         tag = _nfc(str(original))
         if not tag:
             continue
-        if tag in AMBIGUOUS:
-            unmapped.append((tag, f"모호한 태그: {tag}"))
+        # New values are canonical snapshot names. A physical NFC exact match is
+        # authoritative even when the same word was historically ambiguous.
+        exact = normalized.get(tag, [])
+        if len(exact) == 1:
+            categories.add(exact[0])
             continue
-        target = aliases.get(tag, tag)
+        if len(exact) > 1:
+            unmapped.append((tag, f"폴더 이름 충돌: {tag}"))
+            continue
+        # Only legacy non-canonical values continue through the old policy.
+        if tag in AMBIGUOUS:
+            unmapped.append((tag, f"모호한 legacy 태그: {tag}"))
+            continue
+        target = aliases.get(tag)
+        if target is None:
+            unmapped.append((tag, f"매핑 없음: {tag}"))
+            continue
         matches = normalized.get(target, [])
         if len(matches) == 1:
             categories.add(matches[0])
@@ -204,8 +217,7 @@ def _plan(root, rows, owner_id):
         wanted = {}
         if not row["deleted_at"]:
             mapped, unmapped = _map_tags(row["illustration_tags"], categories, normalized, aliases)
-            dedupe += max(0, len([t for t in row["illustration_tags"] if _nfc(t) not in AMBIGUOUS])
-                          - len(unmapped) - len(mapped))
+            dedupe += max(0, len(row["illustration_tags"]) - len(unmapped) - len(mapped))
             if len(mapped) > 1:
                 multi_copy += len(mapped) - 1
             for tag, reason in unmapped:
