@@ -21,6 +21,18 @@
 
 ## 항목
 
+## 최신 — 새 책 추가 중복 검사 기능 완료 (2026-09-28, Claude Code/Orca)
+
+- **무엇을 했는지**: "새 책 추가"에서 이미 등록된 책을 실수로 중복 저장하는 문제를 막았다. ISBN이 있으면 정규화(하이픈/공백 제거) 동일 여부를 최우선 기준으로 저장을 막는다(폼 제출 시점에 다시 검사해 검색을 거치지 않은 수동 입력·재제출도 막는다). ISBN이 없을 때만 제목+저자가 모두 같으면 경고 후 "그래도 추가"로 확인받는다(reading_chunks의 기존 "그래도 저장" 패턴 재사용). 제목만 같은 동명이서는 막지도 경고하지도 않는다. 검색 결과는 숨기지 않고, 이미 있는 후보는 "✓ 이미 내 책장에 있음"으로 표시하며 "기존 책으로 이동" 버튼을 우선 제공한다.
+- **운영 데이터 감사(읽기 전용, 삭제·병합 없음)**: "희망을 짓는다는 것"(엘렌 데이비스)이 상태만 다르게 **2권 진짜 중복** 등록돼 있었다(아직 정리 안 함, 다음 작업 참고). ISBN "2147483647"(2^31-1, 정수 오버플로 sentinel로 보임)을 서로 무관한 책 **12권**이 공유하고 있어 `normalize_isbn()`에서 이 값을 무효 처리하도록 제외했다. "역사지리로 보는 성경 세트" 1~3권은 세트 공용 ISBN을 공유하는 정상 케이스(중복 아님)였다 — 다권 세트가 향후 ISBN만으로 오탐될 수 있는 알려진 한계로 남겨뒀다. 제목+저자 기준 약한 중복은 0건이었다.
+- **어디까지 끝났는지**: 전체 pytest 256개 통과(신규 회귀 테스트 18개 포함), py_compile·git diff --check 통과. `feature/add-book-dedup` 브랜치 커밋 `0fc97e2`(`main` `a3f44e2`=P0 핫픽스 직후에서 분기). `main`을 그 커밋으로 fast-forward해 **origin과 deploy 모두에 push·운영 배포 완료**(둘 다 `a3f44e2` → `0fc97e2`). 실제 운영 브라우저 시각 확인은 하지 않았다.
+- **확인해야 할 것**: (1) 실제 운영 화면에서 검색 결과 표시·기존 책 이동·저장 차단·경고 흐름이 브라우저로 정상 동작하는지, (2) 기존 검색·서지정보 자동입력·카테고리·Reading Chunk에 회귀가 없는지, (3) "희망을 짓는다는 것" 기존 중복 2건을 병합/삭제할지 David 결정.
+- **다음 작업자**: 운영 브라우저 검증 가능한 세션. 위 "희망을 짓는다는 것" 중복 2건 정리는 David 결정 후 별도 작업으로 진행한다(이번 커밋은 건드리지 않았다).
+- **브랜치**: `feature/add-book-dedup` (별도 워크트리 `/private/tmp/readdam-dup-check/readdam`에서 작업). 원본 `codex/reading-chunks-1a` 작업트리와 그 안의 사용자 미커밋 기획문서 2개는 건드리지 않았다.
+- **커밋**: 기능 `0fc97e2`. 이 HANDOFF·WORKLOG 기록은 같은 브랜치의 후속 문서 커밋.
+- **배포 상태**: **origin/main과 deploy/main 모두 `0fc97e2`로 배포 완료.** Reading Chunk 1차-A/1차-B, 통합 계약(CROSS_PROJECT_HANDOFF.md)은 건드리지 않았고 기존 상태를 그대로 유지한다.
+- **보류·실패·중단 이유**: 없음. 기존 중복 데이터 삭제·병합은 이번 작업 범위 밖(요청에 따라 존재 여부만 보고)이라 의도적으로 하지 않았다.
+
 ## 최신 — P0 운영 책장 TypeError/StreamlitAPIException 복구 완료 (2026-09-28, Claude Code/Orca)
 
 - **무엇을 했는지**: David가 모바일에서 새 카테고리("분별력")를 직접 입력해 책을 저장한 뒤 책장으로 돌아오면 화면이 죽는 P0를 조사·재현·수정했다. Root cause: Postgres 경로에서 `pages` 같은 숫자 컬럼에 NULL이 한 행이라도 섞이면 pandas가 그 컬럼 전체를 float64로 승격시켜 NULL이 None이 아니라 NaN이 된다. NaN은 파이썬에서 참으로 판정돼 `shelf_ui._cover_card`의 `book['pages'] or 0`가 NaN을 그대로 넘기고 `st.progress(nan)`이 `StreamlitAPIException`을 던졌다. 스크린샷의 `db.cover_source(...)` 프레임은 예외가 표시된 위치였을 뿐 root cause는 아니었다. `notebook_ui.cards()`가 이미 쓰는 `pd.isna()` 정규화 패턴을 `_cover_card` 진입부에 그대로 적용해 고쳤다. `lib/database.py`의 `read_frame`을 고치는 방법도 검토했으나 pandas `future.infer_string` 'str' dtype을 깨서 기존 `test_cards_normalize_missing_values_from_new_pandas_string_dtype` 테스트를 회귀시켜 채택하지 않았다.
