@@ -1,5 +1,7 @@
 # 읽담
 
+최신 제품 역할 결정(2026-09-29, David): 매일 쓰는 독서기록 입력 UX는 **오늘의 서재**가 담당한다. 읽담은 책·Reading Chunk의 장기 정본, 기존 예화 카테고리 63개와 추천 엔진, `illustrationTags`, TXT exporter·예화창고 자동분류, 자료 관리·검색 및 관리용 UI를 담당한다. 읽담 Streamlit의 Quick Capture V2 기본 UI 재설계는 중단한다. 기존 기능과 데이터는 보존하며, 현재 배포된 Streamlit 앱을 제거하거나 변경하지 않는다. 양 앱의 데이터 계약 변경은 아직 확정하지 않았고 통합팀 검토 대상으로 인계한다.
+
 최신 상태(2026-09-29, Codex): 예화창고 주제 추천은 검증된 기존 63개 카테고리 snapshot만 사용한다. 읽은 조각 원문이 주 신호이고 내 메모는 보조 후보로만 쓰며, 일반 메모 태그와 콘텐츠 타입은 추천 입력에서 제외한다. 모든 후보는 점수·근거를 보여주지만 자동 선택하지 않는다. David가 승인한 정식 이름만 `illustration_tags`에 저장한다. 콘텐츠 타입은 읽담 내부의 선택형 메타데이터이고, 실제 예화창고 TXT는 별도 export 단계에서 생성한다. 제품 커밋 `3f6a907`이 main/origin/deploy에 반영됐으며 로그인 뒤 운영 화면은 David 확인 전이다.
 
 최신 상태(2026-09-28, Codex): David가 1차-B의 `@st.fragment(run_every="5m")` 유지 결정을 승인했다. Secrets 없는 휴면 경로는 URL·두 key 검사에서 `not_configured`로 즉시 반환하며, 격리 probe로 HTTP·Chunk DML·receipt·book snapshot 접근 0건을 확인했다. fragment의 DB 연결은 read-only schema inspection이고 session state 두 항목만 갱신한다. origin 사전 확인은 현재 환경의 GitHub DNS 해석 실패로 중단돼, origin/main·deploy/main·Streamlit 배포는 아직 변경하지 않았다.

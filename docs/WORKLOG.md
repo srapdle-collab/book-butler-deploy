@@ -1,5 +1,11 @@
 # 읽담 작업 기록
 
+## 2026-09-29 — Codex: Quick Capture V2 Streamlit UI 재설계 중단·역할 인계
+
+- **David 결정**: 실제 사용에서 앱 진입 시 재로그인, 버튼/화면 전환 약 10~20초 체감, 기록 단계별 Streamlit 재실행 대기가 확인됐다. 읽담 Streamlit을 매일 쓰는 독서기록 입력 프런트엔드로 계속 최적화하지 않는다. 일상 입력은 오늘의 서재가 담당하고 읽담은 책·Reading Chunk 정본, 63개 예화 카테고리·추천, `illustrationTags`, TXT exporter·예화창고 자동분류, 자료 관리·검색, 관리용 UI를 유지한다. 기존 Streamlit 앱·자산은 폐기하지 않는다.
+- **정본 감사/보존**: clean linked `main` 시작 `06bb5dd`, origin/main 동일, deploy/main 제품 `d7bbd0a`. 확인 가능한 읽담 Git worktree는 모두 clean이거나 영구 원본의 사용자 소유 기획문서 변경 2개만 있었다. `quick`/`capture`/`v2` 이름의 읽담 branch 및 관련 커밋 제목·최신 기록은 확인되지 않았다. 따라서 완료된 Quick Capture V2 변경이나 미완료 코드의 소유권을 추정해 커밋/병합하지 않았다. 제품 코드·DB·iCloud·배포 변경 0, 새 테스트 미실행.
+- **통합팀 인계 항목**: 기존 `schemaVersion=1` 및 서재 pending→읽담 정본→receipt 계약을 일상 입력의 기반으로 유지할 수 있는지 검토한다. 오늘의 서재에서 기존 63개 추천·사용자 승인·`illustrationTags` 전달 UX와 책임 경계를 합의한다. 운영 1차-B의 Sites 관리형 D1 `0004` blocker가 해소되기 전에는 운영 연결을 완료로 보지 않는다. 이번에는 공동 계약 문서를 수정하거나 새로운 필드/전송 경로를 정하지 않는다. 앞선 읽담 Streamlit 로그인·성능 운영 사용자 확인은 일상 입력 UI 작업의 대기조건으로 사용하지 않는다.
+
 ## 2026-09-29 — Codex: `시간` 오탐 억제 규칙 범위 확인
 
 - **읽기 전용 확인**: `lib/illustration_categories.py`의 추천 루프는 여전히 canonical/alias의 원문 부분문자열 일치에 점수 2를 준다. 새 억제 조건은 `"시간"`이라는 canonical 이름을 명시적으로 비교하고, 다른 원문 후보가 있으며 시간 alias/keyword 근거가 없을 때만 `시간`을 목록에서 제거한다. `기도` 조합 자체는 하드코딩되지 않았지만 **`시간` 카테고리 전용 예외 처리**이므로 짧은 카테고리명/부분문자열 false positive를 일반적으로 억제하지 않는다. 기존 테스트도 기도→시간과 명확한 시간 주제 등 사례 중심이다.
