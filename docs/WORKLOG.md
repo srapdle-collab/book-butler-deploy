@@ -1,5 +1,10 @@
 # 읽담 작업 기록
 
+## 2026-09-29 — Codex: 통합 운영 Runbook의 읽담 관문 기록
+
+- 공동 Runbook은 공식 Sites D1 `0004` lifecycle 답변 전 실행하지 않는 12단계 체크리스트다. 읽담 `main f9b7af7`·서재 `d11113d`·공동 `53fb1db`에서 통합 fixture 3 PASS를 확인했다. 읽담 direct/서재 ingest가 같은 정본과 export dry-run으로 합류하는 local 결과다.
+- 운영 TEST는 서재 synced 사본·receipt와 읽담 tombstone의 잔존 수용 전 생성하지 않는다. receipt 유실을 운영에서 의도적으로 주입하지 않는다. 읽담 코드·DB/iCloud/Sites/Secrets·배포 변경 0. 전담팀의 희망 책 작업은 불변. 다음 통합 작업은 공식 답변을 Runbook 슬롯에 반영하는 것.
+
 ## 2026-09-29 — Codex: 희망 책 보존 결정·실제 시작일 근거와 추천 UX 보완
 
 - **목적·정본**: David가 `94a4470c-46bc-4a70-9359-c105361bfe6f` 보존, 위시리스트 `b735496a-3c23-402d-a853-1c30ac2f721d` 삭제 후보(즉시 삭제 금지)로 결정했다. M1 영구 저장소의 기존 기획문서 2개를 그대로 두고 clean `.worktrees/hope-ux-mainline-20260929`에서 당시 main `4b43704` 계보를 사용했다. 공동 통합팀의 문서 커밋 `6b5803a`·`4b43704`를 보존했다. 오늘의 서재·공동 계약 변경 없음.

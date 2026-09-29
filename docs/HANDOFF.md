@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 최신 — 통합 운영 Runbook 대기 관문 (2026-09-29, Codex)
+
+- **무엇을 했는지**: 통합팀이 공동 `docs/READING_CHUNK_1B_OPERATIONS_RUNBOOK.md`를 준비하고, 읽담 local `main f9b7af7`·서재 `d11113d`·공동 `53fb1db` 조합의 합성 fixture 3건을 재검증했다. 읽담 제품 코드 변경 없음.
+- **어디까지 끝났는지**: 직접/서재 입력의 읽담 정본·export dry-run 연결은 local PASS. Sites D1 `0004` 운영 lifecycle은 COMPLETE / EXTERNAL BLOCKED이며 운영 TEST는 미실행.
+- **확인해야 할 것**: 공식 답변 후 공동 Runbook 4·12번 슬롯과 TEST 잔존 데이터 수용을 먼저 확인한다. 읽담 전담팀의 희망 책·추천 UX 작업과 결정은 아래 항목 그대로 유지한다.
+- **다음 작업자 / 다음 작업 1개**: 통합팀 — 공식 답변 도착 시 Runbook 슬롯을 채우고 운영 관문을 재판정한다. 읽담 단독 다음 작업은 아래 전담팀 항목을 따른다.
+- **브랜치 / 커밋 / 배포 상태**: clean `main f9b7af7` 기준 검증, 이 기록은 문서 후속 commit. 읽담 deploy·운영 DB/iCloud·Sites·Secrets 변경 0.
+- **보류·실패·중단 이유**: 공식 Sites 관리형 D1 절차 미회신. 제품 local fixture 실패 없음.
+
 ## 읽담 담당자가 이어받을 작업 — 희망 책 복원 계획·약한 예화 후보 준비 (2026-09-29, Codex)
 
 - **무엇을 했는지**: David가 읽는 중 `94a4470c…` 보존·위시리스트 `b735496a…` 삭제 후보 지정을 확정했다. 운영 DB를 다시 READ ONLY로 조회해 세션 시작값 `1790602346`(2026-09-28 22:32:26 KST)과 22:36 생성 Chunk를 대조했다. 실제 63개 예화 폴더에서 승인 전 가상 카테고리별 pipeline 계획을 검증했다. 상세 조건·중단 기준은 [희망 책 정상화 계획](HOPE_BOOK_NORMALIZATION_PLAN.md).
