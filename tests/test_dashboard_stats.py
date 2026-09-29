@@ -1,10 +1,35 @@
 from datetime import date,datetime
 from zoneinfo import ZoneInfo
+import threading
+import time
 import pytest
 import pandas as pd
 from lib import db
 from test_activity_inputs_app import isolated_app, APP_PATH
 from streamlit.testing.v1 import AppTest
+
+
+def test_shelf_fetches_visible_cover_urls_concurrently(monkeypatch):
+    from lib import shelf_ui
+
+    active = 0
+    peak = 0
+    lock = threading.Lock()
+
+    def source(book):
+        nonlocal active, peak
+        with lock:
+            active += 1
+            peak = max(peak, active)
+        time.sleep(0.02)
+        with lock:
+            active -= 1
+        return f"cover-{book['id']}"
+
+    monkeypatch.setattr(shelf_ui.db, 'cover_source', source)
+    books = [{'id': str(i)} for i in range(8)]
+    assert shelf_ui._cover_sources(books) == [f'cover-{i}' for i in range(8)]
+    assert peak > 1
 
 
 def ts(day,hour=12):

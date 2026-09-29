@@ -1,4 +1,5 @@
 import html
+from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import streamlit as st
 from lib import db
@@ -7,7 +8,7 @@ from lib import db
 PAGE_SIZE = 24
 
 
-def _cover_card(book, goto, prefix='shelf', show_progress=False):
+def _cover_card(book, goto, prefix='shelf', show_progress=False, source=None, source_ready=False):
     """표지 영역 전체를 누르면 책 상세로 이동하는 초밀평 카드."""
     # Postgres 경로에서 숫자 컬럼에 NULL이 섞이면 pandas가 float64로 승격해
     # NaN이 되고(예: 쪽수 미입력), NaN은 파이썬에서 참으로 판정돼
@@ -16,7 +17,8 @@ def _cover_card(book, goto, prefix='shelf', show_progress=False):
     # 2026-09-28 실제 발생). notebook_ui.cards()와 같은 방식으로 정규화한다.
     book = {key: None if pd.isna(value) else value for key, value in book.items()}
     with st.container(key=f"{prefix}_cover_card_{book['id']}"):
-        source = db.cover_source(book)
+        if not source_ready:
+            source = db.cover_source(book)
         if source:
             st.image(source, width='stretch')
         else:
@@ -39,15 +41,27 @@ def _cover_card(book, goto, prefix='shelf', show_progress=False):
             st.rerun()
 
 
+def _cover_sources(books):
+    """독립적인 표지 서명 요청을 함께 처리해 화면 대기를 줄인다."""
+    if len(books) < 2:
+        return [db.cover_source(book) for book in books]
+    with ThreadPoolExecutor(max_workers=min(8, len(books))) as pool:
+        return list(pool.map(db.cover_source, books))
+
+
 def _cover_grid(books, goto, prefix='shelf', show_progress=False):
     if books.empty:
         return
+    cards = [{key: None if pd.isna(value) else value for key, value in book.items()}
+             for _, book in books.iterrows()]
+    sources = _cover_sources(cards)
     # 좁은 화면에서도 4열을 유지해 한 줄씩 길게 늘어지는 일을 막는다.
     with st.container(key=f"{prefix}_cover_grid_{books.iloc[0]['id']}"):
         columns = st.columns(4, gap='small')
-        for index, (_, book) in enumerate(books.iterrows()):
+        for index, book in enumerate(cards):
             with columns[index % 4]:
-                _cover_card(book, goto, prefix=prefix, show_progress=show_progress)
+                _cover_card(book, goto, prefix=prefix, show_progress=show_progress,
+                            source=sources[index], source_ready=True)
 
 
 def render(conn,goto,add_book):
