@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 최신 — 일반 화면 진단 제거와 운영 추천 UI 최소 회귀 완료 (2026-09-29, Codex)
+
+- **무엇을 했는지**: 로그인과 예화 카테고리 화면의 DB 지문·저장 단계 등 개발용 진단 출력만 제거했다. 인증 복원·예화 승인 진단 상태와 내부 함수는 유지하고 추천·선택·저장 로직 및 63개 snapshot은 변경하지 않았다.
+- **어디까지 끝났는지**: 제품 `985b848`을 clean main·origin/main·deploy/main에 일반 fast-forward 반영했다. 전체 298 PASS, Python 71파일 구문 검사, diff check PASS. Streamlit Cloud `Updated app!` 뒤 Safari 운영 로그인 화면에서 복원 진단 문구가 사라진 것을 확인했다. 로그인 후 기존 `사랑한다` Chunk에서 `사랑` 점수 2·원문 근거·초기 미선택·전체 검색 63개(Select all 포함 64옵션)를 확인했고 DB/승인 단계 진단 문구는 보이지 않았다. 기존 메모 태그는 비어 있고 콘텐츠 타입 3개가 있어도 추천은 `사랑`이었다. 앞선 운영 검증의 일반 태그·콘텐츠 타입 독립성 결과와 이번 변경의 출력 전용 diff를 대조했다. 수정 화면은 저장 없이 닫았으며 운영 DB·예화창고 파일 변경 0.
+- **확인해야 할 것**: 현재 요청 범위에서 없음. 운영 앱 자체는 실행 SHA를 직접 노출하지 않아 deploy 원격 HEAD와 Cloud 업데이트 로그, 변경된 화면으로 반영을 확인했다.
+- **다음 작업자 / 다음 작업 1개**: 없음 — 별도 사용자 요청 대기.
+- **브랜치 / 커밋 / 배포 상태**: clean linked worktree `main`; 제품 `985b848`, 이 항목은 후속 문서 커밋; origin/main·deploy/main 제품 `985b848`.
+- **보류·실패·중단 이유**: 없음. 실제 예화 TXT export·launchd·운영 schema/Secrets 변경은 수행하지 않았다.
+
 ## 읽담 담당자가 이어받을 작업 — 운영 추천·저장 재검증 완료 (2026-09-29, Codex)
 
 - **무엇을 했는지**: deploy 원격이 이미 `3f6a907`인데 Safari 운영 화면은 이전 추천 문구를 표시했다. Streamlit Cloud의 실제 연결은 `srapdle-collab/book-butler-deploy/main/app.py`였고, 앱 Reboot 뒤 새 추천 문구·근거·수동 선택 UI가 나타났다. 버튼 콜백은 실행됐지만 저장 분기가 실행되지 않는 결함과 PostgreSQL 검색 0건의 빈 DataFrame 오류를 RED→GREEN으로 수정했다.
