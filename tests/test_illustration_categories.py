@@ -151,7 +151,7 @@ def test_chunk_ui_saves_empty_then_requires_explicit_category_approval(isolated_
     assert any(item.value == "예화창고로 보낼까요?" for item in at.subheader)
     selection_key = f"chunk_category_selection_{chunk_id}"
     assert at.multiselect(key=selection_key).value == ["기도"]
-    at.multiselect(key=selection_key).set_value(["기도", "용서"])
+    at.multiselect(key=f"chunk_category_extra_{chunk_id}").set_value(["용서"])
     at.button(key=f"chunk_category_send_{chunk_id}").click().run()
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ('["용서", "기도"]',)
 
@@ -287,6 +287,55 @@ def test_ambiguous_category_word_is_suggested_without_preapproval(isolated_app):
     at.button(key="save_reading_chunk").click().run()
     chunk_id = fetch_one(db_path, "SELECT chunk_id FROM reading_chunks")[0]
     assert at.multiselect(key=f"chunk_category_selection_{chunk_id}").value == []
+    assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
+
+
+def test_existing_hope_chunk_edit_offers_weak_candidates_as_primary_choices(isolated_app):
+    db_path, _ = isolated_app
+    original = "그리고 그 큰 이야기는 성경 전체에 흩어져 있는 작은 이야기의 조각들로 끊임없이 새롭게 해석되어야 합니다"
+    conn = db.get_connection()
+    saved = chunks.save(
+        conn, owner_id=chunks.LOCAL_OWNER_ID, book_id="book-1",
+        chunk_id="b0135692-7893-4f6a-b049-b198f30933a3", read_date="2026-09-28",
+        original_text=original, user_note="", tags=["설교", "성경해석"],
+        illustration_tags=[], content_types=["insight"],
+    )
+    conn.close()
+    chunk_id = saved["chunk_id"]
+    at = open_detail()
+    at.button(key=f"chunk_edit_{chunk_id}").click().run()
+    assert at.text_area(key="chunk_input_original_text").value == original
+    assert "예화창고 분류와는 별개" in "\n".join(item.value for item in at.get("caption"))
+    at.button(key="save_reading_chunk").click().run()
+
+    choices = at.multiselect(key=f"chunk_category_selection_{chunk_id}")
+    assert choices.label == "추천 카테고리 선택"
+    assert choices.options == ["성경, 말씀", "성경,말씀묵상"]
+    assert choices.value == []
+    assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
+    choices.set_value(["성경, 말씀"])
+    at.button(key=f"chunk_category_send_{chunk_id}").click().run()
+    assert fetch_one(db_path, "SELECT illustration_tags, tags FROM reading_chunks") == (
+        '["성경, 말씀"]', '["설교", "성경해석"]',
+    )
+
+
+def test_existing_chunk_recovers_weak_choices_when_loaded_recommender_returns_none(isolated_app, monkeypatch):
+    db_path, _ = isolated_app
+    original = "그리고 그 큰 이야기는 성경 전체에 흩어져 있는 작은 이야기의 조각들로 끊임없이 새롭게 해석되어야 합니다"
+    conn = db.get_connection()
+    saved = chunks.save(
+        conn, owner_id=chunks.LOCAL_OWNER_ID, book_id="book-1", read_date="2026-09-28",
+        original_text=original, user_note="", tags=[], illustration_tags=[], content_types=[],
+    )
+    conn.close()
+    monkeypatch.setattr(subject, "RECOMMENDATION_VERSION", 1)
+    monkeypatch.setattr(subject, "recommend", lambda *args, **kwargs: [])
+    at = open_detail()
+    at.button(key=f"chunk_category_open_{saved['chunk_id']}").click().run()
+    choices = at.multiselect(key=f"chunk_category_selection_{saved['chunk_id']}")
+    assert choices.options == ["성경, 말씀", "성경,말씀묵상"]
+    assert choices.value == []
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
 
 

@@ -18,6 +18,7 @@ import unicodedata
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SNAPSHOT = ROOT / "config" / "illustration_categories.json"
 SNAPSHOT_VERSION = 1
+RECOMMENDATION_VERSION = 2  # Includes unchecked folder-name matches.
 MANAGED_TOP_LEVEL = frozenset({"독서조각", "읽담"})
 VERIFICATION_PREFIX = "_읽담_검증전용_"
 
