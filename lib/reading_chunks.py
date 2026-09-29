@@ -265,16 +265,23 @@ def save(
     return get(conn, chunk_id, owner_id=owner_id, include_deleted=True)
 
 
-def set_illustration_tags(conn, chunk_id: str, *, owner_id: str, illustration_tags) -> dict:
+def set_illustration_tags(conn, chunk_id: str, *, owner_id: str, illustration_tags, diagnostic=None) -> dict:
     """Approve a snapshot-backed category choice without changing the chunk body.
 
     This intentionally accepts both 읽담 and today-library chunks: reading chunk
     categorization is finalized only in 읽담.
     """
+    if diagnostic is not None:
+        diagnostic["set_illustration_tags_called"] = "YES"
+        diagnostic["failure_stage"] = "validate_selection"
     selected = canonical_illustration_tags(illustration_tags or [])
+    if diagnostic is not None:
+        diagnostic["failure_stage"] = "find_chunk"
     current = get(conn, chunk_id, owner_id=owner_id)
     if current is None:
         raise ValueError("읽은 조각을 찾을 수 없습니다.")
+    if diagnostic is not None:
+        diagnostic["failure_stage"] = "db_update"
     cursor = database.execute(
         conn,
         "UPDATE reading_chunks SET illustration_tags=?, updated_at=? WHERE chunk_id=? AND owner_id=? AND deleted_at IS NULL",
@@ -282,8 +289,20 @@ def set_illustration_tags(conn, chunk_id: str, *, owner_id: str, illustration_ta
     )
     if cursor.rowcount != 1:
         raise ValueError("예화 카테고리를 저장하지 못했습니다.")
+    if diagnostic is not None:
+        diagnostic["failure_stage"] = "commit"
     conn.commit()
-    return get(conn, chunk_id, owner_id=owner_id)
+    if diagnostic is not None:
+        diagnostic["db_update_success"] = "YES"
+        diagnostic["failure_stage"] = "postwrite_verify"
+    saved = get(conn, chunk_id, owner_id=owner_id)
+    if saved is None or saved["illustration_tags"] != selected:
+        raise ValueError("예화 카테고리 저장값을 확인하지 못했습니다.")
+    if diagnostic is not None:
+        diagnostic["postwrite_verify_success"] = "YES"
+        diagnostic["saved_tags_count"] = len(saved["illustration_tags"])
+        diagnostic["failure_stage"] = "none"
+    return saved
 
 
 def soft_delete(conn, chunk_id: str, *, owner_id: str):

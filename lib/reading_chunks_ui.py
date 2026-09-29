@@ -9,6 +9,7 @@ import streamlit as st
 
 from lib import reading_chunks as chunks
 from lib import illustration_categories
+from lib import approval_diagnostics
 
 
 def _clear_form_state():
@@ -32,6 +33,14 @@ def _close_category_panel(chunk_id: str | None = None):
     if current:
         st.session_state.pop(f"chunk_category_selection_{current}", None)
     st.session_state.pop("chunk_category_pending_id", None)
+
+
+def _mark_category_attempt(chunk_id, book_id):
+    st.session_state.chunk_approval_diagnostic = approval_diagnostics.new_attempt(chunk_id, book_id)
+
+
+def _show_category_diagnostic(diagnostic):
+    st.markdown("  \n".join(approval_diagnostics.display_lines(diagnostic)))
 
 
 def _open_new():
@@ -181,6 +190,14 @@ def _category_panel(conn, *, owner_id):
     with st.container(border=True):
         st.subheader("예화창고로 보낼까요?")
         st.caption("카테고리를 승인해도 파일은 아직 내보내지 않습니다.")
+        target = approval_diagnostics.connection_target(conn)
+        st.caption(f"DB 대상: M1과 동일 {target['same_as_m1']} · {target['backend']} · 지문 {target['fingerprint']}")
+        diagnostic = st.session_state.get("chunk_approval_diagnostic")
+        if not diagnostic or diagnostic["target_chunk_id"] != chunk_id[:8]:
+            diagnostic = approval_diagnostics.new_attempt(chunk_id)
+            diagnostic["save_attempted"] = "NO"
+            diagnostic["failure_stage"] = "not_attempted"
+        _show_category_diagnostic(diagnostic)
         if recommendations:
             if any(item["score"] == 1 for item in recommendations):
                 st.caption("본문 단어로 찾은 약한 후보입니다. 맞는 카테고리만 선택하세요.")
@@ -196,8 +213,15 @@ def _category_panel(conn, *, owner_id):
         selected = illustration_categories.canonicalize_selection(snapshot, selected)
         label = "예화창고로 보내기 · " + (", ".join(selected) if selected else "선택 없음")
         send, skip = st.columns(2)
-        if send.button(label, key=f"chunk_category_send_{chunk_id}", width="stretch", disabled=not selected):
-            chunks.set_illustration_tags(conn, chunk_id, owner_id=owner_id, illustration_tags=selected)
+        if send.button(label, key=f"chunk_category_send_{chunk_id}", width="stretch", disabled=not selected,
+                       on_click=_mark_category_attempt, args=(chunk_id, chunk["book_id"])):
+            diagnostic = st.session_state.chunk_approval_diagnostic
+            try:
+                chunks.set_illustration_tags(conn, chunk_id, owner_id=owner_id,
+                                             illustration_tags=selected, diagnostic=diagnostic)
+            except Exception:
+                st.error("예화 카테고리를 저장하지 못했습니다. 아래 진단 단계를 확인해주세요.")
+                st.rerun()
             _close_category_panel(chunk_id)
             st.session_state.notice = "예화창고 카테고리를 저장했습니다."
             st.rerun()
@@ -211,6 +235,11 @@ def _category_panel(conn, *, owner_id):
 def render(conn, book, *, owner_id):
     """책 상세에서 호출한다. 조각은 이 책에만 연결해 표시한다."""
     st.subheader("읽은 조각")
+    diagnostic = st.session_state.get("chunk_approval_diagnostic")
+    if diagnostic and diagnostic.get("_book_id") == book["id"]:
+        target = approval_diagnostics.connection_target(conn)
+        st.caption(f"DB 대상: M1과 동일 {target['same_as_m1']} · {target['backend']} · 지문 {target['fingerprint']}")
+        _show_category_diagnostic(diagnostic)
     try:
         chunks._book_snapshot(conn, book["id"], owner_id)
     except ValueError as exc:
@@ -271,6 +300,7 @@ def render(conn, book, *, owner_id):
             edit, categorize, delete = st.columns(3)
             edit.button("수정", key=f"chunk_edit_{row['chunk_id']}", width="stretch", on_click=_open_edit, args=(row["chunk_id"],))
             if categorize.button("예화 카테고리", key=f"chunk_category_open_{row['chunk_id']}", width="stretch"):
+                st.session_state.pop("chunk_approval_diagnostic", None)
                 st.session_state.chunk_category_pending_id = row["chunk_id"]
                 st.rerun()
             if delete.button("삭제", key=f"chunk_delete_{row['chunk_id']}", width="stretch"):

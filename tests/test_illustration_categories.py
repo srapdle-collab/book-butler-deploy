@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import unicodedata
 from pathlib import Path
 
@@ -8,6 +9,7 @@ import pytest
 
 from lib import illustration_categories as subject
 from lib import db, reading_chunks as chunks
+from lib import approval_diagnostics
 from test_activity_inputs_app import fetch_one, isolated_app, open_detail
 
 
@@ -196,6 +198,74 @@ def test_existing_chunk_category_button_updates_matching_chunk_across_rerun(isol
     assert after[0] == '["기도"]'
     assert after[1] != before[1]
     assert not any(item.value == "예화창고로 보낼까요?" for item in at.subheader)
+
+
+def test_existing_chunk_send_shows_verified_diagnostic_after_rerun(isolated_app, monkeypatch):
+    db_path, _ = isolated_app
+    monkeypatch.setattr(subject, "DEFAULT_SNAPSHOT", FIXTURE_SNAPSHOT)
+    conn = db.get_connection()
+    saved = chunks.save(
+        conn, owner_id=chunks.LOCAL_OWNER_ID, book_id="book-1", read_date="2026-09-28",
+        original_text="기존 조각", user_note="", tags=[], illustration_tags=[], content_types=[],
+    )
+    conn.close()
+    chunk_id = saved["chunk_id"]
+    at = open_detail()
+    at.button(key=f"chunk_category_open_{chunk_id}").click().run()
+    assert any("save_attempted: NO" in item.value for item in at.markdown)
+    at.multiselect(key=f"chunk_category_selection_{chunk_id}").set_value(["기도"])
+    at.button(key=f"chunk_category_send_{chunk_id}").click().run()
+    visible = "\n".join(item.value for item in at.markdown)
+    assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ('["기도"]',)
+    for field in ("save_attempted: YES", "set_illustration_tags_called: YES",
+                  "db_update_success: YES", "postwrite_verify_success: YES",
+                  "saved_tags_count: 1", "failure_stage: none", f"target_chunk_id: {chunk_id[:8]}"):
+        assert field in visible
+
+
+def test_approval_diagnostic_distinguishes_wrong_owner_without_write(isolated_app, monkeypatch):
+    db_path, _ = isolated_app
+    monkeypatch.setattr(subject, "DEFAULT_SNAPSHOT", FIXTURE_SNAPSHOT)
+    conn = db.get_connection()
+    saved = chunks.save(
+        conn, owner_id=chunks.LOCAL_OWNER_ID, book_id="book-1", read_date="2026-09-28",
+        original_text="기존 조각", user_note="", tags=[], illustration_tags=[], content_types=[],
+    )
+    diagnostic = approval_diagnostics.new_attempt(saved["chunk_id"])
+    with pytest.raises(ValueError):
+        chunks.set_illustration_tags(conn, saved["chunk_id"], owner_id="other-owner",
+                                     illustration_tags=["기도"], diagnostic=diagnostic)
+    conn.close()
+    assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
+    assert diagnostic["failure_stage"] == "find_chunk"
+    assert diagnostic["db_update_success"] == "NO"
+
+
+def test_chunk_send_reports_update_failure_without_success_notice(isolated_app, monkeypatch):
+    db_path, _ = isolated_app
+    monkeypatch.setattr(subject, "DEFAULT_SNAPSHOT", FIXTURE_SNAPSHOT)
+    conn = db.get_connection()
+    saved = chunks.save(
+        conn, owner_id=chunks.LOCAL_OWNER_ID, book_id="book-1", read_date="2026-09-28",
+        original_text="기존 조각", user_note="", tags=[], illustration_tags=[], content_types=[],
+    )
+    conn.close()
+    with sqlite3.connect(db_path) as fixture_conn:
+        fixture_conn.execute("CREATE TRIGGER deny_category_update BEFORE UPDATE OF illustration_tags "
+                             "ON reading_chunks BEGIN SELECT RAISE(IGNORE); END")
+    chunk_id = saved["chunk_id"]
+    at = open_detail()
+    at.button(key=f"chunk_category_open_{chunk_id}").click().run()
+    at.multiselect(key=f"chunk_category_selection_{chunk_id}").set_value(["기도"])
+    at.button(key=f"chunk_category_send_{chunk_id}").click().run()
+    visible = "\n".join(item.value for item in at.markdown)
+    assert not at.exception
+    assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
+    assert "save_attempted: YES" in visible
+    assert "db_update_success: NO" in visible
+    assert "postwrite_verify_success: NO" in visible
+    assert "failure_stage: db_update" in visible
+    assert not any("카테고리를 저장했습니다" in item.value for item in at.markdown)
 
 
 def test_ambiguous_category_word_is_suggested_without_preapproval(isolated_app):
