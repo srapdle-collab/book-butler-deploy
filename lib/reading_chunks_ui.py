@@ -117,7 +117,7 @@ def _form(book, existing):
         st.text_area(
             "내 메모", value=(existing["user_note"] if is_edit else "") or "", key="chunk_input_user_note",
         )
-        st.text_input("태그 (쉼표로 구분)", value=_tag_text(existing["tags"]) if is_edit else "", key="chunk_input_tags")
+        st.text_input("일반 메모 태그 (선택 · 쉼표로 구분)", value=_tag_text(existing["tags"]) if is_edit else "", key="chunk_input_tags")
         st.multiselect(
             "콘텐츠 타입", options=list(chunks.CONTENT_TYPES),
             default=existing["content_types"] if is_edit else [],
@@ -182,6 +182,8 @@ def _category_panel(conn, *, owner_id):
         st.subheader("예화창고로 보낼까요?")
         st.caption("카테고리를 승인해도 파일은 아직 내보내지 않습니다.")
         if recommendations:
+            if any(item["score"] == 1 for item in recommendations):
+                st.caption("본문 단어로 찾은 약한 후보입니다. 맞는 카테고리만 선택하세요.")
             for item in recommendations:
                 mark = "☑" if item["defaultChecked"] else "☐"
                 st.caption(f"{mark} {item['canonical']} · 추천 점수 {item['score']}")

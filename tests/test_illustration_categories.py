@@ -148,6 +148,7 @@ def test_chunk_ui_saves_empty_then_requires_explicit_category_approval(isolated_
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
     assert any(item.value == "예화창고로 보낼까요?" for item in at.subheader)
     selection_key = f"chunk_category_selection_{chunk_id}"
+    assert at.multiselect(key=selection_key).value == ["기도"]
     at.multiselect(key=selection_key).set_value(["기도", "용서"])
     at.button(key=f"chunk_category_send_{chunk_id}").click().run()
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ('["용서", "기도"]',)
@@ -167,6 +168,28 @@ def test_category_ui_allows_explicit_no_send_for_existing_chunk(isolated_app, mo
     at = open_detail()
     at.button(key=f"chunk_category_open_{saved['chunk_id']}").click().run()
     at.button(key=f"chunk_category_skip_{saved['chunk_id']}").click().run()
+    assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
+
+
+def test_ambiguous_category_word_is_suggested_without_preapproval(isolated_app):
+    """A real existing-folder word must offer choices, never choose for David."""
+    db_path, _ = isolated_app
+    snapshot = subject.load_snapshot()
+    candidates = subject.recommend(
+        snapshot, originalText="성경 전체의 작은 이야기를 새롭게 해석한다.",
+        userNote="", tags=["설교", "성경해석"],
+    )
+    assert candidates == [
+        {"canonical": "성경, 말씀", "score": 1, "defaultChecked": False},
+        {"canonical": "성경,말씀묵상", "score": 1, "defaultChecked": False},
+    ]
+
+    at = open_detail()
+    at.button(key="open_reading_chunk").click().run()
+    at.text_area(key="chunk_input_original_text").set_value("성경 전체의 작은 이야기를 새롭게 해석한다.")
+    at.button(key="save_reading_chunk").click().run()
+    chunk_id = fetch_one(db_path, "SELECT chunk_id FROM reading_chunks")[0]
+    assert at.multiselect(key=f"chunk_category_selection_{chunk_id}").value == []
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
 
 

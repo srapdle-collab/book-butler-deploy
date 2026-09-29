@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from difflib import SequenceMatcher
 import json
 from pathlib import Path
+import re
 import tempfile
 import unicodedata
 
@@ -115,6 +116,14 @@ def recommend(snapshot: dict, *, originalText: str | None, userNote: str | None,
         score += min(2, sum(keyword in body for keyword in {normalize(item) for item in entry["keywords"]} if keyword))
         if score >= 2:
             results.append({"canonical": entry["canonical"], "score": score, "defaultChecked": score >= 3})
+    if not results and body:
+        # A standalone word from an existing folder name is only a weak lead.
+        # Similar folders may share that word, so show each candidate unchecked.
+        body_words = set(re.findall(r"[^\W_]+", body))
+        for entry in snapshot["categories"]:
+            name_words = re.findall(r"[^\W_]+", normalize(entry["canonical"]))
+            if any(len(word) >= 2 and word in body_words for word in name_words):
+                results.append({"canonical": entry["canonical"], "score": 1, "defaultChecked": False})
     return sorted(results, key=lambda item: (-item["score"], canonical_names(snapshot).index(item["canonical"])))[:3]
 
 
