@@ -97,7 +97,7 @@ def test_missing_server_cookie_reports_restore_stage_without_refresh(isolated_ap
         "session_restored": False,
         "failure_stage": "cookie_missing",
     }
-    assert any("cookie_missing" in item.value for item in at.caption)
+    assert all("로그인 복원 진단" not in item.value and "cookie_missing" not in item.value for item in at.caption)
 
 
 def test_refresh_failure_reports_stage_without_token(isolated_app, monkeypatch):
@@ -118,7 +118,7 @@ def test_refresh_failure_reports_stage_without_token(isolated_app, monkeypatch):
         "session_restored": False,
         "failure_stage": "refresh_failed",
     }
-    assert any("refresh_failed" in item.value for item in at.caption)
+    assert all("로그인 복원 진단" not in item.value and "refresh_failed" not in item.value for item in at.caption)
     assert secret not in repr(at.session_state["auth_restore_diagnostics"])
     assert all(secret not in item.value for item in at.caption)
 

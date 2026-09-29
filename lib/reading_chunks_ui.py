@@ -45,10 +45,6 @@ def _mark_category_attempt(chunk_id, book_id):
     st.session_state.chunk_category_send_pending = (chunk_id, selected)
 
 
-def _show_category_diagnostic(diagnostic):
-    st.markdown("  \n".join(approval_diagnostics.display_lines(diagnostic)))
-
-
 def _open_new():
     _clear_form_state()
     # 저장을 다시 눌러도 같은 조각을 가리키도록 입력 화면을 열 때 ID를 만든다.
@@ -229,14 +225,6 @@ def _category_panel(conn, *, owner_id):
         st.subheader("예화창고로 보낼까요?")
         st.caption("카테고리를 승인해도 파일은 아직 내보내지 않습니다.")
         st.caption("예화창고 주제 카테고리 · 기존 63개 중 직접 선택합니다. 일반 메모 태그·콘텐츠 타입과 별개입니다.")
-        target = approval_diagnostics.connection_target(conn)
-        st.caption(f"DB 대상: M1과 동일 {target['same_as_m1']} · {target['backend']} · 지문 {target['fingerprint']}")
-        diagnostic = st.session_state.get("chunk_approval_diagnostic")
-        if not diagnostic or diagnostic["target_chunk_id"] != chunk_id[:8]:
-            diagnostic = approval_diagnostics.new_attempt(chunk_id)
-            diagnostic["save_attempted"] = "NO"
-            diagnostic["failure_stage"] = "not_attempted"
-        _show_category_diagnostic(diagnostic)
         if recommendations:
             if any(item["score"] == 1 for item in recommendations):
                 st.caption("점수 1은 약한 후보입니다. 원문을 우선하고 내 메모는 보조로 봅니다.")
@@ -274,11 +262,6 @@ def _category_panel(conn, *, owner_id):
 def render(conn, book, *, owner_id):
     """책 상세에서 호출한다. 조각은 이 책에만 연결해 표시한다."""
     st.subheader("읽은 조각")
-    diagnostic = st.session_state.get("chunk_approval_diagnostic")
-    if diagnostic and diagnostic.get("_book_id") == book["id"]:
-        target = approval_diagnostics.connection_target(conn)
-        st.caption(f"DB 대상: M1과 동일 {target['same_as_m1']} · {target['backend']} · 지문 {target['fingerprint']}")
-        _show_category_diagnostic(diagnostic)
     try:
         chunks._book_snapshot(conn, book["id"], owner_id)
     except ValueError as exc:

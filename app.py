@@ -133,19 +133,6 @@ def require_authenticated_user():
             st.markdown('<div class="auth-badge">📖</div>', unsafe_allow_html=True)
             st.title("읽담")
             st.caption("개인 서재와 소그룹을 사용하려면 로그인해주세요.")
-            diagnostics = st.session_state.get("auth_restore_diagnostics")
-            if diagnostics:
-                def yes_no(value):
-                    return "YES" if value is True else "NO" if value is False else "UNKNOWN"
-
-                st.caption(
-                    "로그인 복원 진단 · "
-                    f"server_cookie_name_seen: {yes_no(diagnostics['server_cookie_name_seen'])} · "
-                    f"restore_attempted: {yes_no(diagnostics['restore_attempted'])} · "
-                    f"refresh_success: {yes_no(diagnostics['refresh_success'])} · "
-                    f"session_restored: {yes_no(diagnostics['session_restored'])} · "
-                    f"failure_stage: {diagnostics['failure_stage']}"
-                )
             login_email = st.text_input("이메일", key="login_email")
             login_password = st.text_input("비밀번호", type="password", key="login_password")
 

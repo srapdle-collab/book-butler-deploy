@@ -241,7 +241,7 @@ def test_existing_chunk_category_button_updates_matching_chunk_across_rerun(isol
     assert not any(item.value == "예화창고로 보낼까요?" for item in at.subheader)
 
 
-def test_existing_chunk_send_shows_verified_diagnostic_after_rerun(isolated_app, monkeypatch):
+def test_existing_chunk_send_keeps_verified_diagnostic_internal_after_rerun(isolated_app, monkeypatch):
     db_path, _ = isolated_app
     monkeypatch.setattr(subject, "DEFAULT_SNAPSHOT", FIXTURE_SNAPSHOT)
     conn = db.get_connection()
@@ -253,15 +253,21 @@ def test_existing_chunk_send_shows_verified_diagnostic_after_rerun(isolated_app,
     chunk_id = saved["chunk_id"]
     at = open_detail()
     at.button(key=f"chunk_category_open_{chunk_id}").click().run()
-    assert any("save_attempted: NO" in item.value for item in at.markdown)
+    assert all("save_attempted:" not in item.value for item in at.markdown)
     at.multiselect(key=f"chunk_category_selection_{chunk_id}").set_value(["기도"])
     at.button(key=f"chunk_category_send_{chunk_id}").click().run()
-    visible = "\n".join(item.value for item in at.markdown)
+    diagnostic = at.session_state["chunk_approval_diagnostic"]
+    visible = "\n".join(item.value for item in [*at.markdown, *at.caption])
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ('["기도"]',)
-    for field in ("save_attempted: YES", "set_illustration_tags_called: YES",
-                  "db_update_success: YES", "postwrite_verify_success: YES",
-                  "saved_tags_count: 1", "failure_stage: none", f"target_chunk_id: {chunk_id[:8]}"):
-        assert field in visible
+    assert diagnostic["save_attempted"] == "YES"
+    assert diagnostic["set_illustration_tags_called"] == "YES"
+    assert diagnostic["db_update_success"] == "YES"
+    assert diagnostic["postwrite_verify_success"] == "YES"
+    assert diagnostic["saved_tags_count"] == 1
+    assert diagnostic["failure_stage"] == "none"
+    assert diagnostic["target_chunk_id"] == chunk_id[:8]
+    assert "DB 대상:" not in visible
+    assert "save_attempted:" not in visible
 
 
 def test_category_send_persists_when_callback_runs_but_button_value_is_lost(isolated_app, monkeypatch):
@@ -294,8 +300,9 @@ def test_category_send_persists_when_callback_runs_but_button_value_is_lost(isol
 
     assert not at.exception
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ('["기도"]',)
-    visible = "\n".join(item.value for item in at.markdown)
-    assert "set_illustration_tags_called: YES" in visible
+    visible = "\n".join(item.value for item in [*at.markdown, *at.caption])
+    assert at.session_state["chunk_approval_diagnostic"]["set_illustration_tags_called"] == "YES"
+    assert "set_illustration_tags_called:" not in visible
 
 
 def test_approval_diagnostic_distinguishes_wrong_owner_without_write(isolated_app, monkeypatch):
@@ -333,13 +340,16 @@ def test_chunk_send_reports_update_failure_without_success_notice(isolated_app, 
     at.button(key=f"chunk_category_open_{chunk_id}").click().run()
     at.multiselect(key=f"chunk_category_selection_{chunk_id}").set_value(["기도"])
     at.button(key=f"chunk_category_send_{chunk_id}").click().run()
-    visible = "\n".join(item.value for item in at.markdown)
+    visible = "\n".join(item.value for item in [*at.markdown, *at.caption])
+    diagnostic = at.session_state["chunk_approval_diagnostic"]
     assert not at.exception
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
-    assert "save_attempted: YES" in visible
-    assert "db_update_success: NO" in visible
-    assert "postwrite_verify_success: NO" in visible
-    assert "failure_stage: db_update" in visible
+    assert diagnostic["save_attempted"] == "YES"
+    assert diagnostic["db_update_success"] == "NO"
+    assert diagnostic["postwrite_verify_success"] == "NO"
+    assert diagnostic["failure_stage"] == "db_update"
+    assert "save_attempted:" not in visible
+    assert "DB 대상:" not in visible
     assert not any("카테고리를 저장했습니다" in item.value for item in at.markdown)
 
 
