@@ -55,7 +55,7 @@ def test_recommendation_fixture_is_the_shared_contract():
         assert subject.recommend(snapshot, **case["input"]) == case["recommendations"], case["id"]
 
 
-def test_recommendation_uses_snapshot_order_caps_at_three_and_defaults_only_strong_matches(tmp_path):
+def test_recommendation_uses_snapshot_order_caps_at_three_without_preapproval(tmp_path):
     snapshot_path = tmp_path / "snapshot.json"
     snapshot_path.write_text(json.dumps({
         "version": 1, "generatedAt": "2026-09-28T00:00:00+09:00",
@@ -66,9 +66,9 @@ def test_recommendation_uses_snapshot_order_caps_at_three_and_defaults_only_stro
     }, ensure_ascii=False), encoding="utf-8")
     snapshot = subject.load_snapshot(snapshot_path)
     assert subject.recommend(snapshot, originalText="넷 셋 둘 하나", userNote="", tags=[]) == [
-        {"canonical": "하나", "score": 2, "defaultChecked": False},
-        {"canonical": "둘", "score": 2, "defaultChecked": False},
-        {"canonical": "셋", "score": 2, "defaultChecked": False},
+        {"canonical": "하나", "score": 2, "reason": "원문에 ‘하나’ 포함", "defaultChecked": False},
+        {"canonical": "둘", "score": 2, "reason": "원문에 ‘둘’ 포함", "defaultChecked": False},
+        {"canonical": "셋", "score": 2, "reason": "원문에 ‘셋’ 포함", "defaultChecked": False},
     ]
 
 
@@ -80,8 +80,48 @@ def test_keyword_score_is_capped_at_two_per_category(tmp_path):
     }, ensure_ascii=False), encoding="utf-8")
     snapshot = subject.load_snapshot(path)
     assert subject.recommend(snapshot, originalText="간구와 중보 기도회", userNote="", tags=[]) == [
-        {"canonical": "기도 주제", "score": 2, "defaultChecked": False},
+        {"canonical": "기도 주제", "score": 2, "reason": "원문에 ‘간구’, ‘중보’ 포함", "defaultChecked": False},
     ]
+
+
+def test_original_is_primary_and_memo_only_candidates_are_secondary():
+    snapshot = subject.load_snapshot(FIXTURE_SNAPSHOT)
+    candidates = subject.recommend(
+        snapshot, originalText="사랑한다.", userNote="기도와 간구를 생각했다.", tags=["용서"],
+    )
+    assert [item["canonical"] for item in candidates] == ["사랑", "기도"]
+    assert candidates[0]["score"] > candidates[1]["score"]
+    assert "원문" in candidates[0]["reason"]
+    assert "내 메모" in candidates[1]["reason"]
+    assert all(item["defaultChecked"] is False for item in candidates)
+
+
+def test_general_tags_never_change_category_recommendations():
+    snapshot = subject.load_snapshot(FIXTURE_SNAPSHOT)
+    base = subject.recommend(snapshot, originalText="사랑한다.", userNote="", tags=[])
+    assert base == subject.recommend(snapshot, originalText="사랑한다.", userNote="", tags=["기도", "용서"])
+    assert [item["canonical"] for item in base] == ["사랑"]
+
+
+def test_original_weak_matches_rank_ahead_of_strong_memo_matches():
+    snapshot = subject.load_snapshot()
+    candidates = subject.recommend(
+        snapshot, originalText="성경 전체의 작은 이야기", userNote="기도와 간구", tags=[],
+    )
+    assert [item["canonical"] for item in candidates[:2]] == ["성경, 말씀", "성경,말씀묵상"]
+    assert all("원문" in item["reason"] for item in candidates[:2])
+    assert all(not item["defaultChecked"] for item in candidates)
+
+
+def test_all_candidates_are_existing_snapshot_categories():
+    snapshot = subject.load_snapshot()
+    canonical = set(subject.canonical_names(snapshot))
+    candidates = subject.recommend(
+        snapshot, originalText="성경 전체에 관한 사랑과 기도", userNote="내 생각은 관계와 가정",
+        tags=["없는 새 카테고리"],
+    )
+    assert {item["canonical"] for item in candidates} <= canonical
+    assert len(canonical) == 63
 
 
 def test_canonical_selection_rejects_aliases_and_keeps_snapshot_order():
@@ -150,7 +190,8 @@ def test_chunk_ui_saves_empty_then_requires_explicit_category_approval(isolated_
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
     assert any(item.value == "예화창고로 보낼까요?" for item in at.subheader)
     selection_key = f"chunk_category_selection_{chunk_id}"
-    assert at.multiselect(key=selection_key).value == ["기도"]
+    assert at.multiselect(key=selection_key).value == []
+    at.multiselect(key=selection_key).set_value(["기도"])
     at.multiselect(key=f"chunk_category_extra_{chunk_id}").set_value(["용서"])
     at.button(key=f"chunk_category_send_{chunk_id}").click().run()
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ('["용서", "기도"]',)
@@ -277,8 +318,8 @@ def test_ambiguous_category_word_is_suggested_without_preapproval(isolated_app):
         userNote="", tags=["설교", "성경해석"],
     )
     assert candidates == [
-        {"canonical": "성경, 말씀", "score": 1, "defaultChecked": False},
-        {"canonical": "성경,말씀묵상", "score": 1, "defaultChecked": False},
+        {"canonical": "성경, 말씀", "score": 1, "reason": "원문·카테고리 이름의 공통 단어: ‘성경’", "defaultChecked": False},
+        {"canonical": "성경,말씀묵상", "score": 1, "reason": "원문·카테고리 이름의 공통 단어: ‘성경’", "defaultChecked": False},
     ]
 
     at = open_detail()
@@ -305,19 +346,59 @@ def test_existing_hope_chunk_edit_offers_weak_candidates_as_primary_choices(isol
     at = open_detail()
     at.button(key=f"chunk_edit_{chunk_id}").click().run()
     assert at.text_area(key="chunk_input_original_text").value == original
-    assert "예화창고 분류와는 별개" in "\n".join(item.value for item in at.get("caption"))
+    assert "예화창고 분류에는 사용하지 않습니다" in "\n".join(item.value for item in at.get("caption"))
     at.button(key="save_reading_chunk").click().run()
 
     choices = at.multiselect(key=f"chunk_category_selection_{chunk_id}")
     assert choices.label == "추천 카테고리 선택"
     assert choices.options == ["성경, 말씀", "성경,말씀묵상"]
     assert choices.value == []
+    assert any("공통 단어: ‘성경’" in item.value for item in at.get("caption"))
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
     choices.set_value(["성경, 말씀"])
     at.button(key=f"chunk_category_send_{chunk_id}").click().run()
     assert fetch_one(db_path, "SELECT illustration_tags, tags FROM reading_chunks") == (
         '["성경, 말씀"]', '["설교", "성경해석"]',
     )
+
+
+def test_content_type_does_not_gate_or_change_existing_category_choices(isolated_app):
+    db_path, _ = isolated_app
+    at = open_detail()
+    at.button(key="open_reading_chunk").click().run()
+    at.text_area(key="chunk_input_original_text").set_value("사랑한다.")
+    at.multiselect(key="chunk_input_content_types").set_value(["illustration"])
+    at.button(key="save_reading_chunk").click().run()
+    chunk_id = fetch_one(db_path, "SELECT chunk_id FROM reading_chunks")[0]
+    choices = at.multiselect(key=f"chunk_category_selection_{chunk_id}")
+    assert choices.options == ["사랑"]
+    assert choices.value == []
+    assert "사랑" in at.multiselect(key=f"chunk_category_extra_{chunk_id}").options
+    assert len(at.multiselect(key=f"chunk_category_extra_{chunk_id}").options) == 63
+    at.button(key=f"chunk_category_skip_{chunk_id}").click().run()
+
+    at.button(key=f"chunk_edit_{chunk_id}").click().run()
+    at.multiselect(key="chunk_input_content_types").set_value(["insight"])
+    at.button(key="save_reading_chunk").click().run()
+    assert at.multiselect(key=f"chunk_category_selection_{chunk_id}").options == ["사랑"]
+    assert at.multiselect(key=f"chunk_category_selection_{chunk_id}").value == []
+    assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
+
+
+def test_previous_ui_default_selection_does_not_survive_new_rules(isolated_app):
+    db_path, _ = isolated_app
+    conn = db.get_connection()
+    saved = chunks.save(
+        conn, owner_id=chunks.LOCAL_OWNER_ID, book_id="book-1", read_date="2026-09-28",
+        original_text="기도로 간구한다.", user_note="", tags=[], illustration_tags=[], content_types=[],
+    )
+    conn.close()
+    chunk_id = saved["chunk_id"]
+    at = open_detail()
+    at.session_state[f"chunk_category_selection_{chunk_id}"] = ["기도"]
+    at.button(key=f"chunk_category_open_{chunk_id}").click().run()
+    assert at.multiselect(key=f"chunk_category_selection_{chunk_id}").value == []
+    assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
 
 
 def test_existing_chunk_recovers_weak_choices_when_loaded_recommender_returns_none(isolated_app, monkeypatch):

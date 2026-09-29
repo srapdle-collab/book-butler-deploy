@@ -34,6 +34,7 @@ def _close_category_panel(chunk_id: str | None = None):
     if current:
         st.session_state.pop(f"chunk_category_selection_{current}", None)
         st.session_state.pop(f"chunk_category_extra_{current}", None)
+        st.session_state.pop(f"chunk_category_ui_version_{current}", None)
     st.session_state.pop("chunk_category_pending_id", None)
 
 
@@ -129,9 +130,11 @@ def _form(book, existing):
             "내 메모", value=(existing["user_note"] if is_edit else "") or "", key="chunk_input_user_note",
         )
         st.text_input("일반 메모 태그 (선택 · 쉼표로 구분)", value=_tag_text(existing["tags"]) if is_edit else "", key="chunk_input_tags")
-        st.caption("나중에 검색하기 위한 자유 태그입니다. 예화창고 분류와는 별개입니다.")
+        st.caption("읽담 내부에서 나중에 검색하기 위한 자유 태그입니다. 예화창고 분류에는 사용하지 않습니다.")
+        st.divider()
+        st.caption("콘텐츠 타입은 읽담 내부 메타데이터입니다. 선택하지 않아도 예화창고 카테고리를 추천받고 저장할 수 있습니다.")
         st.multiselect(
-            "콘텐츠 타입", options=list(chunks.CONTENT_TYPES),
+            "콘텐츠 타입 (읽담 내부 · 선택 사항)", options=list(chunks.CONTENT_TYPES),
             default=existing["content_types"] if is_edit else [],
             format_func=lambda value: chunks.CONTENT_TYPES[value], key="chunk_input_content_types",
         )
@@ -181,18 +184,23 @@ def _category_panel(conn, *, owner_id):
         return
 
     # Streamlit can keep a module imported before a deploy in a live process.
-    # Refresh the recommender only when its rule version predates weak matches.
-    if getattr(illustration_categories, "RECOMMENDATION_VERSION", 0) < 2:
+    # Refresh the recommender only when its rule version predates this policy.
+    if getattr(illustration_categories, "RECOMMENDATION_VERSION", 0) < 3:
         importlib.reload(illustration_categories)
     names = illustration_categories.canonical_names(snapshot)
     recommendations = illustration_categories.recommend(
         snapshot, originalText=chunk["original_text"], userNote=chunk["user_note"], tags=chunk["tags"],
     )
     current = [name for name in names if name in chunk["illustration_tags"]]
-    defaults = current or [item["canonical"] for item in recommendations if item["defaultChecked"]]
+    defaults = current  # Only a previously approved choice may be prefilled.
     recommended_names = [item["canonical"] for item in recommendations]
     selection_key = f"chunk_category_selection_{chunk_id}"
     extra_key = f"chunk_category_extra_{chunk_id}"
+    version_key = f"chunk_category_ui_version_{chunk_id}"
+    if st.session_state.get(version_key) != 3:
+        st.session_state.pop(selection_key, None)
+        st.session_state.pop(extra_key, None)
+        st.session_state[version_key] = 3
     if selection_key not in st.session_state:
         st.session_state[selection_key] = [name for name in defaults if name in recommended_names] if recommendations else defaults
     if recommendations and extra_key not in st.session_state:
@@ -201,7 +209,7 @@ def _category_panel(conn, *, owner_id):
     with st.container(border=True):
         st.subheader("예화창고로 보낼까요?")
         st.caption("카테고리를 승인해도 파일은 아직 내보내지 않습니다.")
-        st.caption("예화창고 카테고리는 기존 63개 폴더 기준입니다. 일반 메모 태그와 별도로 선택합니다.")
+        st.caption("예화창고 주제 카테고리 · 기존 63개 중 직접 선택합니다. 일반 메모 태그·콘텐츠 타입과 별개입니다.")
         target = approval_diagnostics.connection_target(conn)
         st.caption(f"DB 대상: M1과 동일 {target['same_as_m1']} · {target['backend']} · 지문 {target['fingerprint']}")
         diagnostic = st.session_state.get("chunk_approval_diagnostic")
@@ -212,10 +220,9 @@ def _category_panel(conn, *, owner_id):
         _show_category_diagnostic(diagnostic)
         if recommendations:
             if any(item["score"] == 1 for item in recommendations):
-                st.caption("본문 단어로 찾은 약한 후보입니다. 맞는 카테고리만 선택하세요.")
+                st.caption("점수 1은 약한 후보입니다. 원문을 우선하고 내 메모는 보조로 봅니다.")
             for item in recommendations:
-                mark = "☑" if item["defaultChecked"] else "☐"
-                st.caption(f"{mark} {item['canonical']} · 추천 점수 {item['score']}")
+                st.caption(f"{item['canonical']} · 추천 점수 {item['score']} · {item['reason']}")
         else:
             st.caption("추천할 카테고리가 없습니다. 전체 목록에서 직접 고를 수 있습니다.")
         if recommendations:
@@ -225,7 +232,7 @@ def _category_panel(conn, *, owner_id):
             )
             selected += st.multiselect(
                 "다른 카테고리 검색 (필요할 때)",
-                options=[name for name in names if name not in recommended_names], key=extra_key,
+                options=names, key=extra_key,
                 placeholder="기존 예화창고 카테고리를 검색하세요",
             )
         else:

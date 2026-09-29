@@ -5,39 +5,39 @@
     {
       "id": "explicit-forgiveness",
       "input": {"originalText": "용서를 구한다.", "userNote": "", "tags": []},
-      "recommendations": [{"canonical": "용서", "score": 2, "defaultChecked": false}]
+      "recommendations": [{"canonical": "용서", "score": 2, "reason": "원문에 ‘용서’ 포함", "defaultChecked": false}]
     },
     {
       "id": "relationship-community",
       "input": {"originalText": "", "userNote": "공동체 안에서 서로를 세운다.", "tags": []},
-      "recommendations": [{"canonical": "공동체,관계, 교회", "score": 2, "defaultChecked": false}]
+      "recommendations": [{"canonical": "공동체,관계, 교회", "score": 1, "reason": "내 메모에 ‘공동체’ 포함 (보조 후보)", "defaultChecked": false}]
     },
     {
       "id": "prayer",
       "input": {"originalText": "기도로 간구한다.", "userNote": "", "tags": []},
-      "recommendations": [{"canonical": "기도", "score": 3, "defaultChecked": true}]
+      "recommendations": [{"canonical": "기도", "score": 3, "reason": "원문에 ‘기도’, ‘간구’ 포함", "defaultChecked": false}]
     },
     {
       "id": "faith",
       "input": {"originalText": "믿음으로 순종한다.", "userNote": "", "tags": []},
-      "recommendations": [{"canonical": "믿음", "score": 3, "defaultChecked": true}]
+      "recommendations": [{"canonical": "믿음", "score": 3, "reason": "원문에 ‘믿음’, ‘순종’ 포함", "defaultChecked": false}]
     },
     {
       "id": "mission",
       "input": {"originalText": "부르심에 응답하는 사명과 헌신", "userNote": "", "tags": []},
-      "recommendations": [{"canonical": "사명", "score": 3, "defaultChecked": true}]
+      "recommendations": [{"canonical": "사명", "score": 3, "reason": "원문에 ‘사명’, ‘헌신’ 포함", "defaultChecked": false}]
     },
     {
       "id": "church",
       "input": {"originalText": "교회 예배에 모인 성도", "userNote": "", "tags": []},
-      "recommendations": [{"canonical": "교회", "score": 4, "defaultChecked": true}]
+      "recommendations": [{"canonical": "교회", "score": 4, "reason": "원문에 ‘교회’, ‘예배’, ‘성도’ 포함", "defaultChecked": false}]
     },
     {
       "id": "multiple-topics",
       "input": {"originalText": "용서와 기도를 함께 묵상한다.", "userNote": "", "tags": []},
       "recommendations": [
-        {"canonical": "용서", "score": 2, "defaultChecked": false},
-        {"canonical": "기도", "score": 2, "defaultChecked": false}
+        {"canonical": "용서", "score": 2, "reason": "원문에 ‘용서’ 포함", "defaultChecked": false},
+        {"canonical": "기도", "score": 2, "reason": "원문에 ‘기도’ 포함", "defaultChecked": false}
       ]
     },
     {
@@ -48,12 +48,12 @@
     {
       "id": "alias-match",
       "input": {"originalText": "관계를 이해하는 길", "userNote": "", "tags": []},
-      "recommendations": [{"canonical": "공동체,관계, 교회", "score": 2, "defaultChecked": false}]
+      "recommendations": [{"canonical": "공동체,관계, 교회", "score": 2, "reason": "원문에 ‘관계’ 포함", "defaultChecked": false}]
     },
     {
-      "id": "strong-general-tag",
+      "id": "ignored-general-tag",
       "input": {"originalText": "", "userNote": "", "tags": ["용서"]},
-      "recommendations": [{"canonical": "용서", "score": 3, "defaultChecked": true}]
+      "recommendations": []
     }
   ]
 }

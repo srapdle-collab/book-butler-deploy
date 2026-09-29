@@ -18,7 +18,7 @@ import unicodedata
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SNAPSHOT = ROOT / "config" / "illustration_categories.json"
 SNAPSHOT_VERSION = 1
-RECOMMENDATION_VERSION = 2  # Includes unchecked folder-name matches.
+RECOMMENDATION_VERSION = 3  # Original-first recommendations; no implicit approval.
 MANAGED_TOP_LEVEL = frozenset({"독서조각", "읽담"})
 VERIFICATION_PREFIX = "_읽담_검증전용_"
 
@@ -105,27 +105,67 @@ def canonicalize_selection(snapshot: dict, values) -> list[str]:
 
 
 def recommend(snapshot: dict, *, originalText: str | None, userNote: str | None, tags) -> list[dict]:
-    body = normalize(f"{originalText or ''} {userNote or ''}")
-    normalized_tags = {normalize(tag) for tag in tags or [] if isinstance(tag, str) and tag.strip()}
-    results = []
-    for entry in snapshot["categories"]:
+    # Keep tags in the public signature for existing callers, but free memo tags
+    # never provide evidence for an illustration category.
+    original, memo = normalize(originalText), normalize(userNote)
+    original_results, memo_results = [], []
+
+    def matches(body, entry):
         terms = [entry["canonical"], *entry["aliases"]]
-        normalized_terms = [normalize(term) for term in terms]
-        score = 3 if normalized_tags.intersection(normalized_terms) else 0
-        if body and any(term in body for term in normalized_terms):
-            score += 2
-        score += min(2, sum(keyword in body for keyword in {normalize(item) for item in entry["keywords"]} if keyword))
+        term = next((item for item in terms if normalize(item) in body), None) if body else None
+        keywords = [item for item in entry["keywords"] if normalize(item) in body] if body else []
+        return term, keywords
+
+    for entry in snapshot["categories"]:
+        term, keywords = matches(original, entry)
+        score = (2 if term else 0) + min(2, len(keywords))
         if score >= 2:
-            results.append({"canonical": entry["canonical"], "score": score, "defaultChecked": score >= 3})
-    if not results and body:
-        # A standalone word from an existing folder name is only a weak lead.
-        # Similar folders may share that word, so show each candidate unchecked.
-        body_words = set(re.findall(r"[^\W_]+", body))
+            evidence = [*([term] if term else []), *keywords[:2]]
+            reason = "원문에 " + ", ".join(f"‘{item}’" for item in evidence) + " 포함"
+            if any(matches(memo, entry)):
+                reason += " · 내 메모에도 관련 표현"
+            original_results.append({"canonical": entry["canonical"], "score": score,
+                                     "reason": reason, "defaultChecked": False})
+
+    if not original_results and original:
+        # Folder-name words are weak original evidence even when the memo has
+        # stronger literal matches in another category.
+        original_words = set(re.findall(r"[^\W_]+", original))
         for entry in snapshot["categories"]:
             name_words = re.findall(r"[^\W_]+", normalize(entry["canonical"]))
-            if any(len(word) >= 2 and word in body_words for word in name_words):
-                results.append({"canonical": entry["canonical"], "score": 1, "defaultChecked": False})
-    return sorted(results, key=lambda item: (-item["score"], canonical_names(snapshot).index(item["canonical"])))[:3]
+            word = next((word for word in name_words if len(word) >= 2 and word in original_words), None)
+            if word:
+                original_results.append({"canonical": entry["canonical"], "score": 1,
+                                         "reason": f"원문·카테고리 이름의 공통 단어: ‘{word}’",
+                                         "defaultChecked": False})
+
+    original_names = {item["canonical"] for item in original_results}
+    if memo:
+        for entry in snapshot["categories"]:
+            if entry["canonical"] in original_names:
+                continue
+            term, keywords = matches(memo, entry)
+            if term or keywords:
+                evidence = term or keywords[0]
+                memo_results.append({"canonical": entry["canonical"], "score": 1,
+                                     "reason": f"내 메모에 ‘{evidence}’ 포함 (보조 후보)",
+                                     "defaultChecked": False})
+        if not memo_results:
+            memo_words = set(re.findall(r"[^\W_]+", memo))
+            for entry in snapshot["categories"]:
+                if entry["canonical"] in original_names:
+                    continue
+                name_words = re.findall(r"[^\W_]+", normalize(entry["canonical"]))
+                word = next((word for word in name_words if len(word) >= 2 and word in memo_words), None)
+                if word:
+                    memo_results.append({"canonical": entry["canonical"], "score": 1,
+                                         "reason": f"내 메모·카테고리 이름의 공통 단어: ‘{word}’ (보조 후보)",
+                                         "defaultChecked": False})
+
+    order = {name: index for index, name in enumerate(canonical_names(snapshot))}
+    original_results.sort(key=lambda item: (-item["score"], order[item["canonical"]]))
+    memo_results.sort(key=lambda item: order[item["canonical"]])
+    return (original_results + memo_results)[:3]
 
 
 def _ignored(name: str) -> bool:
