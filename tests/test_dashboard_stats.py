@@ -93,8 +93,8 @@ def test_shelf_top_add_book_uses_the_existing_add_book_flow(isolated_app):
     assert {'상단에서 추가한 책', '하단에서 추가한 책'} <= titles
 
 
-def test_shelf_shows_all_categories_in_one_scrolling_grid(isolated_app):
-    """전체보기는 페이지로 자르지 않고 카테고리별 표지를 연속해서 보여야 한다."""
+def test_shelf_pages_large_grid_without_losing_books(isolated_app):
+    """책장을 한 번에 모두 렌더링하지 않고 다음 페이지에서 나머지를 찾는다."""
     conn=db.get_connection()
     for number in range(2,27):
         db.insert_book(conn,{
@@ -107,13 +107,18 @@ def test_shelf_shows_all_categories_in_one_scrolling_grid(isolated_app):
 
     at=AppTest.from_file(APP_PATH).run()
     covers=[button for button in at.button if (button.key or '').startswith('shelf_cover_')]
-    assert len(covers)==26
-    assert not any(widget.key=='shelf_page_input' for widget in at.number_input)
+    assert len(covers)==24
+    assert at.number_input(key='shelf_page_input').value==1
     assert at.selectbox(key='shelf_category').value=='전체'
-    # 두 카테고리의 모든 표지가 같은 스크롤 화면에 남는다.
-    assert len(covers) == 26
+    at.number_input(key='shelf_page_input').set_value(2).run()
+    assert len([button for button in at.button if (button.key or '').startswith('shelf_cover_')])==2
     assert any('표지 없음' in caption.value for caption in at.caption)
 
+    at.text_input(key='shelf_search').set_value('테스트 책').run()
+    assert at.number_input(key='shelf_page_input').value==1
+    assert len([button for button in at.button if (button.key or '').startswith('shelf_cover_')])==1
+    at.text_input(key='shelf_search').set_value('').run()
+    at.number_input(key='shelf_page_input').set_value(1).run()
     at.button(key='shelf_cover_book-2').click().run()
     assert at.session_state['selected_book_id']=='book-2'
 

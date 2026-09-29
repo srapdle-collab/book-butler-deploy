@@ -85,15 +85,25 @@ def render(conn,goto,add_book):
     selected_status=None if status=='전체' else status
     exclude_status='위시리스트' if status=='전체' else None
     matched=db.count_books(conn,category=selected_category,status=selected_status,search=search or None,exclude_status=exclude_status)
-    st.caption(f'검색 결과 {matched:,}권 · 전체 등록 {total:,}권 · 카테고리별 · 각 카테고리 최근 기록순')
-    # 북스윙처럼 전체보기는 카테고리를 넘나들며 계속 스크롤한다.
-    # 필터를 고르면 그 조건에 맞는 책만 같은 방식으로 이어서 보여 준다.
+    filters=(category,status,search)
+    if st.session_state.get('shelf_page_filters') != filters:
+        st.session_state.shelf_page_input=1
+        st.session_state.shelf_page_filters=filters
+    page_count=max(1,(matched+PAGE_SIZE-1)//PAGE_SIZE)
+    if st.session_state.get('shelf_page_input',1)>page_count:
+        st.session_state.shelf_page_input=page_count
+    page=st.number_input(f'책장 페이지 ({PAGE_SIZE}권씩)',min_value=1,max_value=page_count,
+                         step=1,key='shelf_page_input')
+    st.caption(f'검색 결과 {matched:,}권 · 전체 등록 {total:,}권 · {page}/{page_count}페이지 · 카테고리별 최근 기록순')
+    # 큰 책장을 한 번에 수백 개 버튼으로 그리면 첫 화면과 매번의 rerun이 지연된다.
     visible=db.list_books(
         conn,
         category=selected_category,
         status=selected_status,
         search=search or None,
         exclude_status=exclude_status,
+        limit=PAGE_SIZE,
+        offset=(page-1)*PAGE_SIZE,
         group_by_category=selected_category is None,
     ).copy()
     if visible.empty:
