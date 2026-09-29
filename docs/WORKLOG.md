@@ -1,5 +1,12 @@
 # 읽담 작업 기록
 
+## 2026-09-29 — Codex: 희망 Chunk 승인 후 실제 예화창고 무쓰기 재검증
+
+- **목적/환경**: David가 희망 책 Chunk의 카테고리 승인·「예화창고로 보내기」 완료를 알렸다. M1 영구 저장소의 David 소유 기획문서 변경 2건을 보존하고 clean main `a81525a`에서 별도 worktree를 만들었다. 운영 DB는 `get_readonly_connection()`으로만 조회했고 비밀값은 출력하지 않았다.
+- **운영 사실**: 희망 Chunk `b0135692-7893-4f6a-b049-b198f30933a3`는 활성·export owner 일치. 두 차례 조회에서 `illustration_tags=[]`, `created_at=updated_at=2026-09-28T22:36:31.831428+09:00`이었다. 전체 Chunk 3·활성 2·활성 태그 0. 따라서 David의 앱 동작 보고와 이 DB의 저장 상태가 불일치한다. 화면 저장 실패와 DB 환경 차이는 현재 증거만으로 구분 불가하다.
+- **실제 예화창고 dry-run**: 같은 실제 예화창고를 대상으로 `export_pipeline.run(..., dry_run=True)`을 각 점검에서 두 번 실행해 결과가 같았다. 분류 CREATE 0·UPDATE 0·DELETE 0·SKIP 2·UNMAPPED 0·CONFLICT 0; 카테고리 대상·분류 쓰기·cleanup 0. 기본 TXT는 새 경로 2개, 기존 파일 업데이트·cleanup 0; `base.deleted=1`은 삭제된 DB 행 집계로 실제 파일 삭제 0. index 계획 3행(기존 검증 행 보존), state 2행, manifest 3키/파생 파일 0. 실제 카테고리 63/63 일치, 새 최상위 폴더·중복 Chunk+카테고리 계획·기존 사람 파일 UPDATE/DELETE 모두 0. 추적한 실제 루트/독서조각/index/state/manifest 메타데이터는 전후 동일. 운영 DB write·iCloud write·실제 export·launchd 0.
+- **판정/검증/다음**: 승인 태그가 저장되지 않아 **첫 실제 카테고리 TXT export 준비 NO**. 코드 변경 없음; 운영 dry-run의 결정론성과 무쓰기 상태, 문서 diff 검사로 검증했다. 오늘의 서재와 공동 계약·deploy 변경 없음. 다음 작업 1개는 실제 앱의 저장 경로와 연결 대상 확인 후 해당 Chunk의 태그 READ ONLY 재조회다.
+
 ## 2026-09-29 — Codex: 통합 운영 Runbook의 읽담 관문 기록
 
 - 공동 Runbook은 공식 Sites D1 `0004` lifecycle 답변 전 실행하지 않는 12단계 체크리스트다. 읽담 `main f9b7af7`·서재 `d11113d`·공동 `53fb1db`에서 통합 fixture 3 PASS를 확인했다. 읽담 direct/서재 ingest가 같은 정본과 export dry-run으로 합류하는 local 결과다.

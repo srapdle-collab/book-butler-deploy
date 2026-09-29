@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — 희망 Chunk 승인 저장 불일치 확인 (2026-09-29, Codex)
+
+- **무엇을 했는지**: David가 「희망을 짓는다는 것」 Chunk `b0135692…`의 카테고리 승인·「예화창고로 보내기」 완료를 알린 뒤, 운영 DB `get_readonly_connection()`으로 해당 행을 두 번 재조회하고 실제 예화창고에서 단일 pipeline dry-run을 각 두 번 실행했다. export 소유자와 Chunk 소유자가 일치한다.
+- **어디까지 끝났는지**: 두 조회 모두 저장된 `illustration_tags=[]`, `updated_at=2026-09-28T22:36:31.831428+09:00`(최초 생성 시각과 동일)이다. 승인 카테고리는 **운영 DB에서 확인되지 않았다**. 운영 전체 Chunk 3건·활성 2건·활성 승인 태그 0건. 실제 예화 분류 계획은 CREATE 0/UPDATE 0/DELETE 0/SKIP 2/UNMAPPED 0/CONFLICT 0, 대상 카테고리·분류 파일 쓰기 0. 기본 TXT는 새 경로 2건, 기존 파일 수정·cleanup 0; deleted 집계 1은 soft delete DB 행이며 파일 삭제 계획 0. 실제 카테고리 63개와 snapshot 일치, 중복 Chunk+카테고리 계획 0, 계획 재실행 동일, 추적한 예화창고 메타데이터 전후 동일. 기존 사람 파일 영향 0, 운영 DB/iCloud write·실제 export·launchd 활성화 0. **첫 실제 카테고리 TXT export 실행 준비 NO**(승인 태그 저장 미확인).
+- **확인해야 할 것**: 버튼 동작과 운영 DB 사이의 불일치 원인을 확인한다. 현재 조회만으로 앱 저장 실패인지, David가 사용한 앱의 DB 연결 대상이 다른지는 단정할 수 없다. 승인 카테고리를 추측해 채우거나 운영 데이터를 수정하지 않는다.
+- **다음 작업자 / 다음 작업 1개**: 읽담 담당자 — 실제 앱의 「예화창고로 보내기」 저장 경로·연결 대상을 확인하고 같은 Chunk의 태그를 즉시 READ ONLY 재조회한다.
+- **브랜치 / 커밋 / 배포 상태**: clean `main a81525a`에서 `codex/hope-approved-dryrun-20260929` 문서 기록. main/origin 반영값은 후속 Git 확인. `deploy/main=9f7aedf` 유지, 앱 재배포 없음.
+- **보류·실패·중단 이유**: 실제 승인이 운영 DB의 해당 Chunk에 저장된 근거가 없어서 export GO 불가. 실제 iCloud export·launchd는 David 지시로 계속 보류.
+
 ## 최신 — 통합 운영 Runbook 대기 관문 (2026-09-29, Codex)
 
 - **무엇을 했는지**: 통합팀이 공동 `docs/READING_CHUNK_1B_OPERATIONS_RUNBOOK.md`를 준비하고, 읽담 local `main f9b7af7`·서재 `d11113d`·공동 `53fb1db` 조합의 합성 fixture 3건을 재검증했다. 읽담 제품 코드 변경 없음.
