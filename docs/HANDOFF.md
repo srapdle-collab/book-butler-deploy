@@ -21,6 +21,16 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — 예화 승인 저장 경로 진단, 운영 런타임 관문 (2026-09-29, Codex)
+
+- **무엇을 했는지**: 운영 `deploy/main=9f7aedf`·읽담 `main/origin=899ced2`를 실제 원격과 대조하고, 앱→책 상세→기존 Chunk 카드→카테고리 패널→승인 버튼→`set_illustration_tags`→조건부 UPDATE/commit→성공 알림의 호출 경로를 추적했다. 원본 사용자 기획문서 변경 2건은 보존했다.
+- **어디까지 끝났는지**: 기존 Chunk를 다시 열어 카테고리를 선택·전송하는 합성 AppTest를 추가해, 동일 Chunk ID의 태그·수정 시각이 실제 저장되고 rerun 뒤 패널이 닫힘을 확인했다(관련 15 PASS). UI 카드와 버튼 key는 행의 `chunk_id`를 사용하고, 앱 owner는 인증된 사용자 ID이며 UPDATE에는 chunk ID·owner ID·미삭제 조건이 모두 있다. 성공 알림은 `set_illustration_tags`의 UPDATE 1행·commit·재조회가 반환된 뒤에만 예약된다. `deploy`와 main의 저장 함수/버튼 코드는 동일하다. main의 미배포 차이는 약한 추천 표시만으로, 희망 Chunk에서는 배포판에 추천 후보가 없고 수동 선택 없이는 전송 버튼이 비활성화된다.
+- **운영 연결·판정**: 앱과 READ ONLY 조회는 같은 `db` 연결 선택 함수를 공유한다(`BOOK_BUTLER_DB_PATH` 우선 → 명시 Postgres URL → Supabase pooler 구성 → 기본 SQLite). M1 공식 `.env`는 값 미출력 확인 결과 pooler Postgres 모드이며 앞선 READ ONLY 조회의 Chunk owner는 exporter owner와 같다. **Streamlit Cloud 런타임의 실제 Secrets/연결 대상·실행 SHA·David의 클릭 Chunk ID는 접근 가능한 런타임 증거가 없어 독립 확인 불가**. 운영 행 `illustration_tags=[]`, `updated_at=created_at`는 이 DB에 UPDATE가 없었다는 근거지만, 버튼 호출 자체가 없었는지 다른 DB에 썼는지는 아직 분리되지 않았다. 코드 버그는 재현되지 않았고 root cause는 미확정. 운영 DB write·배포·실제 export·launchd 0. David 재승인 권고 **NO**.
+- **확인해야 할 것**: 운영 Streamlit 런타임이 사용하는 DB 대상·실행 SHA와 승인 클릭 시 chunk ID/owner ID/UPDATE 결과를 비밀값 없이 대조해야 한다. 운영 DB write가 필요한 재현은 별도 승인 전 실행하지 않는다.
+- **다음 작업자 / 다음 작업 1개**: 읽담 담당자 — 운영 Streamlit 서버 측의 비밀값 없는 연결 대상·승인 호출 결과를 확보해 READ ONLY 조회 대상과 대조한다.
+- **브랜치 / 커밋 / 배포 상태**: clean `codex/chunk-approval-diagnosis-20260929`, 회귀 AppTest `d456fcb`; 이 문서는 별도 커밋. main/origin 최종 반영은 Git 확인, deploy는 그대로.
+- **보류·실패·중단 이유**: 운영 런타임 설정/호출 로그에 접근할 수 없어 원인 단정 및 재승인 GO 불가.
+
 ## 읽담 담당자가 이어받을 작업 — 희망 Chunk 승인 저장 불일치 확인 (2026-09-29, Codex)
 
 - **무엇을 했는지**: David가 「희망을 짓는다는 것」 Chunk `b0135692…`의 카테고리 승인·「예화창고로 보내기」 완료를 알린 뒤, 운영 DB `get_readonly_connection()`으로 해당 행을 두 번 재조회하고 실제 예화창고에서 단일 pipeline dry-run을 각 두 번 실행했다. export 소유자와 Chunk 소유자가 일치한다.

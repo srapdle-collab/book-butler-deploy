@@ -1,5 +1,12 @@
 # 읽담 작업 기록
 
+## 2026-09-29 — Codex: 예화 카테고리 승인 저장 경로 진단
+
+- **정본/범위**: M1 영구 저장소의 David 소유 미커밋·미추적 기획문서 2건을 보존하고 clean `main 899ced2`에서 분리했다. 실제 원격 `origin/main=899ced2`, `deploy/main=9f7aedf`. exporter 추가 조사는 하지 않았다. 오늘의 서재·통합 계약 변경 없음.
+- **호출 경로**: `app.py`는 `db.get_connection()` 하나를 책 상세까지 전달하고, `authenticated_user.id`를 owner로 사용한다. 기존 Chunk 카드의 `row['chunk_id']`가 카테고리 열기 key/세션 pending ID가 되고, 패널은 `chunks.get(conn, chunk_id, owner_id)`로 재조회한다. 선택은 기존 63개 canonical 값만 허용한다. 선택이 비면 전송 버튼 비활성화; 버튼 클릭 시 `set_illustration_tags`가 같은 conn에서 chunk ID·owner ID·`deleted_at IS NULL` 조건부 UPDATE, rowcount=1 확인, commit, 재조회 후 반환한다. 그 뒤에만 패널 종료/성공 알림 예약/rerun이 실행된다. 잘못된 owner/ID면 사전 조회 또는 rowcount 검사에서 실패해 성공 알림까지 도달하지 않는다.
+- **배포 차이/DB 범위**: `9f7aedf..899ced2`의 관련 제품 차이는 약한 추천 후보·설명 표시뿐이고 저장 경로는 같다. 희망 Chunk는 배포판에서 자동 추천 0이라 David가 목록에서 수동으로 선택해야 버튼이 활성화된다. 앱과 exporter의 DB 선택 우선순위는 같지만 Streamlit Cloud의 실제 런타임 환경값·실행 SHA는 조회하지 못했다. M1 공식 `.env`는 값 출력 없이 확인한 결과 `BOOK_BUTLER_DB_PATH`/명시 URL 없이 Supabase pooler Postgres 구성 완료. 앞선 READ ONLY 운영 행과 owner 일치만 확정; Cloud가 같은 DB로 쓰는지는 미확정이다. 운영 UI의 실제 클릭 Chunk ID도 로그가 없어 확인 불가하다.
+- **재현/판정**: 실제 희망 Chunk ID를 합성 SQLite fixture에 넣고 기존 카드→카테고리 열기→선택→전송을 AppTest로 수행했다. 올바른 Chunk의 태그와 `updated_at`이 바뀌고 rerun 뒤 패널이 닫혔다. 신규 1 PASS, 관련 15 PASS, diff check PASS. 코드 버그 재현 실패로 제품 코드 수정 없음; 테스트만 `d456fcb`에 커밋. 운영 DB의 `illustration_tags=[]`·`updated_at=created_at`는 조회 대상 DB에 업데이트가 없다는 사실이지만, 실제 UI 호출 미실행과 다른 DB 대상은 구별 불가하다. root cause **미확정**, David 재승인 버튼 GO **NO**. 실제 DB write·deploy/iCloud export·launchd 0. 다음 하나는 운영 Streamlit 서버 측 연결 대상·승인 호출 결과를 비밀값 없이 확보해 대조하는 것이다.
+
 ## 2026-09-29 — Codex: 희망 Chunk 승인 후 실제 예화창고 무쓰기 재검증
 
 - **목적/환경**: David가 희망 책 Chunk의 카테고리 승인·「예화창고로 보내기」 완료를 알렸다. M1 영구 저장소의 David 소유 기획문서 변경 2건을 보존하고 clean main `a81525a`에서 별도 worktree를 만들었다. 운영 DB는 `get_readonly_connection()`으로만 조회했고 비밀값은 출력하지 않았다.
