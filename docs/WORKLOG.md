@@ -1,5 +1,14 @@
 # 읽담 작업 기록
 
+## 2026-09-29 — Codex: 희망 책 보존 결정·실제 시작일 근거와 추천 UX 보완
+
+- **목적·정본**: David가 `94a4470c-46bc-4a70-9359-c105361bfe6f` 보존, 위시리스트 `b735496a-3c23-402d-a853-1c30ac2f721d` 삭제 후보(즉시 삭제 금지)로 결정했다. M1 영구 저장소의 기존 기획문서 2개를 그대로 두고 clean `.worktrees/hope-ux-mainline-20260929`에서 당시 main `4b43704` 계보를 사용했다. 공동 통합팀의 문서 커밋 `6b5803a`·`4b43704`를 보존했다. 오늘의 서재·공동 계약 변경 없음.
+- **운영 DB READ ONLY**: `get_readonly_connection()`의 `transaction_read_only=on`만 사용했다. 보존 행은 활동 0·start_date NULL로 이어서 읽기 36위다. 중단 독서 세션 시작 `1790602346`(2026-09-28 22:32:26 KST)이 가장 이른 실제 기록이고, 같은 날 22:36 Chunk 생성/읽은 날짜로 뒷받침된다. 이를 start_date로 복원한다고 가정한 SELECT에서 더 앞서는 읽는 중 책은 0권(예상 1위). 계획은 별도 승인 후 이 한 행의 NULL start_date만 실제 세션 값으로 조건부 UPDATE, 다른 데이터 변경 없음. 상세 precondition은 `docs/HOPE_BOOK_NORMALIZATION_PLAN.md`에 기록했다. 이번 운영 DB write 0.
+- **중복 삭제 영향**: 실제 `books(id)` 외래키 자식은 activities/reading_chunks/reading_sessions. 위시리스트 행은 이 세 표와 photo_manifest/source_book_state의 `book_id` 참조 모두 0, 같은 제목 checkin 0, local cover_photo 없음(외부 cover_url만 있음). DB 참조와 앱 관리 파일 관점의 삭제 영향은 0으로 계획되지만 앱 밖 사용자 자료는 별도 단정하지 않는다. 삭제·병합 0, 향후 별도 승인과 직전 재조회 필요.
+- **활성 Chunk 2건**: `97235947…`는 추천 기능 커밋 `276c958`보다 전인 2026-09-27 23:19 생성(A). 희망 책 `b0135692…`는 도입 후 2026-09-28 22:36 생성, 일반 태그 `설교`/`성경해석`과 원문은 있으나 기존 규칙의 추천 0, illustrationTags 0, updated_at=created_at(B의 후보 0·C의 미승인 저장값). 패널을 실제로 보았는지/건너뛰었는지는 DB 이벤트가 없어 판별 불가하며 운영 UI 장애로 단정하지 않는다.
+- **RED→GREEN UX 보완**: 실제 본문 맥락의 `성경`이 기존 63개 카테고리 이름에 들어가도 전체 이름 문자열 기준 규칙은 추천 0이었다. 새 테스트가 `[]` 때문에 RED, 기존 강한 추천이 없을 때만 폴더 이름의 독립 단어 일치로 점수 1·기본 체크 해제 후보를 보여주도록 `lib/illustration_categories.py`를 수정해 GREEN. 희망 Chunk에 `성경, 말씀`·`성경,말씀묵상` 두 약한 후보가 나온다. `lib/reading_chunks_ui.py`는 선택 일반 태그를 명시하고 약한 후보의 수동 확인 문구를 표시한다. 강한 추천 기본 체크·저장 후 승인 패널·전체 63개 검색·`예화창고로 보내기`의 명시 DB 저장 흐름을 AppTest로 재확인했다. 기능 커밋 `c9d924b`.
+- **가상 첫 E2E·검증**: 운영 Chunk를 메모리에서만 각 후보로 바꾼 실제 예화창고 plan은 어느 쪽이든 해당 기존 카테고리 `읽담/` CREATE 1, 기존 파일 UPDATE/DELETE 0. David의 실제 카테고리 선택 전 태그 저장·export는 하지 않는다. 변경 코드 기준 전체 282 tests PASS, 38 Python 파일 구문 검사, `git diff --check` PASS. 실제 DB/iCloud write·중복 삭제·launchd·deploy 0. 다음 한 작업은 David가 실제 승인 태그를 저장한 뒤 운영 pipeline dry-run을 다시 실행하는 것이다.
+
 ## 2026-09-29 — Codex: 전담팀 main 계승 후 통합 fixture 재검증
 
 - 읽담 `ef5742c`의 운영 read-only 조사 기록을 보존하며 fixture 기록만 `6b5803a`로 fast-forward. 공동 `263810f`·서재 `30d1f5e`와 결합한 `pytest -q tests/test_reading_chunk_fixture_e2e.py --tb=short` 3 PASS. 직접/서재 입력의 읽담 정본·동일 exporter dry-run, receipt 유실→already_stored→행 1건, 태그/오류 상태를 확인했다. 제품 코드 무변경이므로 기존 전체 281 PASS는 선행 결과로 유지.
