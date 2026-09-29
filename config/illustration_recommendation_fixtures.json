@@ -18,6 +18,12 @@
       "recommendations": [{"canonical": "기도", "score": 3, "reason": "원문에 ‘기도’, ‘간구’ 포함", "defaultChecked": false}]
     },
     {
+      "id": "prayer-time-incidental",
+      "snapshot": "production",
+      "input": {"originalText": "기도하는 시간에 하나님께 간구한다.", "userNote": "", "tags": ["시간"]},
+      "recommendations": [{"canonical": "기도", "score": 3, "reason": "원문에 ‘기도’, ‘간구’ 포함", "defaultChecked": false}]
+    },
+    {
       "id": "faith",
       "input": {"originalText": "믿음으로 순종한다.", "userNote": "", "tags": []},
       "recommendations": [{"canonical": "믿음", "score": 3, "reason": "원문에 ‘믿음’, ‘순종’ 포함", "defaultChecked": false}]

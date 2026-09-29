@@ -31,14 +31,14 @@ def _cover_card(book, goto, prefix='shelf', show_progress=False, source=None, so
             current=book['current_page'] or 0
             total=book['pages'] or 0
             st.progress(min(max(current/total,0),1) if total else 0,text=f'{current}/{total or "미정"}쪽')
-        if st.button(
+        st.button(
             f"{book['title']} 상세 보기",
             key=f"{prefix}_cover_{book['id']}",
             help=f"{book['title']} 상세 보기",
             width='stretch',
-        ):
-            goto('책 상세', book['id'])
-            st.rerun()
+            on_click=goto,
+            args=('책 상세', book['id']),
+        )
 
 
 def _cover_sources(books):
@@ -76,8 +76,11 @@ def render(conn,goto,add_book):
     if st.session_state.get('shelf_top_add_book_open'):
         with st.expander('➕ 새 책 추가', expanded=True):
             add_book(conn, key_prefix='shelf_top_add_book')
-    reading=db.list_books(conn,status='읽는 중')
-    if not reading.empty:
+    # Searching for a book should show results without fetching six unrelated
+    # private cover links first. The normal shelf still keeps its resume row.
+    searching = bool(st.session_state.get('shelf_search', '').strip())
+    reading = db.list_books(conn, status='읽는 중') if not searching else None
+    if reading is not None and not reading.empty:
         st.subheader('이어서 읽기')
         _cover_grid(reading.head(6), goto, prefix='resume', show_progress=True)
         if st.button(f'읽고 있는 책 전체보기 ({len(reading)}권)',key='reading_all'):

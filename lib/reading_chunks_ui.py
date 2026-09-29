@@ -104,7 +104,7 @@ def _form(book, existing):
     current_page = int(book["current_page"] or 0)
 
     st.subheader("읽은 조각 수정" if is_edit else "읽은 조각 남기기")
-    st.caption("기존 독서 노트·진도·통계와 별도로 보관됩니다. 원문 또는 내 메모 중 하나는 필수입니다.")
+    st.caption("원문 또는 내 메모 중 하나는 필수입니다. 저장하면 예화창고 카테고리를 추천합니다.")
     with st.form("reading_chunk_form"):
         st.date_input("읽은 날짜", value=default_date, key="chunk_input_date")
         left, right = st.columns(2)
@@ -129,7 +129,7 @@ def _form(book, existing):
             "내 메모", value=(existing["user_note"] if is_edit else "") or "", key="chunk_input_user_note",
         )
         st.text_input("일반 메모 태그 (선택 · 쉼표로 구분)", value=_tag_text(existing["tags"]) if is_edit else "", key="chunk_input_tags")
-        st.caption("읽담 내부에서 나중에 검색하기 위한 자유 태그입니다. 예화창고 분류에는 사용하지 않습니다.")
+        st.caption("검색용 자유 태그 · 예화창고 분류와는 별개입니다.")
         st.divider()
         st.caption("콘텐츠 타입은 읽담 내부 메타데이터입니다. 선택하지 않아도 예화창고 카테고리를 추천받고 저장할 수 있습니다.")
         st.multiselect(
@@ -198,7 +198,7 @@ def _category_panel(conn, *, owner_id):
             chunks.set_illustration_tags(conn, chunk_id, owner_id=owner_id,
                                          illustration_tags=approved, diagnostic=diagnostic)
         except Exception:
-            st.error("예화 카테고리를 저장하지 못했습니다. 아래 진단 단계를 확인해주세요.")
+            st.error("예화 카테고리를 저장하지 못했습니다. 선택값을 확인하고 다시 시도해주세요.")
         else:
             _close_category_panel(chunk_id)
             st.session_state.notice = "예화창고 카테고리를 저장했습니다."
@@ -224,7 +224,7 @@ def _category_panel(conn, *, owner_id):
     with st.container(border=True):
         st.subheader("예화창고로 보낼까요?")
         st.caption("카테고리를 승인해도 파일은 아직 내보내지 않습니다.")
-        st.caption("예화창고 주제 카테고리 · 기존 63개 중 직접 선택합니다. 일반 메모 태그·콘텐츠 타입과 별개입니다.")
+        st.caption("기존 예화창고 카테고리 중 추천 · 선택값만 저장합니다. 일반 메모 태그·콘텐츠 타입과 별개입니다.")
         if recommendations:
             if any(item["score"] == 1 for item in recommendations):
                 st.caption("점수 1은 약한 후보입니다. 원문을 우선하고 내 메모는 보조로 봅니다.")

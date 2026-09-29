@@ -127,6 +127,16 @@ def recommend(snapshot: dict, *, originalText: str | None, userNote: str | None,
             original_results.append({"canonical": entry["canonical"], "score": score,
                                      "reason": reason, "defaultChecked": False})
 
+    # A bare mention of time often describes when another topic happens
+    # ("기도하는 시간"), rather than making time the subject. Keep the
+    # category when it stands alone or its approved alias/keyword supplies
+    # explicit topical evidence. An ambiguous candidate is better omitted.
+    if any(item["canonical"] != "시간" for item in original_results):
+        time_entry = next((entry for entry in snapshot["categories"] if entry["canonical"] == "시간"), None)
+        if time_entry and not any(normalize(alias) in original for alias in time_entry["aliases"]):
+            if not any(normalize(keyword) in original for keyword in time_entry["keywords"]):
+                original_results = [item for item in original_results if item["canonical"] != "시간"]
+
     if not original_results and original:
         # Folder-name words are weak original evidence even when the memo has
         # stronger literal matches in another category.

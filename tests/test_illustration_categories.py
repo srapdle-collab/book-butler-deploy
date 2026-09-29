@@ -52,7 +52,8 @@ def test_recommendation_fixture_is_the_shared_contract():
     snapshot = subject.load_snapshot(FIXTURE_SNAPSHOT)
     cases = json.loads(FIXTURE_CASES.read_text(encoding="utf-8"))["cases"]
     for case in cases:
-        assert subject.recommend(snapshot, **case["input"]) == case["recommendations"], case["id"]
+        source = subject.load_snapshot() if case.get("snapshot") == "production" else snapshot
+        assert subject.recommend(source, **case["input"]) == case["recommendations"], case["id"]
 
 
 def test_recommendation_uses_snapshot_order_caps_at_three_without_preapproval(tmp_path):
@@ -101,6 +102,22 @@ def test_general_tags_never_change_category_recommendations():
     base = subject.recommend(snapshot, originalText="사랑한다.", userNote="", tags=[])
     assert base == subject.recommend(snapshot, originalText="사랑한다.", userNote="", tags=["기도", "용서"])
     assert [item["canonical"] for item in base] == ["사랑"]
+
+
+@pytest.mark.parametrize("original,expected", [
+    ("사랑한다", ["사랑"]),
+    ("기도하는 시간에 하나님께 간구한다.", ["기도"]),
+    ("성경 전체에 흩어진 이야기를 말씀으로 묵상한다.", ["성경, 말씀", "성경,말씀묵상"]),
+    ("고난 중에도 희망을 잃지 않는다.", ["고난", "소망"]),
+    ("서로의 관계를 돌보며 공동체를 세운다.", ["공동체,관계, 교회"]),
+    ("시간 관리와 시간의 우선순위가 중요하다.", ["시간"]),
+])
+def test_production_snapshot_recommends_clear_topics_only(original, expected):
+    snapshot = subject.load_snapshot()
+    recommended = subject.recommend(snapshot, originalText=original, userNote="", tags=["무관한 태그"])
+    assert [item["canonical"] for item in recommended] == expected
+    assert all(item["canonical"] in subject.canonical_names(snapshot) for item in recommended)
+    assert all(item["reason"] and not item["defaultChecked"] for item in recommended)
 
 
 def test_original_weak_matches_rank_ahead_of_strong_memo_matches():
@@ -182,6 +199,9 @@ def test_chunk_ui_saves_empty_then_requires_explicit_category_approval(isolated_
     monkeypatch.setattr(subject, "DEFAULT_SNAPSHOT", FIXTURE_SNAPSHOT)
     at = open_detail()
     at.button(key="open_reading_chunk").click().run()
+    captions = "\n".join(item.value for item in at.caption)
+    assert "검색용 자유 태그 · 예화창고 분류와는 별개" in captions
+    assert "저장하면 예화창고 카테고리를 추천" in captions
     at.text_area(key="chunk_input_original_text").set_value("기도로 간구한다.")
     at.text_input(key="chunk_input_tags").set_value("묵상")
     assert not any(item.key == "chunk_input_illustration_tags" for item in at.text_input)
@@ -189,6 +209,7 @@ def test_chunk_ui_saves_empty_then_requires_explicit_category_approval(isolated_
     chunk_id = fetch_one(db_path, "SELECT chunk_id FROM reading_chunks")[0]
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
     assert any(item.value == "예화창고로 보낼까요?" for item in at.subheader)
+    assert any("기존 예화창고 카테고리 중 추천" in item.value for item in at.caption)
     selection_key = f"chunk_category_selection_{chunk_id}"
     assert at.multiselect(key=selection_key).value == []
     at.multiselect(key=selection_key).set_value(["기도"])
@@ -343,6 +364,8 @@ def test_chunk_send_reports_update_failure_without_success_notice(isolated_app, 
     visible = "\n".join(item.value for item in [*at.markdown, *at.caption])
     diagnostic = at.session_state["chunk_approval_diagnostic"]
     assert not at.exception
+    assert any("다시 시도" in item.value for item in at.error)
+    assert all("진단 단계" not in item.value for item in at.error)
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
     assert diagnostic["save_attempted"] == "YES"
     assert diagnostic["db_update_success"] == "NO"
@@ -390,7 +413,7 @@ def test_existing_hope_chunk_edit_offers_weak_candidates_as_primary_choices(isol
     at = open_detail()
     at.button(key=f"chunk_edit_{chunk_id}").click().run()
     assert at.text_area(key="chunk_input_original_text").value == original
-    assert "예화창고 분류에는 사용하지 않습니다" in "\n".join(item.value for item in at.get("caption"))
+    assert "검색용 자유 태그 · 예화창고 분류와는 별개" in "\n".join(item.value for item in at.get("caption"))
     at.button(key="save_reading_chunk").click().run()
 
     choices = at.multiselect(key=f"chunk_category_selection_{chunk_id}")

@@ -32,6 +32,25 @@ def test_shelf_fetches_visible_cover_urls_concurrently(monkeypatch):
     assert peak > 1
 
 
+def test_opening_book_does_not_render_shelf_covers_again(isolated_app, monkeypatch):
+    from lib import shelf_ui
+
+    calls = []
+    original = shelf_ui._cover_sources
+
+    def counted(books):
+        calls.append(len(books))
+        return original(books)
+
+    monkeypatch.setattr(shelf_ui, '_cover_sources', counted)
+    at = AppTest.from_file(APP_PATH).run()
+    before = len(calls)
+    at.button(key='shelf_cover_book-1').click().run()
+
+    assert at.session_state['view'] == '책 상세'
+    assert len(calls) == before
+
+
 def ts(day,hour=12):
     return int(datetime(2026,9,day,hour,tzinfo=ZoneInfo('Asia/Seoul')).timestamp())
 
@@ -163,6 +182,14 @@ def test_shelf_search_with_no_matches_shows_empty_state(isolated_app, monkeypatc
     assert not at.exception
     assert any('검색 결과 0권' in item.value for item in at.caption)
     assert any('조건에 맞는 책이 없습니다.' in item.value for item in at.info)
+
+
+def test_shelf_search_skips_unrelated_resume_covers(isolated_app):
+    at = AppTest.from_file(APP_PATH).run()
+    at.text_input(key='shelf_search').set_value('테스트 책').run()
+
+    assert [button for button in at.button if (button.key or '').startswith('shelf_cover_')]
+    assert not [button for button in at.button if (button.key or '').startswith('resume_cover_')]
 
 
 def test_sidebar_uses_read_dam_name(isolated_app):
