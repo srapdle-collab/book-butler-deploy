@@ -1,5 +1,12 @@
 # 읽담 작업 기록
 
+## 2026-09-29 — Codex: 무비밀 승인 진단·약한 추천 운영 배포
+
+- **목적/정본**: M1 영구 읽담 저장소의 David 기획문서 미커밋·미추적 2건을 보존했다. 시작 local main/origin `dec4527`, 실제 deploy `9f7aedf`. 연합팀 문서 커밋을 모두 계승했고 오늘의 서재·통합 계약은 변경하지 않았다.
+- **RED→구현→GREEN**: 신규 테스트는 진단 모듈 미구현과 승인 패널 표시 부재로 RED였다. `lib/approval_diagnostics.py`는 PostgreSQL의 서버 주소·포트·database/OID·비공개 profile 마커를 프로세스 내부에서 해시해 16자리만 출력한다. M1 기존 READ ONLY 연결로 두 번 같은 지문을 확인해 비교 기준으로 넣고 최종 동일 YES를 재확인했다. 원래 주소·DSN·비밀번호·토큰은 코드/문서/앱 출력에 저장하지 않는다. SQLite는 M1 운영 Postgres와 NO로 표시한다. 앱 승인 버튼의 callback에서 attempt를 남기고, `set_illustration_tags`는 선택 검증→Chunk/owner 조회→UPDATE→commit→같은 연결에서 재조회 단계별 결과와 선택 태그 일치를 확인한다. 화면에는 `save_attempted`, Chunk ID 앞 8자리, 함수 호출, DB update/commit 성공, postwrite verify, 저장 태그 수, 실패 단계만 남긴다. 실패 시 오류 원문을 표시하지 않는다.
+- **검증**: 기존 Chunk AppTest에서 클릭·선택·저장 후 진단 YES와 태그 저장을 확인하고, 잘못된 owner와 SQLite trigger로 UPDATE 차단 때 DB write/성공 알림 없음 및 failure_stage를 확인했다. 관련 20 PASS, 전체 **288 PASS**, Python AST 34파일, git diff check PASS. 운영 DB에는 진단을 위한 SELECT만 했고 직접 write 0.
+- **반영/한계**: 기능 `5285131`을 clean main/origin에 fast-forward, deploy도 `9f7aedf→5285131` 일반 fast-forward. deploy 원격 SHA 재확인. 공개 앱은 읽담 로그인 화면까지 로드됐으나 로그인 뒤 진단 UI와 실행 SHA는 직접 확인 못했다. 기존 main의 희망 Chunk 약한 추천 후보 UI도 함께 배포했다. Secrets·iCloud export·launchd 변경 0. 이 문서 기록은 main/origin에 별도 커밋한다. 다음은 David의 일반 앱 한 번 승인 후 운영 DB READ ONLY와 예화창고 dry-run 재판정이다.
+
 ## 2026-09-29 — Codex: 예화 카테고리 승인 저장 경로 진단
 
 - **정본/범위**: M1 영구 저장소의 David 소유 미커밋·미추적 기획문서 2건을 보존하고 clean `main 899ced2`에서 분리했다. 실제 원격 `origin/main=899ced2`, `deploy/main=9f7aedf`. exporter 추가 조사는 하지 않았다. 오늘의 서재·통합 계약 변경 없음.

@@ -21,6 +21,16 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — 운영 승인 진단 배포 후 첫 저장 검증 대기 (2026-09-29, Codex)
+
+- **무엇을 했는지**: David 승인에 따라 비밀값 없는 DB 지문·승인 저장 단계 진단을 구현했다. M1 공식 운영 READ ONLY 연결에서 두 차례 같은 지문을 얻고 코드의 비교 기준으로 넣었다. 앱은 실제 연결의 서버 측 DB 정체성에 비공개 profile 마커를 더해 해시한 16자리 지문과 M1 동일 YES/NO/UNKNOWN만 표시한다. URL/host/비밀번호/token/Secrets 값은 화면·로그에 출력하지 않는다. 기존 `main`의 희망 Chunk 약한 카테고리 추천도 배포에 포함했다.
+- **어디까지 끝났는지**: 승인 패널은 클릭 전 `save_attempted: NO`, 버튼 클릭 callback 뒤 YES 및 Chunk ID 앞 8자리·호출/UPDATE commit/재조회 성공·저장 태그 수·실패 단계를 같은 화면에 유지한다. 조건부 UPDATE 1행·commit·재조회에서 선택 태그 일치 후에만 성공 메시지가 나온다. 실패는 원문 오류 대신 단계만 표시한다. 합성 AppTest에서 성공·잘못된 owner·DB UPDATE 차단을 검증했다. 전체 **288 PASS**, Python AST 34파일·diff PASS. 실제 운영 DB write·iCloud export·launchd 0.
+- **운영 반영**: 기능 `5285131`을 clean main에 fast-forward하고 `origin/main`·`deploy/main`에 일반 fast-forward push했다. 두 원격에서 `5285131`을 확인했다. 공개 앱 URL에서 읽담 로그인 화면이 로드됨을 확인했지만, 로그인 뒤 진단 화면과 실행 SHA는 직접 확인하지 않았다. 이 기록은 후속 문서 커밋으로 main/origin에 보존하며 deploy 제품 코드 SHA는 `5285131` 유지.
+- **확인해야 할 것**: David가 일반 읽담 화면에서 희망 책 Chunk의 기존 카테고리를 확인해 「예화창고로 보내기」를 한 번 누른 뒤 앱의 DB 동일·저장 단계 표시와 운영 DB `illustration_tags`를 READ ONLY로 대조한다. 현재 승인 태그 `[]`이며 export는 여전히 보류다.
+- **다음 작업자 / 다음 작업 1개**: 읽담 담당자 — David의 한 번 승인 뒤 운영 Chunk를 READ ONLY 재조회하고 실제 예화창고 pipeline dry-run을 판정한다.
+- **브랜치 / 커밋 / 배포 상태**: `codex/approval-runtime-diagnostics-20260929` 기능 `5285131`; main/origin 문서 정본은 최종 Git 확인. deploy/main=`5285131` 제품 반영, Streamlit 로그인 화면 로드, 로그인 후 UI 미검증.
+- **보류·실패·중단 이유**: 운영 승인 버튼은 David가 누르기 전이므로 실제 DB write·저장 경로 운영 성공은 아직 미확인.
+
 ## 읽담 담당자가 이어받을 작업 — 예화 승인 저장 경로 진단, 운영 런타임 관문 (2026-09-29, Codex)
 
 - **무엇을 했는지**: 운영 `deploy/main=9f7aedf`·읽담 `main/origin=899ced2`를 실제 원격과 대조하고, 앱→책 상세→기존 Chunk 카드→카테고리 패널→승인 버튼→`set_illustration_tags`→조건부 UPDATE/commit→성공 알림의 호출 경로를 추적했다. 원본 사용자 기획문서 변경 2건은 보존했다.
