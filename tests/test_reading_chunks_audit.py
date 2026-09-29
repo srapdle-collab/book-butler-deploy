@@ -214,6 +214,7 @@ def test_ui_edit_filter_and_soft_delete(isolated_app):
     conn.close()
     at = open_detail()
     at.text_input(key="chunk_tag_filter").set_value("없는태그").run()
+    assert any("이 태그에 맞는 읽은 조각이 없습니다." in item.value for item in at.get("caption"))
     assert not any(button.key == f"chunk_edit_{row['chunk_id']}" for button in at.button)
     at.text_input(key="chunk_tag_filter").set_value("용서").run()
     at.button(key=f"chunk_edit_{row['chunk_id']}").click().run()

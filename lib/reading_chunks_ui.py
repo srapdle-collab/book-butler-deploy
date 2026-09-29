@@ -302,7 +302,7 @@ def render(conn, book, *, owner_id):
     duplicate_counts = Counter((item["read_date"], item["page_start"], item["page_end"], item["content_hash"])
                                for item in all_rows)
     if not rows:
-        st.caption("아직 저장한 읽은 조각이 없습니다.")
+        st.caption("이 태그에 맞는 읽은 조각이 없습니다." if needle else "아직 저장한 읽은 조각이 없습니다.")
         return
     for row in rows:
         with st.container(border=True, key=f"chunk_card_{row['chunk_id']}"):
