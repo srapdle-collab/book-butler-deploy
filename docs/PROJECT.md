@@ -1,5 +1,7 @@
 # 읽담
 
+최신 상태(2026-09-29, Codex): 예화창고 주제 추천은 검증된 기존 63개 카테고리 snapshot만 사용한다. 읽은 조각 원문이 주 신호이고 내 메모는 보조 후보로만 쓰며, 일반 메모 태그와 콘텐츠 타입은 추천 입력에서 제외한다. 모든 후보는 점수·근거를 보여주지만 자동 선택하지 않는다. David가 승인한 정식 이름만 `illustration_tags`에 저장한다. 콘텐츠 타입은 읽담 내부의 선택형 메타데이터이고, 실제 예화창고 TXT는 별도 export 단계에서 생성한다. 제품 커밋 `3f6a907`이 main/origin/deploy에 반영됐으며 로그인 뒤 운영 화면은 David 확인 전이다.
+
 최신 상태(2026-09-28, Codex): David가 1차-B의 `@st.fragment(run_every="5m")` 유지 결정을 승인했다. Secrets 없는 휴면 경로는 URL·두 key 검사에서 `not_configured`로 즉시 반환하며, 격리 probe로 HTTP·Chunk DML·receipt·book snapshot 접근 0건을 확인했다. fragment의 DB 연결은 read-only schema inspection이고 session state 두 항목만 갱신한다. origin 사전 확인은 현재 환경의 GitHub DNS 해석 실패로 중단돼, origin/main·deploy/main·Streamlit 배포는 아직 변경하지 않았다.
 
 최신 상태(2026-09-28, Codex): 예화 카테고리 추천·승인 기능을 깨끗한 별도 worktree에서 local `main` `59d0250`까지 fast-forward했다. 전체 202 tests·compile·diff check는 PASS다. Streamlit 배포 전 감사에서 1차-B UI의 `@st.fragment(run_every="5m")` 자동 동기화 호출을 확인했다. Secrets가 없으면 외부 HTTP 전 `not_configured`로 반환하지만, “background sync 자동 시작 없음” 배포 조건을 충족하지 않아 origin/main·deploy/main·Streamlit은 변경하지 않았다. 2차 exporter는 명시적 CLI로만 실행된다. 운영 DB 직접 write와 iCloud write는 0건이다.
