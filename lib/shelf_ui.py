@@ -96,9 +96,11 @@ def render(conn,goto,add_book):
         exclude_status=exclude_status,
         group_by_category=selected_category is None,
     ).copy()
-    visible['category']=visible['category'].fillna('미분류')
-    if visible.empty: st.info('조건에 맞는 책이 없습니다.')
-    for category,group in visible.groupby('category',sort=False):
-        st.subheader(category)
-        _cover_grid(group, goto)
+    if visible.empty:
+        st.info('조건에 맞는 책이 없습니다.')
+    else:
+        visible['category']=visible['category'].fillna('미분류')
+        for category,group in visible.groupby('category',sort=False):
+            st.subheader(category)
+            _cover_grid(group, goto)
     with st.expander('➕ 새 책 추가'): add_book(conn)

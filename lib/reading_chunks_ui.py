@@ -40,6 +40,9 @@ def _close_category_panel(chunk_id: str | None = None):
 
 def _mark_category_attempt(chunk_id, book_id):
     st.session_state.chunk_approval_diagnostic = approval_diagnostics.new_attempt(chunk_id, book_id)
+    selected = list(st.session_state.get(f"chunk_category_selection_{chunk_id}", []))
+    selected += list(st.session_state.get(f"chunk_category_extra_{chunk_id}", []))
+    st.session_state.chunk_category_send_pending = (chunk_id, selected)
 
 
 def _show_category_diagnostic(diagnostic):
@@ -188,6 +191,22 @@ def _category_panel(conn, *, owner_id):
     if getattr(illustration_categories, "RECOMMENDATION_VERSION", 0) < 3:
         importlib.reload(illustration_categories)
     names = illustration_categories.canonical_names(snapshot)
+    pending = st.session_state.get("chunk_category_send_pending")
+    if pending and pending[0] == chunk_id:
+        st.session_state.pop("chunk_category_send_pending", None)
+        diagnostic = st.session_state.chunk_approval_diagnostic
+        try:
+            approved = illustration_categories.canonicalize_selection(snapshot, pending[1])
+            if not approved:
+                raise ValueError("예화 카테고리를 선택해주세요.")
+            chunks.set_illustration_tags(conn, chunk_id, owner_id=owner_id,
+                                         illustration_tags=approved, diagnostic=diagnostic)
+        except Exception:
+            st.error("예화 카테고리를 저장하지 못했습니다. 아래 진단 단계를 확인해주세요.")
+        else:
+            _close_category_panel(chunk_id)
+            st.session_state.notice = "예화창고 카테고리를 저장했습니다."
+            st.rerun()
     recommendations = illustration_categories.recommend(
         snapshot, originalText=chunk["original_text"], userNote=chunk["user_note"], tags=chunk["tags"],
     )
@@ -243,18 +262,8 @@ def _category_panel(conn, *, owner_id):
         selected = illustration_categories.canonicalize_selection(snapshot, selected)
         label = "예화창고로 보내기 · " + (", ".join(selected) if selected else "선택 없음")
         send, skip = st.columns(2)
-        if send.button(label, key=f"chunk_category_send_{chunk_id}", width="stretch", disabled=not selected,
-                       on_click=_mark_category_attempt, args=(chunk_id, chunk["book_id"])):
-            diagnostic = st.session_state.chunk_approval_diagnostic
-            try:
-                chunks.set_illustration_tags(conn, chunk_id, owner_id=owner_id,
-                                             illustration_tags=selected, diagnostic=diagnostic)
-            except Exception:
-                st.error("예화 카테고리를 저장하지 못했습니다. 아래 진단 단계를 확인해주세요.")
-                st.rerun()
-            _close_category_panel(chunk_id)
-            st.session_state.notice = "예화창고 카테고리를 저장했습니다."
-            st.rerun()
+        send.button(label, key=f"chunk_category_send_{chunk_id}", width="stretch", disabled=not selected,
+                    on_click=_mark_category_attempt, args=(chunk_id, chunk["book_id"]))
         if skip.button("보내지 않음", key=f"chunk_category_skip_{chunk_id}", width="stretch"):
             chunks.set_illustration_tags(conn, chunk_id, owner_id=owner_id, illustration_tags=[])
             _close_category_panel(chunk_id)

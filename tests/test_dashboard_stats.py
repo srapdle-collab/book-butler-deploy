@@ -1,6 +1,7 @@
 from datetime import date,datetime
 from zoneinfo import ZoneInfo
 import pytest
+import pandas as pd
 from lib import db
 from test_activity_inputs_app import isolated_app, APP_PATH
 from streamlit.testing.v1 import AppTest
@@ -115,6 +116,23 @@ def test_shelf_shows_all_categories_in_one_scrolling_grid(isolated_app):
 
     at.button(key='shelf_cover_book-2').click().run()
     assert at.session_state['selected_book_id']=='book-2'
+
+
+def test_shelf_search_with_no_matches_shows_empty_state(isolated_app, monkeypatch):
+    original_list_books = db.list_books
+
+    def postgres_empty_frame(conn, **kwargs):
+        if kwargs.get('search'):
+            return pd.DataFrame()  # psycopg dict rows preserve no columns when empty
+        return original_list_books(conn, **kwargs)
+
+    monkeypatch.setattr(db, 'list_books', postgres_empty_frame)
+    at = AppTest.from_file(APP_PATH).run()
+    at.text_input(key='shelf_search').set_value('TEST-READDAM-NO-MATCH').run()
+
+    assert not at.exception
+    assert any('검색 결과 0권' in item.value for item in at.caption)
+    assert any('조건에 맞는 책이 없습니다.' in item.value for item in at.info)
 
 
 def test_sidebar_uses_read_dam_name(isolated_app):

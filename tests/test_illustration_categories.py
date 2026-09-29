@@ -264,6 +264,40 @@ def test_existing_chunk_send_shows_verified_diagnostic_after_rerun(isolated_app,
         assert field in visible
 
 
+def test_category_send_persists_when_callback_runs_but_button_value_is_lost(isolated_app, monkeypatch):
+    """A second Streamlit rerun must not discard an acknowledged send click."""
+    from streamlit.delta_generator import DeltaGenerator
+
+    db_path, _ = isolated_app
+    monkeypatch.setattr(subject, "DEFAULT_SNAPSHOT", FIXTURE_SNAPSHOT)
+    conn = db.get_connection()
+    saved = chunks.save(
+        conn, owner_id=chunks.LOCAL_OWNER_ID, book_id="book-1", read_date="2026-09-28",
+        original_text="기도", user_note="", tags=[], illustration_tags=[], content_types=[],
+    )
+    conn.close()
+    chunk_id = saved["chunk_id"]
+    at = open_detail()
+    at.button(key=f"chunk_category_open_{chunk_id}").click().run()
+    at.multiselect(key=f"chunk_category_selection_{chunk_id}").set_value(["기도"]).run()
+
+    original_button = DeltaGenerator.button
+
+    def lose_button_value(self, *args, **kwargs):
+        clicked = original_button(self, *args, **kwargs)
+        if kwargs.get("key") == f"chunk_category_send_{chunk_id}" and clicked:
+            return False
+        return clicked
+
+    monkeypatch.setattr(DeltaGenerator, "button", lose_button_value)
+    at.button(key=f"chunk_category_send_{chunk_id}").click().run()
+
+    assert not at.exception
+    assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ('["기도"]',)
+    visible = "\n".join(item.value for item in at.markdown)
+    assert "set_illustration_tags_called: YES" in visible
+
+
 def test_approval_diagnostic_distinguishes_wrong_owner_without_write(isolated_app, monkeypatch):
     db_path, _ = isolated_app
     monkeypatch.setattr(subject, "DEFAULT_SNAPSHOT", FIXTURE_SNAPSHOT)
