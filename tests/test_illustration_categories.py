@@ -171,6 +171,33 @@ def test_category_ui_allows_explicit_no_send_for_existing_chunk(isolated_app, mo
     assert fetch_one(db_path, "SELECT illustration_tags FROM reading_chunks") == ("[]",)
 
 
+def test_existing_chunk_category_button_updates_matching_chunk_across_rerun(isolated_app, monkeypatch):
+    db_path, _ = isolated_app
+    monkeypatch.setattr(subject, "DEFAULT_SNAPSHOT", FIXTURE_SNAPSHOT)
+    conn = db.get_connection()
+    saved = chunks.save(
+        conn, owner_id=chunks.LOCAL_OWNER_ID, book_id="book-1",
+        chunk_id="b0135692-7893-4f6a-b049-b198f30933a3", read_date="2026-09-28",
+        original_text="기존 희망 책 조각", user_note="", tags=[], illustration_tags=[], content_types=[],
+    )
+    conn.close()
+    chunk_id = saved["chunk_id"]
+    before = fetch_one(db_path, "SELECT illustration_tags, updated_at FROM reading_chunks")
+
+    at = open_detail()
+    at.button(key=f"chunk_category_open_{chunk_id}").click().run()
+    selection_key = f"chunk_category_selection_{chunk_id}"
+    at.multiselect(key=selection_key).set_value(["기도"])
+    at.button(key=f"chunk_category_send_{chunk_id}").click().run()
+
+    after = fetch_one(db_path, "SELECT illustration_tags, updated_at FROM reading_chunks")
+    assert not at.exception
+    assert before[0] == "[]"
+    assert after[0] == '["기도"]'
+    assert after[1] != before[1]
+    assert not any(item.value == "예화창고로 보낼까요?" for item in at.subheader)
+
+
 def test_ambiguous_category_word_is_suggested_without_preapproval(isolated_app):
     """A real existing-folder word must offer choices, never choose for David."""
     db_path, _ = isolated_app
