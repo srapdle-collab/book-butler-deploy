@@ -1,5 +1,13 @@
 # 읽담 작업 기록
 
+## 2026-09-29 — Codex: 운영 배포 불일치·예화 승인 저장·검색 0건 수정 및 재검증
+
+- **목적**: Safari 운영 화면에서 일반 태그의 추천 유입·자동 선택·근거 누락·카테고리 저장 미호출·검색 0건 오류가 확인되어, 먼저 배포 정본을 대조하고 실제 운영 E2E까지 복구한다.
+- **배포 원인**: 시작 main/origin `3433f42`, deploy 원격 `3f6a907`이며, Cloud 대시보드는 `srapdle-collab/book-butler-deploy/main/app.py`를 가리켰다. 로컬/배포 `illustration_categories.py`와 `reading_chunks_ui.py`의 Git 내용은 동일했다. Safari 화면에는 `c71a9d0` 시대의 `☐/☑ · 점수` 문구가 보였고 `3f6a907`의 근거 문구가 없었다. Cloud Reboot 후 동일 기존 Chunk에 `사랑 · 추천 점수 2 · 원문에 ‘사랑’ 포함`과 빈 수동 선택창이 표시됐다. 재시작 전 실제 프로세스 SHA는 Cloud UI에 노출되지 않아 정확한 해시는 확정하지 않는다.
+- **RED→GREEN 수정**: 새 코드 상태에서도 검증용 Chunk 전송 시 `save_attempted=YES`, `set_illustration_tags_called=NO`를 운영에서 재현했다. 콜백 뒤 버튼 참값이 유실되는 상황을 AppTest로 RED 재현하고, 콜백에서 선택값과 대상 ID를 보존해 다음 렌더의 살아 있는 DB 연결로 한 번 처리하도록 수정했다. 별도로 PostgreSQL 0건 결과가 열 없는 DataFrame일 때 `category` 접근이 KeyError가 되는 회귀를 RED로 재현해 빈 결과를 먼저 분기했다.
+- **검증**: 관련 28 PASS, 전체 298 PASS, Python 71파일 구문 compile PASS, `git diff --check` PASS. 제품 커밋 `4af809e`를 clean main에서 origin/main과 deploy/main에 일반 fast-forward push했다. 운영 검증용 Chunk `ab805cc4…`는 원문 `사랑한다`, 메모 `TEST-READDAM-CATEGORY-20260929-1705`, 일반 태그 `기도`, 콘텐츠 타입 `강의 소재`로 생성했다. 추천 `사랑` 점수 2·근거 표시, 기도 후보 없음, 최초 미선택, 직접 선택 후 UI 진단 update/verify YES를 관찰했다. M1 운영 DB READ ONLY에서 승인값 `illustration_tags=["사랑"]`과 같은 원문·일반 태그·타입을 확인했다. 태그를 `설교`, 타입을 없음으로 수정해도 `사랑` 점수/근거는 동일했다. 전체 기존 카테고리 검색은 Select all 포함 64옵션(정식 63개), 검색 0건은 오류 없이 안내를 표시했다. 기존 Chunk CRUD는 이 테스트 Chunk의 생성·수정·소프트 삭제로 확인했다.
+- **데이터 보호·남은 일**: 테스트 Chunk는 UI 소프트 삭제, READ ONLY `deleted_at` 재확인. 기존 사용자 Chunk·실제 예화창고 TXT·운영 schema/Secrets·launchd 변경 0. 이전 검증의 테스트 Chunk도 소프트 삭제 상태 유지. 진단 UI 제거는 다음 별도 작업이며 실제 TXT export는 미실행이다.
+
 ## 2026-09-29 — Codex: Safari 운영 예화 승인 실제 검증 실패
 
 - David가 M1 Safari에 직접 로그인한 세션에서 실제 운영 화면을 조작했다. 검증 전 local main/origin 추적값 `973fae1`, deploy 추적값 `3f6a907`; 원본 작업트리의 David 기획문서 2건은 보존했다. 운영 UI의 DB 지문은 M1 READ ONLY 대상과 동일 YES였다.

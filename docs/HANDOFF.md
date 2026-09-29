@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 읽담 담당자가 이어받을 작업 — 운영 추천·저장 재검증 완료 (2026-09-29, Codex)
+
+- **무엇을 했는지**: deploy 원격이 이미 `3f6a907`인데 Safari 운영 화면은 이전 추천 문구를 표시했다. Streamlit Cloud의 실제 연결은 `srapdle-collab/book-butler-deploy/main/app.py`였고, 앱 Reboot 뒤 새 추천 문구·근거·수동 선택 UI가 나타났다. 버튼 콜백은 실행됐지만 저장 분기가 실행되지 않는 결함과 PostgreSQL 검색 0건의 빈 DataFrame 오류를 RED→GREEN으로 수정했다.
+- **어디까지 끝났는지**: 제품 `4af809e`를 clean main·origin/main·deploy/main에 일반 fast-forward로 반영했다. 전체 298 PASS, Python 71파일 compile, diff check PASS. 운영 Safari에서 테스트 전용 Chunk `ab805cc4…`에 원문 `사랑한다`·일반 태그 `기도`·콘텐츠 타입 `강의 소재`를 넣어 `사랑` 점수 2·근거·초기 미선택을 확인했고, 수동 승인 뒤 UI DB update/postwrite verify YES 및 M1 READ ONLY `illustration_tags=["사랑"]`을 확인했다. 태그·타입 변경 후에도 같은 추천, 기존 63개 검색, 책장 0건 안내도 확인했다. 테스트 Chunk는 UI 소프트 삭제와 DB READ ONLY `deleted_at`으로 정리했다. 사용자 기존 Chunk·실제 예화창고 파일 변경 0.
+- **확인해야 할 것**: Streamlit 실행 환경은 SHA를 직접 노출하지 않는다. 재시작 뒤 `3f6a907` 고유 UI, `4af809e` 배포 뒤 저장 성공·검색 0건 정상으로 코드 버전을 판별했다. 배포 미러 HEAD는 실제 원격 재조회로 확인한다. 진단용 DB 지문·저장 단계 UI는 후속 별도 정리 대상으로 남아 있다.
+- **다음 작업자 / 다음 작업 1개**: 읽담 담당자 — 운영 문제 확인이 끝난 진단 UI를 일반 화면에서 제거하고 회귀 확인한다.
+- **브랜치 / 커밋 / 배포 상태**: clean linked worktree `main`; 제품 `4af809e`, 이번 HANDOFF/WORKLOG는 후속 문서 커밋; deploy/main 제품 `4af809e`.
+- **보류·실패·중단 이유**: 없음. 실제 예화 TXT export·launchd·운영 schema/Secrets 변경은 수행하지 않았다.
+
 ## 읽담 담당자가 이어받을 작업 — Safari 운영 추천·저장 실패 수정 (2026-09-29, Codex)
 
 - **무엇을 했는지**: David가 로그인한 Safari 운영 앱에서 기존 `사랑한다` Chunk와 별도 검증용 Chunk `06792912…`로 추천·수동 선택·저장을 실제 확인했다. 세부 증거는 최신 WORKLOG 항목에 있다.
