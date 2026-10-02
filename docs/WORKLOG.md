@@ -1,5 +1,10 @@
 # 읽담 작업 기록
 
+## 2026-10-02 — Claude Code: 속도 개선 main 반영·배포
+
+- David Safari 확인: 체감 3초 이내(수정 전 5.5~5.8초), 표지 깨짐 없음, 로그인 후 책장 정상. 초 단위 측정은 하지 않았다.
+- `claude/readdam-speed`를 main에 fast-forward(`33c3cfb` → `9b58fdf`), origin/main·deploy/main 일반 push. 강제 push 없음.
+
 ## 2026-10-02 — Claude Code: 클릭당 DB·Storage 왕복 감축 (운영 미반영)
 
 - **측정 방법**: `tests/test_roundtrip_budget.py`. 소유자 로그인 상태·책 30권(표지 포함)에서 책장 첫 진입/책장 재실행/책 상세 이동/상세 버튼 클릭마다 DB 연결·스키마 검사 SQL·소유권 UPDATE·같은 책 조회·표지 서명 요청·전체 SQL 수를 센다. 로컬 SQLite라 시간 대신 운영에서 네트워크 왕복이 되는 횟수를 비교한다.

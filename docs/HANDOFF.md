@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 최신 — 속도 개선 main 반영·배포 완료, 저장 기능 운영 회귀 점검 준비 (2026-10-02, Claude Code)
+
+- **무엇을 했는지**: David가 Safari에서 체감 3초 이내(수정 전 5.5~5.8초), 표지 정상, 로그인 후 책장 정상을 확인했다. 이에 `claude/readdam-speed`를 main에 fast-forward하고 origin/main·deploy/main에 일반 push했다.
+- **어디까지 끝났는지**: main·origin/main·deploy/main = `9b58fdf`. 정확한 초 단위 측정은 없음(David 체감).
+- **확인해야 할 것**: Codex의 `codex/fix-book-info-20261002`는 이 main 위로 다시 맞춰야 한다(`app.py`, `lib/db.py` 충돌 가능). 3단계 저장 기능 운영 회귀 점검은 아직 시작 전.
+- **다음 작업자**: Codex(책 정보 수정 작업 재기준), Claude Code(3단계).
+- **브랜치** / **커밋** / **배포 상태**: main / `9b58fdf` + 이 문서 커밋 / deploy/main=`9b58fdf`.
+- **보류·실패·중단 이유**: 없음. 이 main 위치는 `refs/heads/main`을 `33c3cfb`에서 compare-and-swap으로 옮겼다(main이 폴더 없는 prunable 작업트리에 등록돼 있었음).
+
 ## David가 이어받을 작업 — 속도 브랜치 임시 배포, Safari 실측 대기 (2026-10-02, Claude Code)
 
 - **무엇을 했는지**: David 지시로 `claude/readdam-speed`를 origin에 push하고, 배포 미러 `deploy/main`을 `d7bbd0a` → `78c68ea`로 일반 fast-forward했다(강제 push 아님). 제품 코드 차이는 속도 수정 5개 파일뿐이다.
