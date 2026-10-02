@@ -1,5 +1,13 @@
 # 읽담 작업 기록
 
+## 2026-10-02 — Claude Code: 운영 회귀 점검 중 activities 번호 생성기 복구
+
+- 증상: 운영에서 진도·인용구·메모·사진 저장 시 `psycopg.errors.UniqueViolation`(David iPhone 스크린샷).
+- 원인(읽기 전용 확인): `activities_position_seq` last_value=4, `max(position)`=5667, 행 5,667건, 9/21 이후 신규 activities 0건. 이전 때 번호를 직접 넣고 시퀀스를 맞추지 않은 것으로 추정(스크립트 미확인).
+- 조치(David 승인): `setval('public.activities_position_seq', max(position))` → 5667. 행 수·최대 번호 불변 확인.
+- 같은 점검에서 발견: Postgres 0행 결과의 열 없는 DataFrame로 `기록 보기` 필터 `KeyError: 'kind'`(9/20부터 존재, 속도 수정과 무관). 9/28 멈춘 타이머는 David가 취소(`cancelled`).
+- 테스트가 놓친 이유: 전부 SQLite(rowid 번호·0행 열 유지)로 실행되며, 운영 검증은 `reading_chunks`만 저장해 봤다.
+
 ## 2026-10-02 — Claude Code: 속도 개선 main 반영·배포
 
 - David Safari 확인: 체감 3초 이내(수정 전 5.5~5.8초), 표지 깨짐 없음, 로그인 후 책장 정상. 초 단위 측정은 하지 않았다.

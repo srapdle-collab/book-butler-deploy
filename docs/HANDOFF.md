@@ -21,6 +21,15 @@
 
 ## 항목
 
+## 지금 Claude Code가 이어받을 작업 — 운영 회귀 점검 중 발견 결함 6건, 기록 저장 번호 생성기 복구 (2026-10-02, Claude Code)
+
+- **무엇을 했는지**: David의 Safari/iPhone 운영 회귀 점검 중 결함을 발견했다. 가장 심각한 것은 `activities.position` identity 시퀀스가 4에 머물러(최대 5667) 9/20 Supabase 이전 이후 진도·인용구·메모·사진 저장이 전부 `UniqueViolation`으로 실패한 것이다(9/21 이후 신규 activities 0건). David 승인으로 운영 DB에 `SELECT setval('public.activities_position_seq', (SELECT max(position) FROM activities))` 1건을 실행했다(전 4 → 후 5667, 행 5,667건 불변).
+- **어디까지 끝났는지**: 시퀀스 복구만. 앱 저장 재시도 결과는 David 확인 대기. 코드 변경 없음.
+- **확인해야 할 것**: 모아 둔 결함 — (1) 다른 책 타이머로 막혔을 때 그 책으로 가는 버튼 없음 (2) 타이머 걸린 책이 `이어서 읽기` 6권에서 빠짐 (3) `희망을 짓는다는 것` 중복 등록 (4) 방치된 타이머 표시 없음 (5) Postgres `read_frame`이 0행이면 열 없는 DataFrame → `기록 보기` 필터 `KeyError: 'kind'`(타임라인도 동일) (6) 시퀀스 어긋남(복구함, 이전 스크립트 보완과 Postgres 저장 회귀 테스트 필요). 결정: 진도는 시간 대신 시작 쪽→끝 쪽 두 번 누르기 방식(A), 어느 앱에 둘지는 미정.
+- **다음 작업자**: David(점검 B 재시도) → Claude Code(점검 완료 후 결함 일괄 수정).
+- **브랜치** / **커밋** / **배포 상태**: main / 이 문서 커밋 / deploy/main=`9b58fdf`(코드 동일).
+- **보류·실패·중단 이유**: 점검 진행 중.
+
 ## 최신 — 속도 개선 main 반영·배포 완료, 저장 기능 운영 회귀 점검 준비 (2026-10-02, Claude Code)
 
 - **무엇을 했는지**: David가 Safari에서 체감 3초 이내(수정 전 5.5~5.8초), 표지 정상, 로그인 후 책장 정상을 확인했다. 이에 `claude/readdam-speed`를 main에 fast-forward하고 origin/main·deploy/main에 일반 push했다.
