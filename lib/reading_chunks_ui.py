@@ -296,7 +296,8 @@ def render(conn, book, *, owner_id):
     # 예전엔 필터 있는/없는 두 버전을 각각 쿼리해서 같은 조각 목록을 두 번
     # 읽었다(book_snapshot 소유권 검사까지 포함해 왕복 2배). 한 번만 읽고
     # 중복 집계는 그 결과에서 계산한다.
-    all_rows = chunks.list_for_book(conn, book["id"], owner_id=owner_id)
+    # render() already verified this book belongs to owner_id above.
+    all_rows = chunks.list_for_book(conn, book["id"], owner_id=owner_id, owner_checked=True)
     needle = (tag or "").strip()
     rows = [r for r in all_rows if not needle or needle in r["tags"] or needle in r["illustration_tags"]]
     duplicate_counts = Counter((item["read_date"], item["page_start"], item["page_end"], item["content_hash"])

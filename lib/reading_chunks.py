@@ -104,8 +104,12 @@ def get(conn, chunk_id: str, *, owner_id: str, include_deleted: bool = False):
     return result
 
 
-def list_for_book(conn, book_id: str, *, owner_id: str, tag: str | None = None, include_deleted: bool = False):
-    _book_snapshot(conn, book_id, owner_id)
+def list_for_book(conn, book_id: str, *, owner_id: str, tag: str | None = None, include_deleted: bool = False,
+                  owner_checked: bool = False):
+    if not owner_checked:
+        _book_snapshot(conn, book_id, owner_id)
+    else:
+        _require_owner(conn, owner_id)
     query = "SELECT * FROM reading_chunks WHERE book_id=? AND owner_id=?"
     params: list[str] = [book_id, owner_id]
     if not include_deleted:

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import io
 import sqlite3
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -58,15 +60,59 @@ def connect(db_path: Path | None = None):
     return conn
 
 
+# A passing schema inspection is reused for this long within one server process.
+# Failures are never cached, so a broken schema still stops every request.
+SCHEMA_OK_TTL_SECONDS = 600
+_schema_ok_until: dict[str, float] = {}
+_schema_ok_lock = threading.Lock()
+
+
+def _schema_identity(db_path: Path | None) -> str:
+    configured_override = os.environ.get("BOOK_BUTLER_DB_PATH") if db_path is None else None
+    database_url = database.database_url_from_env() if db_path is None and not configured_override else None
+    if database_url:
+        return "postgres:" + hashlib.sha256(database_url.encode("utf-8")).hexdigest()
+    return "sqlite:" + str(Path(db_path or configured_override or DB_PATH).resolve())
+
+
+def clear_schema_cache() -> None:
+    with _schema_ok_lock:
+        _schema_ok_until.clear()
+
+
 def get_connection(db_path: Path | None = None):
     """Application connection: connect -> read-only contract inspection -> allow/STOP."""
+    identity = _schema_identity(db_path)
     conn = connect(db_path)
+    now = time.monotonic()
+    with _schema_ok_lock:
+        recently_ok = _schema_ok_until.get(identity, 0) > now
+    if recently_ok:
+        return conn
     try:
         require_schema(conn)
     except BaseException:
         conn.close()
         raise
+    with _schema_ok_lock:
+        _schema_ok_until[identity] = now + SCHEMA_OK_TTL_SECONDS
     return conn
+
+
+def connection_reusable(conn) -> bool:
+    """Only an idle, healthy autocommit Postgres connection may serve the next rerun."""
+    raw = getattr(conn, "raw", None)
+    if not database.is_postgres(conn) or raw is None or raw.closed or getattr(raw, "broken", False):
+        return False
+    from psycopg.pq import TransactionStatus
+    status = raw.info.transaction_status
+    if status in (TransactionStatus.INTRANS, TransactionStatus.INERROR):
+        try:
+            raw.rollback()
+        except Exception:
+            return False
+        status = raw.info.transaction_status
+    return status == TransactionStatus.IDLE
 
 
 def get_readonly_connection(db_path: Path | None = None):

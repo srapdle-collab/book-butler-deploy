@@ -537,8 +537,24 @@ def render_badges(conn) -> None:
 
 from lib.schema_preflight import SchemaNotReady
 
+# Each click reruns this script. Reuse the session's healthy Postgres connection
+# instead of reconnecting (TLS + schema check) every time. SQLite stays per-run.
+conn = st.session_state.get("_db_connection")
+conn_kept = conn is not None and db.connection_reusable(conn)
+if not conn_kept:
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+    st.session_state.pop("_db_connection", None)
+    conn = None
 try:
-    conn = db.get_connection()
+    if conn is None:
+        conn = db.get_connection()
+        if db.connection_reusable(conn):
+            st.session_state["_db_connection"] = conn
+            conn_kept = True
 except SchemaNotReady as exc:
     st.error(str(exc))
     st.caption("운영 안내: 읽기 전용 schema_preflight 결과를 확인하고 승인된 관리 작업으로만 준비해주세요.")
@@ -554,8 +570,13 @@ try:
     # 기존 로컬 환경은 이전처럼 개인 서재 흐름을 유지한다.
     has_personal_library = True
     if authenticated_user:
-        ownership.claim_legacy_library(conn, authenticated_user)
-        has_personal_library = ownership.has_personal_library(conn, authenticated_user.id)
+        # Ownership cannot change while the same account stays signed in, so the
+        # claim UPDATEs and the library lookup run once per account per session.
+        if st.session_state.get("library_checked_for") != authenticated_user.id:
+            ownership.claim_legacy_library(conn, authenticated_user)
+            st.session_state.has_personal_library = ownership.has_personal_library(conn, authenticated_user.id)
+            st.session_state.library_checked_for = authenticated_user.id
+        has_personal_library = st.session_state.has_personal_library
     if not has_personal_library and st.session_state.view != "소그룹":
         goto("소그룹")
 
@@ -642,4 +663,5 @@ try:
         </script>''', height=0)
 
 finally:
-    conn.close()
+    if not conn_kept:
+        conn.close()

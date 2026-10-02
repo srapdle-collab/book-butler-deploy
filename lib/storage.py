@@ -3,12 +3,28 @@ from __future__ import annotations
 
 import mimetypes
 import os
+import threading
+import time
 from pathlib import Path
 from urllib.parse import quote
 
 import requests
 
 BUCKET = "book-photos"
+# Reuse a signed URL until 5 minutes before it expires, so every image the
+# browser receives stays valid for at least that long.
+_SIGNED_URL_MARGIN = 300
+_signed_urls: dict[tuple[str, str, int], tuple[str, float]] = {}
+_signed_urls_lock = threading.Lock()
+
+
+def clear_signed_url_cache(key: str | None = None) -> None:
+    with _signed_urls_lock:
+        if key is None:
+            _signed_urls.clear()
+        else:
+            for cached in [item for item in _signed_urls if item[1] == key]:
+                del _signed_urls[cached]
 
 
 def _settings() -> tuple[str, str] | None:
@@ -78,6 +94,7 @@ def upload_photo(key: str, content: bytes, content_type: str | None = None) -> N
     headers["x-upsert"] = "true"
     response = requests.request("POST", _object_url(key), headers=headers, data=content, timeout=60)
     response.raise_for_status()
+    clear_signed_url_cache(key)
 
 
 def delete_photo(key: str) -> None:
@@ -91,6 +108,7 @@ def delete_photo(key: str) -> None:
     )
     if response.status_code not in (200, 404):
         response.raise_for_status()
+    clear_signed_url_cache(key)
 
 
 def signed_url(key: str, expires_in: int = 3600) -> str | None:
@@ -99,6 +117,12 @@ def signed_url(key: str, expires_in: int = 3600) -> str | None:
     if settings is None:
         return None
     url, _ = settings
+    cache_key = (url, key, expires_in)
+    now = time.monotonic()
+    with _signed_urls_lock:
+        cached = _signed_urls.get(cache_key)
+    if cached and cached[1] > now:
+        return cached[0]
     try:
         response = requests.request(
             "POST", f"{url}/storage/v1/object/sign/{BUCKET}/{quote(key, safe='/')}",
@@ -112,4 +136,8 @@ def signed_url(key: str, expires_in: int = 3600) -> str | None:
     signed = response.json().get("signedURL")
     if not signed:
         return None
-    return signed if signed.startswith("http") else f"{url}/storage/v1{signed}"
+    result = signed if signed.startswith("http") else f"{url}/storage/v1{signed}"
+    if expires_in > _SIGNED_URL_MARGIN:
+        with _signed_urls_lock:
+            _signed_urls[cache_key] = (result, now + expires_in - _SIGNED_URL_MARGIN)
+    return result
