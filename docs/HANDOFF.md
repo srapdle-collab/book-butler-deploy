@@ -21,6 +21,15 @@
 
 ## 항목
 
+## David가 이어받을 작업 — 속도 브랜치 임시 배포, Safari 실측 대기 (2026-10-02, Claude Code)
+
+- **무엇을 했는지**: David 지시로 `claude/readdam-speed`를 origin에 push하고, 배포 미러 `deploy/main`을 `d7bbd0a` → `78c68ea`로 일반 fast-forward했다(강제 push 아님). 제품 코드 차이는 속도 수정 5개 파일뿐이다.
+- **어디까지 끝났는지**: deploy 반영까지. **origin/main·로컬 main은 `33c3cfb` 그대로이며 병합하지 않았다.** 지금 운영은 main이 아닌 브랜치 코드로 돈다.
+- **확인해야 할 것**: Streamlit Cloud 재배포 완료와 Safari 실측(책장 재클릭·책 상세·상세 버튼·검색·표지 표시·로그인 후 첫 화면).
+- **다음 작업자**: David(실측) → 결과가 좋으면 `claude/readdam-speed`를 main에 병합(fast-forward 가능) → Codex가 `codex/fix-book-info-20261002`를 그 위로 조정.
+- **브랜치** / **커밋** / **배포 상태**: `claude/readdam-speed` / `78c68ea` / deploy/main=`78c68ea`.
+- **보류·실패·중단 이유**: 되돌리려면 이전 배포 `d7bbd0a`로 돌아가는 revert 커밋을 deploy에 올리거나, David 승인 하에 강제 push가 필요하다. 그 전까지 다른 작업자는 deploy/main에 다른 커밋을 올리지 않는다.
+
 ## David가 이어받을 작업 — 속도 수정 운영 확인 후 main 반영 결정 (2026-10-02, Claude Code)
 
 - **무엇을 했는지**: 클릭마다 반복되던 스키마 검사·소유권 UPDATE·표지 서명 요청·중복 소유권 조회를 없애고, 운영 Postgres 연결을 세션에서 재사용하게 했다. 측정은 WORKLOG 2026-10-02 항목.
