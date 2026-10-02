@@ -68,7 +68,6 @@ def test_progress_form_inserts_numeric_kind_and_updates_current_page(isolated_ap
     at = open_detail()
     at.button(key="open_progress").click().run()
     at.number_input(key="progress_page").set_value(25)
-    at.number_input(key="progress_minutes").set_value(12)
     at.button(key="save_progress").click().run()
     assert not at.exception
 
@@ -77,7 +76,7 @@ def test_progress_form_inserts_numeric_kind_and_updates_current_page(isolated_ap
         "SELECT kind, typeof(kind), text, page, pages_read, minutes_read "
         "FROM activities WHERE kind = 4",
     )
-    assert row == (4, "integer", "15쪽을 12분 동안 읽었습니다", 25, 15, 12)
+    assert row == (4, "integer", "10~25쪽, 15쪽을 읽었습니다", 25, 15, None)
     assert fetch_one(db_path, "SELECT current_page FROM books WHERE id = 'book-1'") == (25,)
 
 

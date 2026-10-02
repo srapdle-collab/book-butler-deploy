@@ -60,6 +60,21 @@ def _upsert(target, table: str, rows: list[dict[str, Any]], key: str) -> int:
     return len(rows)
 
 
+ACTIVITY_SEQUENCE_SYNC = (
+    "SELECT setval(pg_get_serial_sequence('activities','position'), "
+    "COALESCE((SELECT max(position) FROM activities), 1))"
+)
+
+
+def sync_activity_position_sequence(target) -> None:
+    """Explicit positions were copied in, so move the identity past them.
+
+    Without this every new activity reuses an existing position and fails with
+    UniqueViolation (production 2026-09-20 ~ 2026-10-02).
+    """
+    target.execute(ACTIVITY_SEQUENCE_SYNC)
+
+
 def photo_jobs(source: sqlite3.Connection, photos_dir: Path) -> list[tuple[Path, str]]:
     """manifest의 표지/기록 구분을 보존해 Storage object key를 만든다."""
     from lib import storage
@@ -94,6 +109,7 @@ def migrate(sqlite_path: Path, photos_dir: Path, *, apply: bool, verify: bool) -
     try:
         for table, key in TABLES.items():
             _upsert(target, table, source_table_rows(source, table), key)
+        sync_activity_position_sequence(target)
         storage.ensure_bucket()
         def upload(job: tuple[Path, str]) -> None:
             path, key = job

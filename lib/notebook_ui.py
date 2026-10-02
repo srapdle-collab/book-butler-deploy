@@ -111,17 +111,16 @@ def forms(conn,book,goto):
         if mode=='progress':
             from lib.reading import active
             if active(conn):
-                st.caption('위 타이머에서 멈춘 후 도달 페이지를 저장해주세요.')
+                st.caption('위에서 이번 읽기를 마치거나 취소한 뒤 기록할 수 있습니다.')
                 return
-            st.caption('타이머를 사용하지 못한 경우 수동으로 기록할 수 있습니다.')
-            with st.expander('시간 직접 입력'), st.form('progress_form'):
-                page=st.number_input('도달한 페이지',min_value=0,max_value=maximum,value=current,step=1,key='progress_page')
-                minutes=st.number_input('걸린 시간(분)',min_value=1,value=1,step=1,key='progress_minutes')
+            st.caption('시작을 누르지 못했다면, 끝난 쪽만 넣어 바로 기록할 수 있습니다.')
+            with st.expander(f'바로 기록 ({current}쪽부터)'), st.form('progress_form'):
+                page=st.number_input('끝난 쪽',min_value=0,max_value=maximum,value=current,step=1,key='progress_page')
                 saved=st.form_submit_button('진도 저장',key='save_progress')
             if saved:
-                try: db.add_progress(conn,book['id'],int(page),int(minutes))
+                try: db.add_progress(conn,book['id'],int(page))
                 except ValueError as exc: st.error(str(exc))
-                else: close_input('진도를 기록했습니다.')
+                else: close_input(f'{current}~{int(page)}쪽을 기록했습니다.')
             return
         # 사진 선택 즉시 미리보기: 업로더를 form 밖에 둔다.
         uploaded=None

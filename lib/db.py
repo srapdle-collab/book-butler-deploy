@@ -78,6 +78,7 @@ def _schema_identity(db_path: Path | None) -> str:
 def clear_schema_cache() -> None:
     with _schema_ok_lock:
         _schema_ok_until.clear()
+        _sequence_ok_until.clear()
 
 
 def get_connection(db_path: Path | None = None):
@@ -97,6 +98,33 @@ def get_connection(db_path: Path | None = None):
     with _schema_ok_lock:
         _schema_ok_until[identity] = now + SCHEMA_OK_TTL_SECONDS
     return conn
+
+
+_sequence_ok_until: dict[str, float] = {}
+
+
+def activity_sequence_behind(conn, db_path: Path | None = None) -> bool:
+    """Read-only: True when new activities would collide with existing positions.
+
+    Postgres only. A healthy result is reused for SCHEMA_OK_TTL_SECONDS.
+    """
+    if not database.is_postgres(conn):
+        return False
+    identity = _schema_identity(db_path)
+    now = time.monotonic()
+    with _schema_ok_lock:
+        if _sequence_ok_until.get(identity, 0) > now:
+            return False
+    sequence = database.scalar(conn.execute("SELECT pg_get_serial_sequence('activities','position')").fetchone())
+    if not sequence:
+        return False
+    last = database.scalar(conn.execute(f"SELECT last_value FROM {sequence}").fetchone())
+    highest = database.scalar(conn.execute("SELECT COALESCE(max(position), 0) FROM activities").fetchone())
+    behind = last < highest
+    if not behind:
+        with _schema_ok_lock:
+            _sequence_ok_until[identity] = now + SCHEMA_OK_TTL_SECONDS
+    return behind
 
 
 def connection_reusable(conn) -> bool:
@@ -432,7 +460,7 @@ def insert_activity(
     return activity_id
 
 
-def add_progress(conn: sqlite3.Connection, book_id: str, page: int, minutes: int) -> str:
+def add_progress(conn: sqlite3.Connection, book_id: str, page: int, minutes: int | None = None) -> str:
     from lib.reading import manual
     return manual(conn, book_id, page, minutes)
 

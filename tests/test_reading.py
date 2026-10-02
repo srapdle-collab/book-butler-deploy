@@ -22,24 +22,21 @@ def test_timer_recovers_and_stop_freezes_and_save_is_exactly_once(isolated_app):
 def test_only_one_active_timer_and_cancel_has_no_activity(isolated_app):
     from lib import reading
     conn=db.get_connection()
-    first=reading.start(conn,'book-1',now=1000)
-    assert reading.start(conn,'book-1',now=1001)['id']==first['id']
+    first=reading.start(conn,'book-1')
+    assert reading.start(conn,'book-1')['id']==first['id']
     with pytest.raises(ValueError): db.add_progress(conn,'book-1',20,10)
     reading.cancel(conn,first['id'])
     assert conn.execute('SELECT COUNT(*) FROM activities').fetchone()[0]==0
     assert db.get_book(conn,'book-1')['current_page']==10
 
 
-def test_timer_app_new_session_recovers_stopped_timer_and_saves(isolated_app):
+def test_timer_app_new_session_recovers_open_reading_and_saves_page_range(isolated_app):
     at=open_detail()
     at.button(key='open_progress').click().run()
     at.button(key='timer_start').click().run()
     assert not at.exception
-    restarted=open_detail()
-    assert restarted.button(key='timer_stop')
-    restarted.button(key='timer_stop').click().run()
-    assert not restarted.exception
     again=open_detail()
+    assert not [b for b in again.button if b.key=='timer_stop']
     again.number_input(key='timer_page').set_value(20)
     again.button(key='timer_save').click().run()
     assert not again.exception

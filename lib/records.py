@@ -55,7 +55,7 @@ def update(conn,aid,*,page,quote='',text='',minutes=None,expected_revision=UNSET
         row=get(conn,aid,lock=True); check(conn,row,expected_revision)
         db.validate_page(conn,row['book_id'],page)
         if row['kind']==4:
-            if minutes is None or minutes<0: raise ValueError('시간을 0분 이상 입력해주세요.')
+            if minutes is not None and minutes<0: raise ValueError('시간을 0분 이상 입력해주세요.')
             base=base_page(row)
             amount=row['pages_read']
             if page!=row['page']:
@@ -65,10 +65,18 @@ def update(conn,aid,*,page,quote='',text='',minutes=None,expected_revision=UNSET
                 if base is None or page<base: raise ValueError('시작 페이지를 확인할 수 없거나 그보다 앞선 페이지입니다.')
                 amount=page-base
                 conn.execute('UPDATE books SET current_page=? WHERE id=?',(page,row['book_id']))
-            seconds=round(minutes*60)
-            body=f'{amount}쪽을 {seconds/60:g}분 동안 읽었습니다' if amount is not None else f'{seconds/60:g}분 동안 읽었습니다'
+            if minutes is None:
+                # Page-range records carry no time; keep whatever time the record already had.
+                seconds=row['seconds_read']
+                minutes_read=row['minutes_read']
+            else:
+                seconds=round(minutes*60); minutes_read=seconds/60
+            if minutes_read is None:
+                body=f'{base}~{page}쪽, {amount}쪽을 읽었습니다' if base is not None and amount is not None else f'{page}쪽까지 읽었습니다'
+            else:
+                body=f'{amount}쪽을 {minutes_read:g}분 동안 읽었습니다' if amount is not None else f'{minutes_read:g}분 동안 읽었습니다'
             conn.execute('UPDATE activities SET page=?,text=?,pages_read=?,minutes_read=?,seconds_read=?,updated_at=? WHERE id=?',
-                         (page,body,amount,seconds/60,seconds,time.time_ns(),aid))
+                         (page,body,amount,minutes_read,seconds,time.time_ns(),aid))
         else:
             quote=quote.strip() or None; text=text.strip() or None
             if row['kind'] in (0,2) and not (quote or text): raise ValueError('인용문 또는 메모를 입력해주세요.')

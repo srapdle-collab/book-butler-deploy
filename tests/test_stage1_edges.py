@@ -28,12 +28,12 @@ def test_refresh_shelf_offers_active_timer_recovery(isolated_app):
     from lib import reading
     from streamlit.testing.v1 import AppTest
     from test_activity_inputs_app import APP_PATH
-    conn=db.get_connection(); reading.start(conn,'book-1',now=100)
+    conn=db.get_connection(); reading.start(conn,'book-1')
     at=AppTest.from_file(APP_PATH).run()
     at.button(key='resume_timer').click().run()
     assert not at.exception
     assert at.session_state['selected_book_id']=='book-1'
-    assert at.button(key='timer_stop')
+    assert at.number_input(key='timer_page')
 
 
 def test_reopening_quote_uses_latest_page_not_previous_form_value(isolated_app):

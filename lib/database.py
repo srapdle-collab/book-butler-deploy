@@ -47,7 +47,11 @@ def execute(conn, query: str, params=()):
 def read_frame(conn, query: str, params=()):
     if is_postgres(conn):
         # psycopg의 dict row를 DataFrame으로 직접 변환해 열 이름을 보존한다.
-        frame = pd.DataFrame(conn.execute(query, params).fetchall())
+        # 0행이어도 열 이름은 cursor.description에서 가져와야 rows['kind'] 같은
+        # 접근이 KeyError로 죽지 않는다.
+        cursor = conn.execute(query, params)
+        columns = [column.name for column in getattr(cursor, "description", None) or ()]
+        frame = pd.DataFrame(cursor.fetchall(), columns=columns or None)
     else:
         frame = pd.read_sql_query(sql(conn, query), conn, params=params)
     # 한 컬럼의 값이 전부 NULL이면 pandas가 float64/NaN으로 추론해

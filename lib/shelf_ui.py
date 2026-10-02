@@ -2,7 +2,7 @@ import html
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import streamlit as st
-from lib import db
+from lib import database, db
 
 
 PAGE_SIZE = 24
@@ -39,6 +39,19 @@ def _cover_card(book, goto, prefix='shelf', show_progress=False, source=None, so
             on_click=goto,
             args=('책 상세', book['id']),
         )
+
+
+def _open_reading_first(conn, books):
+    """The book being read right now belongs at the front of '이어서 읽기'."""
+    from lib import reading as reading_sessions
+    session = reading_sessions.active(conn)
+    if not session:
+        return books
+    book_id = session['book_id']
+    current = books[books['id'] == book_id]
+    if current.empty:
+        current = database.read_frame(conn, 'SELECT * FROM books WHERE id = ?', (book_id,))
+    return pd.concat([current, books[books['id'] != book_id]], ignore_index=True)
 
 
 def _cover_sources(books):
@@ -80,6 +93,8 @@ def render(conn,goto,add_book):
     # private cover links first. The normal shelf still keeps its resume row.
     searching = bool(st.session_state.get('shelf_search', '').strip())
     reading = db.list_books(conn, status='읽는 중') if not searching else None
+    if reading is not None:
+        reading = _open_reading_first(conn, reading)
     if reading is not None and not reading.empty:
         st.subheader('이어서 읽기')
         _cover_grid(reading.head(6), goto, prefix='resume', show_progress=True)

@@ -564,6 +564,11 @@ except Exception:
     st.error("DB 연결을 확인하지 못했습니다 (UNKNOWN_ERROR). 자동 초기화하지 않습니다. 관리자에게 문의해주세요.")
     st.stop()
 try:
+    if db.activity_sequence_behind(conn):
+        st.error("기록 저장 번호(activities_position_seq)가 어긋나 새 진도·인용구·메모·사진이 저장되지 않습니다. 관리자에게 알려주세요.")
+except Exception:
+    pass
+try:
     from lib import ownership
 
     # Auth 사용자는 자신의 계정에 연결된 서재만 열 수 있다. 비밀번호만 쓰는
@@ -621,12 +626,14 @@ try:
 
     if has_personal_library:
         from lib import reading
-        active_timer = reading.active(conn)
+        active_timer, expired_timer = reading.active_fresh(conn)
+        if expired_timer:
+            st.session_state.notice = "24시간이 지난 읽기를 자동으로 취소했습니다."
         if active_timer:
             with st.sidebar:
                 active_book = db.get_book(conn, active_timer['book_id'])
-                st.info(f"독서 타이머: {active_book['title']}")
-                if st.button('타이머 이어보기', key='resume_timer'):
+                st.info(f"읽는 중: {active_book['title'] if active_book else '책'} ({active_timer['base_page']}쪽부터)")
+                if st.button('읽던 책으로', key='resume_timer'):
                     goto('책 상세', active_timer['book_id'])  # 이유는 위 사이드바 버튼과 동일
     if st.session_state.get("notice"):
         st.toast(st.session_state.pop("notice"))

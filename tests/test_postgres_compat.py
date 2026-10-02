@@ -135,3 +135,26 @@ def test_postgres_transaction_uses_advisory_lock_for_single_reading_timer():
         'work',
         'end',
     ]
+
+
+def test_read_frame_keeps_columns_when_postgres_returns_no_rows():
+    """기록 0건인 책에서 '기록 보기' 필터를 고르면 rows['kind']가 KeyError로
+    앱을 멈췄다(2026-10-02 운영 iPhone에서 발견). 0행이어도 열은 남아야 한다."""
+    from types import SimpleNamespace
+
+    from lib import database
+
+    class Cursor:
+        description = [SimpleNamespace(name='id'), SimpleNamespace(name='kind'), SimpleNamespace(name='page')]
+
+        def fetchall(self):
+            return []
+
+    class PostgresConnection:
+        backend = 'postgres'
+        def execute(self, query, params=()):
+            return Cursor()
+
+    frame = database.read_frame(PostgresConnection(), 'SELECT * FROM activities WHERE book_id = ?', ('x',))
+    assert list(frame.columns) == ['id', 'kind', 'page']
+    assert frame[frame['kind'].isin([0, 2])].empty

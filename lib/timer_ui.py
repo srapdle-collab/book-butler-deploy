@@ -1,54 +1,49 @@
+"""Page-range reading: start at the current page, finish by entering the last page read."""
+from datetime import datetime
+
 import streamlit as st
-import streamlit.components.v1 as components
+
 from lib import db, reading
 
 
-def clock_face(session):
-    seconds=reading.elapsed(session)
-    # 표시만 브라우저에서 갱신. 저장/복구 시간의 기준은 서버 DB다.
-    # 매초 Streamlit 재실행은 화면 전환 후 사라진 fragment를 요청할 수 있다.
-    components.html('''<div style="font-family:system-ui;color:#654526">
-    <small>읽는 시간</small><div id="clock" role="timer" style="font-size:32px;font-variant-numeric:tabular-nums"></div></div>
-    <script>
-    const initial='''+str(seconds)+''';const start=performance.now();
-    function tick(){const s=initial+Math.floor((performance.now()-start)/1000);
-    document.getElementById('clock').textContent=[Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(n=>String(n).padStart(2,'0')).join(':');}
-    tick();setInterval(tick,1000);
-    </script>''',height=80)
+def _started(session) -> str:
+    return datetime.fromtimestamp(session['started_at']).strftime('%m/%d %H:%M')
 
 
 def render(conn,book,goto):
-    session=reading.active(conn)
+    session,expired=reading.active_fresh(conn)
+    if expired:
+        st.toast('24시간이 지난 읽기를 자동으로 취소했습니다.')
     if session:
         if session['book_id']!=book['id']:
             other=db.get_book(conn,session['book_id'])
-            st.info(f"『{other['title']}』의 독서 타이머가 남아 있습니다.")
-            if st.button('진행 중인 책으로 이동',key='timer_go'):
+            title=other['title'] if other else '다른 책'
+            st.info(f"『{title}』을(를) {session['base_page']}쪽부터 읽는 중입니다 ({_started(session)} 시작). "
+                    '그 읽기를 마치거나 취소해야 이 책을 기록할 수 있습니다.')
+            go,drop=st.columns(2)
+            if go.button('그 책으로 이동',key='timer_go',width='stretch'):
                 goto('책 상세',session['book_id']); st.rerun()
+            if drop.button('그 읽기 취소',key='timer_cancel_other',width='stretch'):
+                reading.cancel(conn,session['id']); st.rerun()
             return
-        st.caption(f"시작 페이지 {session['base_page']}쪽 · 새로고침 후에도 복구됩니다.")
-        if session['state']=='running':
-            clock_face(dict(session))
-            if st.button('■ 멈춤',key='timer_stop',type='primary'):
-                reading.stop(conn,session['id']); st.rerun()
-        else:
-            seconds=reading.elapsed(session)
-            st.info(f'읽은 시간 {seconds//60}분 {seconds%60}초 · 멈춘 시점으로 고정됨')
-            with st.form('timer_finish'):
-                page=st.number_input('도달한 페이지',min_value=session['base_page'],max_value=max(book['pages'] or 0,session['base_page']) or None,
-                                     value=session['base_page'],step=1,key='timer_page')
-                submitted=st.form_submit_button('독서 기록 저장',key='timer_save',type='primary')
-            if submitted:
-                try: reading.save(conn,session['id'],int(page))
-                except ValueError as exc: st.error(str(exc))
-                else:
-                    st.session_state.notice='독서 기록을 저장했습니다.'
-                    st.session_state.record_mode=None
-                    st.rerun()
-        if st.button('이번 타이머 취소',key='timer_cancel'):
+        st.markdown(f"**{session['base_page']}쪽부터 읽는 중** · {_started(session)} 시작")
+        maximum=max(book['pages'] or 0,session['base_page']) or None
+        with st.form('timer_finish'):
+            page=st.number_input('끝난 쪽',min_value=session['base_page'],max_value=maximum,
+                                 value=session['base_page'],step=1,key='timer_page')
+            submitted=st.form_submit_button('읽기 끝 · 저장',key='timer_save',type='primary')
+        if submitted:
+            try: reading.finish(conn,session['id'],int(page))
+            except ValueError as exc: st.error(str(exc))
+            else:
+                st.session_state.notice=f"{session['base_page']}~{int(page)}쪽을 기록했습니다."
+                st.session_state.record_mode=None
+                st.rerun()
+        if st.button('이번 읽기 취소',key='timer_cancel'):
             reading.cancel(conn,session['id']); st.rerun()
     elif st.session_state.get('record_mode')=='progress':
-        if st.button('▶ 읽기 시작',key='timer_start',type='primary'):
+        current=int(book['current_page'] or 0)
+        if st.button(f'▶ 읽기 시작 ({current}쪽부터)',key='timer_start',type='primary'):
             try: reading.start(conn,book['id'])
             except ValueError as exc: st.error(str(exc))
             else:

@@ -40,7 +40,7 @@ def editor(conn,row,aid):
     with st.form(f'edit_form_{aid}'):
         page=st.number_input('기록 페이지',min_value=0,value=int(row['page'] or 0),step=1,disabled=not allow_page,key='record_page')
         quote='';text='';minutes=None
-        if is_progress:
+        if is_progress and row.get('minutes_read') is not None:
             minutes=st.number_input('읽은 시간(분)',min_value=0.0,value=max(0.0,float(row.get('minutes_read') or 0)),step=0.5,key='record_minutes')
         else:
             if row['kind']!=1: quote=st.text_area('인용문 (선택)',value=row.get('quote') or '',key='record_quote')
